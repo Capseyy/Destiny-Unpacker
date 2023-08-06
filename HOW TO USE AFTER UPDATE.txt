@@ -1,0 +1,12 @@
+Change D2 Location on line 21
+
+
+1. Empty the output/audio folder, DONT delete it
+2. Open SteamDB and look for large changes in the new manifest to packages (extract data from packages where a large amount of data has been added)
+	sr_videos is cutscenes
+	investment_globals is textures(images)
+	sr_globals(strings,irrelevent)
+	moon is presumably crota, else a new set of packages with a new name
+3. Generate String DB(for activity extraction) OR go straight to cutscenes
+4. Extract Req data
+5. If it aint working replace oo2core file with new one from Destiny2/bin/oo2core and rename to oo2core_9_win64 if the 9 has been changed
