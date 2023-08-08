@@ -11,6 +11,9 @@ import binascii
 import io
 import fnmatch
 import time,ast,struct
+import fbx
+from fbx import FbxManager
+import FbxCommon
 from ast import literal_eval
 from tkinter import *
 from tkinter import ttk
@@ -18,6 +21,7 @@ from functools import partial
 global custom_direc,useful ,path,Hash64Data
 #path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
 path="E:/SteamLibrary/steamapps/common/Destiny2/packages"
+#path="D:/oldd2/packages"
 custom_direc = os.getcwd()+"/out" #Where you want the bin files to go
 oodlepath = os.getcwd()+"/oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
 useful=[]
@@ -974,6 +978,13 @@ class Package:
                     fileFormat=".test"
                 else:
                     fileFormat=".bin"
+                if entry.Type == 40:
+                    if entry.SubType == 4:
+                        fileFormat=".vert"
+                        #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
+                    if entry.SubType == 6:
+                        fileFormat=".index"
+                        #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
             if (fileFormat != ".bin") or (self.useful == ["All"]):
                 #try:
                 #    os.makedirs(custom_direc + self.package_directory.split('/w64')[-1][1:-6])
@@ -2121,6 +2132,11 @@ def NormalRipper(entry,Type):
         if file != "audio":
             os.remove(os.getcwd()+"/out/"+file)
     Popup()
+def twos_complement(hexstr, bits):
+    value = int(hexstr, 16)
+    if value & (1 << (bits - 1)):
+        value -= 1 << bits
+    return value
 class LoadZone:
     def __init__(self,Name,InstCount,Ref):
         self.FileName=Name
@@ -2134,7 +2150,8 @@ class LoadZone:
         self.ExtractFBX()
         self.InstCount=InstCount
         #if ans.upper() == "Y":
-        self.RipStatics()
+        #self.RipStatics()
+        self.RipOwnStatics()
         self.PullStaticMeta()
         self.PullStaticData()
         self.OutputCFG()
@@ -2394,7 +2411,189 @@ class LoadZone:
             except FileNotFoundError:
                 print("L")
         os.chdir(self.CWD)
- 
+    def RipOwnStatics(self):
+        for Static in self.Statics:
+            start=binascii.hexlify(bytes(hex_to_little_endian(Static))).decode('utf-8')
+            new=ast.literal_eval("0x"+start)
+
+            pkg = Hex_String(Package_ID(new))
+            #print(result)
+            ent = Hex_String(Entry_ID(new))
+            Bank=pkg+"-"+ent+".model"
+            print(Bank)
+            file=open(os.getcwd()+"/out/"+Bank,"rb")
+            file.seek(0x8)
+
+            s = binascii.hexlify(bytes(file.read(4))).decode()
+            file.seek(0x50)
+            x=binascii.hexlify(bytes(file.read(4))).decode()
+            xScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))[0]  #vert
+            y=binascii.hexlify(bytes(file.read(4))).decode()
+            yScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))[0]
+            z=binascii.hexlify(bytes(file.read(4))).decode()
+            zScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))[0]
+            print(x,y,z)
+            print(s)
+            flipped=binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')
+            print(flipped)
+            new=ast.literal_eval("0x"+flipped)
+
+            pkg = Hex_String(Package_ID(new))
+            #print(result)
+            ent = Hex_String(Entry_ID(new))
+            Bank=pkg+"-"+ent+".sub" #subfile
+            print(Bank)
+            sub=open(os.getcwd()+"/out/"+Bank,"rb")
+            SubData=binascii.hexlify(bytes(sub.read())).decode()
+            sub.seek(0x4C)
+            Scale=binascii.hexlify(bytes(sub.read(4))).decode()
+            Scale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Scale))).decode('utf-8'))))[0]
+            print(Scale)
+            DataHashes=[]
+            SubData=[SubData[i:i+8] for i in range(0, len(SubData), 8)]
+            for Hash in SubData:
+                temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+                if (temp[3] == "80") or (temp[3] == "81"):
+                    if temp[2] != "80":
+                    #isHash
+                        flipped=binascii.hexlify(bytes(hex_to_little_endian("".join(temp)))).decode('utf-8')
+                        DataHashes.append(flipped)  #index at 0 vert at 1
+            if len(DataHashes) < 2:
+                continue
+            new=ast.literal_eval("0x"+DataHashes[1])
+            new=new+1
+            pkg = Hex_String(Package_ID(new))
+            #print(result)
+            ent = Hex_String(Entry_ID(new))
+            print(DataHashes)
+            HashDiff=int(ast.literal_eval("0x"+DataHashes[len(DataHashes)-1]))-int(ast.literal_eval("0x"+DataHashes[0]))+3
+            vertFound=False
+            indFound=False
+            for i in range(int(HashDiff)):
+                new=int(ast.literal_eval("0x"+DataHashes[0]))+i-1
+                #new=ast.literal_eval("0x"+DataHashes[1])
+
+                pkg = Hex_String(Package_ID(new))
+                ent = Hex_String(Entry_ID(new))
+                
+                if vertFound == False:     #very poor way of finding buffers
+                    Bank=pkg+"-"+ent+".vert"
+                    try:
+                        vert=open(os.getcwd()+"/out/"+Bank,"rb") #hash +1???
+                    except FileNotFoundError:
+                        u=1
+                    else:
+                        vertFound=True
+                   
+                if indFound==False:
+                    Bank=pkg+"-"+ent+".index"
+                    try:
+                        ind=open(os.getcwd()+"/out/"+Bank,"rb") #hash +1???
+                    except FileNotFoundError:
+                        u=1
+                    else:
+                        indFound=True
+            if (vertFound == True) and (indFound == True):
+                verts=[]
+                print("RUNNING")
+                Length=binascii.hexlify(bytes(vert.read())).decode()
+                vert.seek(0x0)
+                print(len(Length))
+                num=len(Length)/32
+                print(num)
+                for i in range(int(num)):
+                    s = binascii.hexlify(bytes(vert.read(16))).decode()
+                    Data=[s[i:i+4] for i in range(0, len(s), 4)]
+                    #x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8')))/32767
+                    #y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8')))/32767  #i = struct.unpack('<I', padded)
+                    #z=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8')))/32767
+                    x= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    y= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    z= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    verts.append([x,y,z])
+                #print(verts)
+                new=ast.literal_eval("0x"+DataHashes[0])
+                new=new-1
+                pkg = Hex_String(Package_ID(new))
+                #print(result)
+                ent = Hex_String(Entry_ID(new))
+                Bank=pkg+"-"+ent+".index"
+                #ind=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
+                faces=[]
+                Length = binascii.hexlify(bytes(ind.read())).decode()
+                ind.seek(0x00)
+                for i in range(int(len(Length)/4)):
+                    s = binascii.hexlify(bytes(ind.read(2))).decode()
+                    #print(s)
+                    data=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')))
+                    faces.append(data)
+
+                #print(faces[len(faces)-1]) 
+                
+       
+                memory_manager = fbx.FbxManager.Create()
+                scene = fbx.FbxScene.Create(memory_manager, '')
+                my_mesh = fbx.FbxMesh.Create(scene, Static)
+                count=0
+                my_mesh.InitControlPoints(len(verts))
+                for Set in verts:
+                    v = fbx.FbxVector4(Set[0]/10, Set[1]/10, Set[2]/10)
+                    my_mesh.SetControlPointAt( v, count )
+                    count+=1
+                print(verts[0])
+                #for i in range(0,int(len(faces)/3),3):
+                #    data=[faces[i],faces[i+1],faces[i+2]]
+                #    my_mesh.addface(data)
+                print(len(faces)/ 3)
+                for i in range(0, len(faces), 3):
+                        my_mesh.BeginPolygon()
+                        for j in range(3):
+                            vertex_index = faces[i + j]
+                            my_mesh.AddPolygon(vertex_index)
+                        my_mesh.EndPolygon()
+                        
+                cubeLocation = (xScale, yScale, zScale)
+                cubeScale    = (Scale, Scale, Scale)
+
+                newNode = addNode(scene, Static, location = cubeLocation)
+                rootNode = scene.GetRootNode()
+                #rootNode.LclTranslation.set(fbx.FbxDouble3(xScale, yScale, zScale))
+                rootNode.AddChild( newNode )
+
+                newNode.SetNodeAttribute( my_mesh )
+                newNode.ScalingActive.Set(1)
+                px = fbx.FbxDouble3(1, 1, 1)
+                #if not memory_manager.GetIOSettings():
+                #    ios = fbx.IOSettings.Create(memory_manager, IOSROOT)
+                #    memory_manager.SetIOSettings(ios)
+                #io_settings = memory_manager.GetIOSettings()
+                #io_settings.SetBoolProp(fbx.FbxBoolProperty.eEXP_FBX_MATERIAL, True)
+                #newNode.LclScaling.Set(px)
+                #root_node.AddChild(my_mesh)
+                #scene.add(my_mesh)
+                filename = os.getcwd()+"\\data\\Statics\\Statics\\"+Static+".fbx"
+                FbxCommon.SaveScene(memory_manager, scene, filename)
+                #exporter = fbx.FbxExporter.Create(memory_manager, filename)
+                
+                #filename = os.getcwd()+"\\Statics\\"+OutName+".fbx"
+                #status = exporter.Initialize(filename, -1, memory_manager.GetIOSettings())
+                #scene.save()
+                #exporter.Export(scene)
+                #print(status)
+                #exporter.Destroy()
+                memory_manager.Destroy()
+            else:
+                print("Skipped")
+def addNode( pScene, nodeName, **kwargs ):
+    
+    # Obtain a reference to the scene's root node.
+    #scaling = kwargs["scaling"]
+    location = kwargs["location"]
+    newNode = fbx.FbxNode.Create( pScene, nodeName )
+    newNode.LclScaling.Set(fbx.FbxDouble3(1, 1, 1))
+    newNode.LclTranslation.Set(fbx.FbxDouble3(location[0]*1, location[1]*1, location[2]*1))
+    return newNode
+           
 def CubeRipper(entry):
     filelist=[]
     temp=entry.get().split("_")
@@ -2505,6 +2704,7 @@ def LoadNames(top):
         print(Load[2])
         Data=binascii.hexlify(bytes(file.read())).decode()
         data=[Data[i:i+32] for i in range(0, len(Data), 32)]
+        file.close() ##############################################################################################
         LoadHashes=[]
         First=True
         #print(len(data))
@@ -2765,7 +2965,7 @@ if __name__ == '__main__':
     Hash64(path)
     Hash64Data=ReadHash64()
     top = Tk()
-    top.title("Caps Program")
+    top.title("The Tech")
     top.geometry("1200x600")
     bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
     label1 = Label(top, image = bg)
