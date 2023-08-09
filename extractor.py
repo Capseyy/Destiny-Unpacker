@@ -23,7 +23,7 @@ global custom_direc,useful ,path,Hash64Data
 path="E:/SteamLibrary/steamapps/common/Destiny2/packages"
 #path="D:/oldd2/packages"
 custom_direc = os.getcwd()+"/out" #Where you want the bin files to go
-oodlepath = os.getcwd()+"/oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
+oodlepath = os.getcwd()+"/ThirdParty/oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
 useful=[]
 
 def stripZeros(txt):
@@ -43,7 +43,7 @@ def stripZeros(txt):
         #print("".join(temp[index:]))
         return str("".join(temp[index:]))
 def ReadHash64():
-    file=open("h64.txt","r")
+    file=open(os.getcwd()+"/cache/h64.txt","r")
     data=file.read()
     Hash64Data=data.split("\n")
     return Hash64Data
@@ -79,7 +79,7 @@ def Hex_String(Num):
     ])
 
 class File:
-    def __init__(self,Name,FileType,StrData):
+    def __init__(self,Name,FileType,StrData,ActName):
         self.Name=Name
         self.FileType=FileType
         #self.Tags=[]
@@ -91,10 +91,10 @@ class File:
         #self.FindTags()
         #self.ReadFile64()
         self.FindHashes()
-        self.ActName=[]
+        self.ActName=ActName
         self.QueHashes=[]
         self.Banks=[]
-        output=open("Directive.txt","a")
+        output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("Activity File: \n")
         output.write(self.Name+"\n")
         output.close()
@@ -129,7 +129,7 @@ class File:
                 PkgID=Hex_String(Package_ID(dec))
                 EntryID=Hex_String(Entry_ID(dec))
                 DirName=PkgID+"-"+EntryID
-                output=open("Directive.txt","a")
+                output=open(os.getcwd()+"/cache/directive.txt","a")
                 output.write("Dialogue Table \n")
                 output.write(DirName+"\n")
                     
@@ -235,7 +235,7 @@ class File:
         print("Done Getting Hashes")
         self.Hashes=Hashes
     def PullStrings(self):
-        output=open("Directive.txt","a")
+        output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("\nMusic Script + Loadzones : \n")
         if self.ActName != []:
             output.write(self.ActName+"\n")
@@ -251,13 +251,9 @@ class File:
         #print(self.Strings)
     def GetName(self):
         count=0
-        for Bytes in self.Data:
-            if Bytes == "65008080":
-                length=self.Data[count+1]
-                ActName="".join(self.Data[count+3:len(self.Data)-1])
-                self.ActName=str(binascii.unhexlify(ActName).decode())
-                break
-            count+=1
+        output=open(os.getcwd()+"/cache/directive.txt","a")
+        output.write("\n"+self.ActName+"\n")
+        output.close()
     def GetMusAndDir(self):
         #getdir
         FoundDir=False
@@ -289,7 +285,7 @@ class File:
         if self.AudioFound == True:
             self.BnkSearch()
         #BNKExplorer
-        output=open("Directive.txt","a")
+        output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("\n\n\n\n")
         output.close()
             
@@ -337,7 +333,7 @@ class File:
                             PkgID=Hex_String(Package_ID(new))
                             EntryID=Hex_String(Entry_ID(new))
                             AudioDrive2=PkgID.upper()+"-"+EntryID.upper()+".bnk"
-                            output=open("Directive.txt","a")
+                            output=open(os.getcwd()+"/cache/directive.txt","a")
                             output.write("\nSoundBank: \n")
                             output.write(AudioDrive2)
                             output.close()
@@ -351,7 +347,7 @@ class File:
         Direct=open(custom_direc+"/"+self.StrDirectory,"rb")
         Data=binascii.hexlify(bytes(Direct.read())).decode()
         Direct.close()
-        output=open("Directive.txt","a")
+        output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("\nDIRECTIVE: \n")
         self.Direct=[Data[i:i+8] for i in range(0, len(Data), 8)]
         for Hash in self.Direct:
@@ -390,7 +386,7 @@ class File:
                 break
             count+=1
                 
-        Dev=open("Directive.txt","a")
+        Dev=open(os.getcwd()+"/cache/directive.txt","a")
         Dev.write("\n\n\nMusic Cue List\n")
         file.seek(0xA0)
         #StartingOffset=176
@@ -880,7 +876,7 @@ class Package:
         return decompressed
 
     def output_files(self, all_pkg_bin, custom_direc):
-        refFile=open("refFile.txt","w")
+        refFile=open(os.getcwd()+"/cache/refFile.txt","w")
         for entry in self.entry_table.Entries[::-1]:
             #print(entry)
             current_block_id = entry.StartingBlock
@@ -985,6 +981,12 @@ class Package:
                     if entry.SubType == 6:
                         fileFormat=".index"
                         #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
+            if "ActName" in self.useful:
+                fileFormat=".bin"
+                if entry.EntryA == "0x80808e8e":  #0x28 leads to modelocclusionbounds                         #LHash->Dt->
+                    fileFormat=".act"
+                elif entry.EntryA == "0x80808e8b":  #0x28 leads to modelocclusionbounds                         #LHash->Dt->
+                    fileFormat=".dest"
             if (fileFormat != ".bin") or (self.useful == ["All"]):
                 #try:
                 #    os.makedirs(custom_direc + self.package_directory.split('/w64')[-1][1:-6])
@@ -1003,6 +1005,7 @@ class Package:
             #print(f"Wrote to {entry.FileName} successfully")
         refFile.close()
 def check_input(event):
+    global lst, combo_box
     value = event.widget.get()
 
     if value == '':
@@ -1052,7 +1055,7 @@ def setD2Location(loc,top):
     path=loc.get()
     MainWindow(top)
 
-def DataView(top):
+def DataView(top,name):
     for widget in top.winfo_children():
         widget.destroy()
     bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
@@ -1060,14 +1063,22 @@ def DataView(top):
     
     Back = Button(top, text="Back", height=1, width=15,command=partial(ActivityMenu,top))
     Back.place(x=10, y=10)
-    file = open("Directive.txt","r").read()
+    Output = Button(top, text="Export Data", height=1, width=15,command=partial(OutputAct, name))
+    Output.place(x=1050, y=430)
+    file = open(os.getcwd()+"/cache/directive.txt","r").read()
     T = Text(top, height = 500, width = 110)
     T.insert(END,file)
     T.pack()
     label1.place(x=0,y=0)
     top.mainloop()
-
+def OutputAct(name):
+    file = open(os.getcwd()+"/cache/directive.txt","r").read()
+    file2 = open(os.getcwd()+"/Activity/"+name+".txt","w")
+    file2.write(file)
+    file2.close()
+    
 def CutsceneView(top):
+    global lst, combo_box
     lst=[]
     for widget in top.winfo_children():
         widget.destroy()
@@ -1207,32 +1218,139 @@ def CutsceneRip(box):
         #input()
     os.chdir(currentPath)
     Popup()
+def GenerateActivityNames():
+    filelist=[]
+    
+    ActNames=[]
+    useful=["ActName","0x80808e8e","0x80808e8b"]
+    for file in os.listdir(path)[::-1]:
+        if fnmatch.fnmatch(file,'w64*'):   #CHANGE HERE
+            filelist.append(file)
+    unpack_all(path,custom_direc,useful,filelist)
+    for File in os.listdir(os.getcwd()+"/out"):
+        if File == "audio":
+            continue
+        if File.split(".")[1] == "dest":
+            FileName=File.split(".")[0]
+            CurrentOffset=0
+            Pointers=[]
+            #print(File)
+            file=open(custom_direc+"/"+File,"rb")
+            #file.seek(0xA0)
+            ActivityFound=False
+            while ActivityFound == False:
+                Data=binascii.hexlify(bytes(file.read(16))).decode()
+                DataSplit=[Data[i:i+8] for i in range(0, len(Data), 8)]
+                if "2e898080" in DataSplit:
+                    ActivityFound=True
+                    Len=DataSplit[0][:4]
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Len))).decode('utf-8')
+                    Len=ast.literal_eval("0x"+stripZeros(flipped))
+                CurrentOffset+=16
+            StartingOffset=CurrentOffset
+            #CurrentOffset=176
+            #print(Len)
+            for i in range(Len):
+                Data=binascii.hexlify(bytes(file.read(24))).decode()
+                #ActivityData.append(Data)
+                
+                Data2=[Data[i:i+4] for i in range(0, len(Data), 4)]
+                #print(Data)
+                Pointer=Data2[8]
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Pointer))).decode('utf-8')
+                Len=ast.literal_eval("0x"+stripZeros(flipped))
+                Pointers.append([int(Len)+CurrentOffset+16,Data[16:32]])
+                CurrentOffset+=24
 
+                
+            
+            StrFound=False
+            while StrFound == False:
+                Data=binascii.hexlify(bytes(file.read(4))).decode()
+                if Data == "65008080":
+                    StrFound=True
+                CurrentOffset+=4
+            CurrentOffset+=8
+            file.seek(CurrentOffset)
+            Strings=file.read().decode()
+            #print(Strings)
+            FilesNames=[]
+            count=0  
+            for Pointer in Pointers:
+                name=""
+                #print(Pointer)
+                Start=Pointer[0]-CurrentOffset
+                #print(Start)
+                try:
+                    Pointers[count+1][0]
+                except IndexError:
+                    name=Strings[Start:]
+                else:
+                    Start2=Pointers[count+1][0] - CurrentOffset
+                    name=Strings[int(Start):int(Start2)]
+                fixed=name.split("\x00")[0]
+                if "ambient" not in fixed.split("_"):
+                    FilesNames.append(Pointer[1]+" : "+fixed)
+                count+=1
+                #print(name)
+            #print(FilesNames)
+            for FileName in FilesNames:
+                ActNames.append(FileName)
+    theFile=open(os.getcwd()+"/cache/ActivityHashes.txt","w")
+    stuff=[]
+    for File in os.listdir(os.getcwd()+"/out"):
+        if File == "audio":
+            continue
+        if File.split(".")[1] == "act":
+            file=open(os.getcwd()+"/out/"+File,"rb")
+            Data=binascii.hexlify(file.read()).decode('utf-8')
+            DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
+            for Act in ActNames:
+                if Act.split(" : ")[0] in Data:
+                    pkgId= File.split("-")[0]
+                    for file in os.listdir(path):
+                        temp=file.split("_")
+                        if pkgId.lower() in file.split("_"):
+                            PackageName="_".join(temp[:len(temp)-2])
+                            stuffToAdd=Act+" : "+PackageName
+                            if stuffToAdd not in stuff:
+                                stuff.append(stuffToAdd)
+    for Thing in stuff:
+        theFile.write(str(Thing)+"\n")
+    theFile.close()
+                    
+    for file in os.listdir(os.getcwd()+"/out"):
+        if file != "audio":
+            os.remove(os.getcwd()+"/out/"+file)        
 def ActivityRipper(entry):
     print("Starting ACT")
-    output=open("Directive.txt","w")   #Comment out to not clear on reset
+    package=""
+    ActId=""
+    ActName=entry.get()
+    File2=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+    data=File2.read()
+    File2.close()
+    Activities=data.split("\n")
+    for Act in Activities:
+        temp=Act.split(" : ")
+        if entry.get() in temp:
+            package=temp[2]
+            ActId=temp[0]
+            print("found")
+            break
+    output=open(os.getcwd()+"/cache/directive.txt","w")   #Comment out to not clear on reset
     filelist=[]
     filelist2=[]
     num=len(os.listdir(custom_direc+"/audio"))
     if entry.get() != "All":
         for file in os.listdir(path)[::-1]:
-            if fnmatch.fnmatch(file,entry.get()+"*"):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
+            if fnmatch.fnmatch(file,package+"*"):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
                 filelist.append(file)
             if int(num) < 10:
                 if fnmatch.fnmatch(file,'w64_sr_audio*'):
                     filelist2.append(file)
                 if fnmatch.fnmatch(file,'w64_sr_dia*'):
                     filelist2.append(file)
-    else:
-        for file in os.listdir(path)[::-1]:
-            if fnmatch.fnmatch(file,"w64*"):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
-                filelist.append(file)
-            if int(num) < 10:
-                if fnmatch.fnmatch(file,'w64_sr_audio*'):
-                    filelist2.append(file)
-                if fnmatch.fnmatch(file,'w64_sr_dia*'):
-                    filelist2.append(file)
-    
     useful=["0x808045eb","0x80808e8e","0x80808ec7","0x80808e8b","0x80809650","0x80809738","0x80808363","0x808090d5","0x808097b8"]
     print("run unpack")
     unpack_all(path,custom_direc,useful,filelist)
@@ -1242,10 +1360,11 @@ def ActivityRipper(entry):
         unpack_all(path,custom_direc,useful,filelist2)
     Files=[]
     print("Starting Process")
-    file=open("output.txt","r")
-    data=file.read()
+    file2=open(os.getcwd()+"/cache/output.txt","r")
+    data=file2.read()
+    file2.close()
     StrData=data.split("\n")
-    file.close()
+    #file.close()
     newStrData=[]
     for String in StrData:
         try:
@@ -1264,24 +1383,30 @@ def ActivityRipper(entry):
     for FileName in os.listdir(custom_direc):
         if FileName != "audio":
             if FileName.split(".")[1] == "act":
-                file=File(FileName,FileName.split(".")[1],StrData)
-                Files.append(file)
-                print(FileName)
-                file.FindHashes()
-                print("Got HAshes")
-                file.GetName()
-                print("GotName")
-                file.PullStrings()
-                print("Got Strings")
-                file.GetMusAndDir()
-                print("Get Mus and Dir")
-                file.GetDialogue()
+                ActFile=open(os.getcwd()+"/out/"+FileName,"rb")
+                Data=binascii.hexlify(ActFile.read()).decode('utf-8')
+                ActFile.close()
+                DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
+                if ActId in DataSplit:
+                    print("Extracting")
+                    file=File(FileName,FileName.split(".")[1],StrData,ActName)
+                    Files.append(file)
+                    print(FileName)
+                    file.FindHashes()
+                    print("Got HAshes")
+                    file.GetName()
+                    print("GotName")
+                    file.PullStrings()
+                    print("Got Strings")
+                    file.GetMusAndDir()
+                    print("Get Mus and Dir")
+                    file.GetDialogue()
     print("done")
     for file in os.listdir(custom_direc):
         if file != "audio":
             os.remove(custom_direc+"/"+file)
     Popup()
-    DataView(top)
+    DataView(top,entry.get())
     
     
 def binary_search(arr, x):
@@ -1302,7 +1427,6 @@ def binary_search(arr, x):
         # means x is present at mid
         else:
             return mid
- 
     # If we reach here, then the element was not present
     return -1
 def StringHash(Hash,StrData):
@@ -1320,20 +1444,26 @@ def StringHash(Hash,StrData):
         return False
             
 def ActivityMenu(top):
-    lst=["All"]
+    global lst, combo_box
+    lst=[]
+    file=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+    data=file.read()
+    file.close()
+    ActDat=data.split("\n")
+    ActDat.remove("")
+    for Act in ActDat:
+        #print(Act)
+        things=Act.split(" : ")
+        lst.append(things[1])
     for widget in top.winfo_children():
         widget.destroy()
+    lst.sort(reverse=False)
     bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
     label1 = Label(top, image = bg)
     label1.pack()
-    for File in os.listdir(path):
-        temp=File.split("_")
-        new="_".join(temp[:(len(temp)-2)])
-        if new not in lst:
-            lst.append(new)
     #print(lst)
     useful=[]
-    combo_box = ttk.Combobox(top,height=20, width=30)
+    combo_box = ttk.Combobox(top,height=20, width=50)
     combo_box['values'] = lst
     combo_box.bind('<KeyRelease>', check_input)
     combo_box.place(x=500, y=125)
@@ -1358,7 +1488,7 @@ def Strings(ans):
     unpack_all(path,custom_direc,useful,filelist)
     strPath=custom_direc
     print("Outputting...")
-    output=open("output.txt","w")
+    output=open(os.getcwd()+"/cache/output.txt","w")
     output.close()
     allRefs=[]
     Files=os.listdir(strPath)
@@ -1479,7 +1609,7 @@ def Strings(ans):
         num=0
         
         for String in BnkLengths:
-            out=open("output.txt","a")
+            out=open(os.getcwd()+"/cache/output.txt","a")
             if str(list(String[0])[2]+list(String[0])[3]) != "00":
                 #print("CHAT COMMAND DETECTED")
                 #print(list(String[0]))
@@ -1525,7 +1655,7 @@ def Strings(ans):
     Popup()
 
 def RefDataRead():
-    file=open("refFile.txt","r")
+    file=open(os.getcwd()+"/cache/refFile.txt","r")
     dat=file.read()
     RefDat=dat.split("\n")
     file.close()
@@ -1987,7 +2117,7 @@ class DDS:
         os.remove(self.FileName.split(".")[0]+".dds")
     
 def Hash64(packagesPath):
-    file1=open("h64.txt","w")
+    file1=open(os.getcwd()+"/cache/h64.txt","w")
     filelist = []
     for file in os.listdir(packagesPath)[::-1]:
         if fnmatch.fnmatch(file,'w64_*'):
@@ -2625,6 +2755,7 @@ def RipAllTextures(entry):
     os.chdir(currentPath)
     Popup()
 def TextureWindow(top):
+    global lst, combo_box
     lst=[]
     for widget in top.winfo_children():
         widget.destroy()
@@ -2665,7 +2796,7 @@ def LoadNames(top):
     Translations=[]
     DynamicHashes=[]
     LoadNames=[]
-    file=open("output.txt","r")
+    file=open(os.getcwd()+"/cache/output.txt","r")
     data=file.read()
     StrData=data.split("\n")
     file.close()
@@ -2728,6 +2859,7 @@ def LoadNames(top):
     for Load in LoadNames:
         count+=1
         print(str(count)+" "+Load[0]+Load[2])
+    global lst, combo_box
     lst=[]
     lst=LoadNames
     #answer=int(input("Enter which Load you want to pull from: "))
@@ -2900,6 +3032,7 @@ def QuitOut(top):
     top.destroy()
     sys.exit()
 def MapWindow(top):
+    global lst, combo_box
     lst=[]
     for widget in top.winfo_children():
         widget.destroy()
@@ -2923,7 +3056,7 @@ def MapWindow(top):
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
     ClearMap = Button(top, text="Clear Maps", height=1, width=15,command=partial(ClearMaps,top))
-    ClearMap.place(x=1000, y=420)
+    ClearMap.place(x=1000, y=430)
     top.mainloop()
     
 def MainWindow(top):
@@ -2934,6 +3067,8 @@ def MainWindow(top):
     label1.pack()
     String = Button(top, text="Generate String DB", height=1, width=15,command=partial(Strings,"y"))
     String.place(x=500, y=125)
+    ActName = Button(top, text="Generate Activity DB", height=1, width=15,command=partial(GenerateActivityNames))
+    ActName.place(x=700, y=175)
     String2 = Button(top, text="No Ext (Debug)", height=1, width=15,command=partial(Strings,"n"))
     String2.place(x=700, y=125)
     Activity = Button(top, text="Extract Activity Data", height=1, width=15,command=partial(ActivityMenu,top))
@@ -2955,7 +3090,7 @@ def MainWindow(top):
     ClearTex = Button(top, text="Clear Textures", height=1, width=15,command=partial(ClearTextures,top))
     ClearTex.place(x=1000, y=470)
     ClearMap = Button(top, text="Clear Maps", height=1, width=15,command=partial(ClearMaps,top))
-    ClearMap.place(x=1000, y=420)
+    ClearMap.place(x=1000, y=430)
     Quit = Button(top, text="Quit", height=1, width=15,command=partial(QuitOut,top))
     Quit.place(x=100, y=510)
     

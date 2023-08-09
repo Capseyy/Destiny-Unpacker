@@ -12,10 +12,181 @@ import struct
 installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
 objects = bpy.data.objects
 scene = bpy.context.scene
-
+Type = "Map"
+Name = "Test"
+def Is_Map():
+    if "Map" in Type:
+        return True
+    if "Terrain" in Type:
+        return True
+    else:
+        return False
 def hex_to_little_endian(hex_string):
     little_endian_hex = bytearray.fromhex(hex_string)[::-1]
     return little_endian_hex
+def cleanup():
+    print(f"Cleaning up...")
+    #Delete all the objects in static_names
+    #if Is_Map():
+    #    for name in static_names.values():
+    #        bpy.data.objects.remove(bpy.data.objects[name[0]])
+        
+    #Removes unused data such as duplicate images, materials, etc.
+    for block in bpy.data.meshes:
+        if block.users == 0:
+            bpy.data.meshes.remove(block)
+
+    for block in bpy.data.materials:
+        if block.users == 0:
+            bpy.data.materials.remove(block)
+
+    for block in bpy.data.textures:
+        if block.users == 0:
+            bpy.data.textures.remove(block)
+
+    for block in bpy.data.images:
+        if block.users == 0:
+            bpy.data.images.remove(block)
+    print("Done cleaning up!")
+def add_to_collection():
+    # List of object references
+    objs = bpy.context.selected_objects
+    # Set target collection to a known collection 
+    coll_target = bpy.context.scene.collection.children.get(str(Name))
+    # If target found and object list not empty
+    if coll_target and objs:
+        # Loop through all objects
+        for ob in objs:
+            # Loop through all collections the obj is linked to
+            for coll in ob.users_collection:
+                # Unlink the object
+                coll.objects.unlink(ob)
+            # Link each object to the target collection
+            coll_target.objects.link(ob)
+
+def assemble_map():
+    print(f"Starting import on {Type}: {Name}")
+    
+    #make a collection with the name of the imported fbx for the objects
+    bpy.data.collections.new(str(Name))
+    bpy.context.scene.collection.children.link(bpy.data.collections[str(Name)])
+    bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(Name)]
+
+    #bpy.ops.import_scene.fbx(filepath=FileName, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True) #Just imports the fbx, no special settings needed
+    
+    #assign_materials()
+    add_to_collection() 
+
+    newobjects = bpy.data.collections[str(Name)].objects
+    objects = bpy.data.objects
+    for O in objects:
+        print(str(O.name)[:8])
+    #print(newobjects)
+    print(f"Imported {Type}: {Name}")
+    
+    #Merge statics, create instances for maps only
+    if Is_Map():
+        print("Merging Map Statics... ")
+        tmp = []
+        bpy.ops.object.select_all(action='DESELECT')
+     
+        #merge static parts into one object
+        #for obj in tmp:
+        #    bpy.ops.object.select_all(action='DESELECT')
+        #    for meshes, mats in config["Parts"].items():
+        #        if meshes[:8] == obj and meshes in bpy.context.view_layer.objects:
+        #            print(meshes + " belongs to " + obj)
+        #            bpy.data.objects[meshes].select_set(True)
+        #            bpy.context.view_layer.objects.active = bpy.data.objects[meshes]
+        #    bpy.ops.object.join()
+        #bpy.ops.outliner.orphans_purge()
+
+        #merge static parts into one object, Old method
+        # for x in range(0, 4): #For some reason one pass doesnt work, this slows the import down a bit, idk a better fix
+        #     for obj in tmp:
+        #         bpy.ops.object.select_all(action='DESELECT')
+        #         #print(obj)
+        #         for obj2 in newobjects:
+        #             if obj2.name[:8] == obj and obj in tmp:
+        #                 tmp.remove(obj)
+        #                 obj2.select_set(True)
+        #                 bpy.context.view_layer.objects.active = obj2
+        #         bpy.ops.object.join()
+        #         bpy.ops.outliner.orphans_purge()
+
+        newobjects = [] #Clears the list just in case
+        newobjects = bpy.data.collections[str(Name)].objects #Readds the objects in the collection to the list
+
+        print("Instancing...")
+        
+        for Object in bpy.data.objects:
+            try:
+                file=open(installLoc+"data/Statics/Instances/"+str(Object.name)[:8]+".inst","r")
+            except:
+                print("no file")
+            else:
+                
+                data=file.read().split("\n")
+                file.close()
+                #print(data)
+                data.remove('')
+                #print(data)
+                print(Object.name)               
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
+        #print(flipped)
+                new=ast.literal_eval("0x"+flipped)
+                PkgID=Hex_String(Package_ID(new))
+                EntryID=Hex_String(Entry_ID(new))
+                DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
+                #print(data)
+                for instance in data:
+                    instance=instance.split(",")
+                    ob_copy = bpy.data.objects[Object.name].copy()
+                    bpy.context.collection.objects.link(ob_copy) #makes the instances
+
+                    location = [float(instance[4]), float(instance[5]), float(instance[6])]
+                    #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
+                    quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
+                #flipped=binascii.hexlify(bytes(hex_to_little_endian(static))).decode('utf-8')
+                #print(flipped)
+                #new=ast.literal_eval("0x"+flipped)
+                #PkgID=Hex_String(Package_ID(new))
+                #EntryID=Hex_String(Entry_ID(new))
+                #DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
+                #file=open("C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/MapExtracter/data/"+DirName,"rb")
+                #data=Data=binascii.hexlify(bytes(file.read())).decode()
+                #file.close()
+                #Data=[data[i:i+32] for i in range(0, len(data), 32)]
+                #Vert=Data[5]
+                #Dat=[Vert[i:i+8] for i in range(0, len(Vert), 8)] #X,Y,Z,Scale
+                #x=binascii.hexlify(bytes(hex_to_little_endian(Dat[0]))).decode('utf-8')
+                #y=binascii.hexlify(bytes(hex_to_little_endian(Dat[1]))).decode('utf-8')
+                #z=binascii.hexlify(bytes(hex_to_little_endian(Dat[2]))).decode('utf-8')
+                #X=struct.unpack('!f', bytes.fromhex(x))[0]
+                #Y=struct.unpack('!f', bytes.fromhex(y))[0]
+                #Z=struct.unpack('!f', bytes.fromhex(z))[0]
+                #location = [instance["Translation"][0], instance["Translation"][1], instance["Translation"][2]]
+                    ob_copy.location = location
+                    ob_copy.rotation_mode = 'QUATERNION'
+                    ob_copy.rotation_quaternion = quat
+                    #if 7<Scale<8:
+                    
+                        #ob_copy.delta_scale=([Scale/10])*3
+                    ob_copy.scale = [float(instance[7])]*3
+        
+        if "Terrain" in Type:
+            for x in newobjects:
+                x.select_set(True)
+                bpy.ops.object.rotation_clear(clear_delta=False) #Clears the rotation of the terrain
+
+    if not Is_Map():
+        for x in newobjects:
+            x.select_set(True)
+            #Clear the scale and rotation of the entity
+            bpy.ops.object.rotation_clear(clear_delta=False)
+            bpy.ops.object.scale_clear(clear_delta=False)
+
+    cleanup()
 
 
 def Package_ID(Hash):
@@ -144,3 +315,4 @@ for Obj in bpy.data.objects:
 #        bpy.data.objects.remove(Obj)
 
         
+assemble_map()
