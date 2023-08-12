@@ -10,6 +10,8 @@ import struct
 
 #Adapted from Monteven's UE5 import script
 installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
+Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_DIR"
+
 objects = bpy.data.objects
 scene = bpy.context.scene
 Type = "Map"
@@ -121,7 +123,7 @@ def assemble_map():
         
         for Object in bpy.data.objects:
             try:
-                file=open(installLoc+"data/Statics/Instances/"+str(Object.name)[:8]+".inst","r")
+                file=open(Filepath+"/Instances/"+str(Object.name)[:8]+".inst","r")
             except:
                 print("no file")
             else:
@@ -217,11 +219,11 @@ def Hex_String(Num):
 currentPath=os.getcwd()
 
 count=0
-for Fbx in os.listdir(installLoc+"data/Statics/Statics"):
+for Fbx in os.listdir(Filepath+"/Statics"):
     
     split=Fbx.split(".")
     if split[1] == "fbx":
-        path=installLoc+"data/Statics/Statics/"+Fbx
+        path=Filepath+"/Statics/"+Fbx
         print("ran")
         bpy.ops.object.select_all(action='DESELECT')
         thing=(0,0,0)
@@ -314,5 +316,30 @@ for Obj in bpy.data.objects:
 #    if split[1] != "1":
 #        bpy.data.objects.remove(Obj)
 
+new_mat = bpy.data.materials.new("Mat")
+for mat in bpy.data.materials:
+    if not mat.use_nodes:
+        mat.metallic = 1
+        continue
+    for n in mat.node_tree.nodes:
+        if n.type == 'BSDF_PRINCIPLED':
+            n.inputs["Metallic"].default_value = 1
+for obj in bpy.data.objects:
+    #get name of object
+    name = obj.name
+    
+    # check if object has material same as object name
+    # if there is then continue to next object
+    if name in obj.data.materials:
+        continue
+    
+    #create new material with name of object
+    
+    
+    #add new material to object
+    obj.data.materials.append(new_mat)
+    #added material will be last in material slots
+    #so make last slot active
+    obj.active_material_index = len(obj.data.materials) - 1 
         
 assemble_map()

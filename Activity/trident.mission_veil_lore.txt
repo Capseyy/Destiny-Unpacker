@@ -1,0 +1,1024 @@
+trident.mission_veil_lore
+
+Music Script + Loadzones : 
+trident.mission_veil_lore
+Neomuna
+Veil Containment
+
+
+
+Music Cue List
+1156398957: players land boots on ground in the veil glass area observation space to get some dialog lore on the veil week over week  
+
+
+
+
+Dialogue Table 
+
+1330834402 : Chioma Esi, research log: Lakshmi-2.
+2772287883 : Chioma Esi, research log: Lakshmi-2.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+26869695 : What?!
+1875230370 : What?!
+3079912270 : Osiris
+3079912270 : Osiris
+3315648410 : Maya's… I don't even know what to say. I'd recused myself from further experiments. Told her to take some time off. She refused.
+3127244035 : Maya's… I don't even know what to say. I'd recused myself from further experiments. Told her to take some time off. She refused.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1190901276 : And she… the minute I wasn't there, she started hauling the braindead Exos out of cold storage. Hooking them up to the Veil interface.
+3297133977 : And she… the minute I wasn't there, she started hauling the braindead Exos out of cold storage. Hooking them up to the Veil interface.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+281103898 : She burned through dozens of them. Reversed the entire machine's design.
+1863255355 : She burned through dozens of them. Reversed the entire machine's design.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3749039140 : Used a chorus of braindead Exos to funnel data down to the conductor seat, projecting a mental imprint. Hers.
+781343457 : Used a chorus of braindead Exos to funnel data down to the conductor seat, projecting a mental imprint. Hers.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1766173802 : I… I didn't know Lakshmi-2, but Maya did. And now she's… she's made this thing. It speaks with her voice. Has some of her memories.
+2774950935 : I… I didn't know Lakshmi-2, but Maya did. And now she's… she's made this thing. It speaks with her voice. Has some of her memories.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4239514718 : The way it looks at me… 
+494000783 : The way it looks at me… 
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1092403084 : It's like it knows something I don't.
+3620365661 : It's like it knows something I don't.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1185083748 : Osiris, do you recognize that name? "Lakshmi"?
+756157345 : Osiris, do you recognize that name? "Lakshmi"?
+3387691167 : Nimbus
+3387691167 : Nimbus
+1831389156 : Yes… and no. Lakshmi-2 was an Exo and once-leader of a faction on Earth known as the Future War Cult. She died over a year ago.
+641253569 : Yes… and no. Lakshmi-2 was an Exo and once-leader of a faction on Earth known as the Future War Cult. She died over a year ago.
+3079912270 : Osiris
+3079912270 : Osiris
+2370255267 : But she never once made mention of any of this. Of Neomuna, of… Maya. Did she know? Did she remember?
+3330717714 : But she never once made mention of any of this. Of Neomuna, of… Maya. Did she know? Did she remember?
+3079912270 : Osiris
+3079912270 : Osiris
+3117338553 : This is all as much a revelation to me as it is to you. It throws everything she did while in the Last City into question. 
+892854404 : This is all as much a revelation to me as it is to you. It throws everything she did while in the Last City into question. 
+3079912270 : Osiris
+3079912270 : Osiris
+899669787 : I mean, with… if she was a copy of Dr. Sundaresh, then… is she really dead?
+2067226882 : I mean, with… if she was a copy of Dr. Sundaresh, then… is she really dead?
+3387691167 : Nimbus
+3387691167 : Nimbus
+18297510 : I don't know.
+2813675991 : I don't know.
+3079912270 : Osiris
+3079912270 : Osiris
+1584898920 : For now, I must deliver a rather uncomfortable report to Ikora.
+2256006877 : For now, I must deliver a rather uncomfortable report to Ikora.
+3079912270 : Osiris
+3079912270 : Osiris
+2313407874 : Chioma Esi, log… whatever.
+2286409603 : Chioma Esi, log… whatever.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1898291516 : The Warmind has reactivated. Our base on Hyperion detected network activity. He found us. Classified our location "Nefele Stronghold."
+222013809 : The Warmind has reactivated. Our base on Hyperion detected network activity. He found us. Classified our location "Nefele Stronghold."
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1121771561 : We already estimate that Rasputin has attempted remote interference with our network. Our research.
+3635885284 : We already estimate that Rasputin has attempted remote interference with our network. Our research.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+598132319 : It can't. I won't let what we've learned here ruin more lives. I'm going to send Stargazer off-world to… to deal with the problem.
+555312482 : It can't. I won't let what we've learned here ruin more lives. I'm going to send Stargazer off-world to… to deal with the problem.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2829989319 : They can take Lakshmi with them and... do whatever. As long as it's out of the city. Out of my sight.
+3933078410 : They can take Lakshmi with them and... do whatever. As long as it's out of the city. Out of my sight.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2879494219 : It's a risk, taking an action off-world. Exposing ourselves. But we have to. What we've done here has to be quarantined.
+3550180294 : It's a risk, taking an action off-world. Exposing ourselves. But we have to. What we've done here has to be quarantined.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+96411226 : The Veil is too much power. Too much for anyone.
+98905079 : The Veil is too much power. Too much for anyone.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1480251077 : Stargazer! That puts the time of this recording around the foundation of the Cloud Striders. Chioma must have been… REALLY old.
+1100442836 : Stargazer! That puts the time of this recording around the foundation of the Cloud Striders. Chioma must have been… REALLY old.
+3387691167 : Nimbus
+3387691167 : Nimbus
+1304924870 : And Stargazer is the one responsible for redacting Nefele Stronghold from Rasputin's records… or Maya by proxy with Lakshmi. Fascinating.
+836513891 : And Stargazer is the one responsible for redacting Nefele Stronghold from Rasputin's records… or Maya by proxy with Lakshmi. Fascinating.
+3079912270 : Osiris
+3079912270 : Osiris
+2337145367 : There's two more logs left; once we've decrypted them, I will need to take time to contemplate the larger picture they present.
+910382670 : There's two more logs left; once we've decrypted them, I will need to take time to contemplate the larger picture they present.
+3079912270 : Osiris
+3079912270 : Osiris
+2073161930 : [exhales] You and me both.
+1199424135 : [exhales] You and me both.
+3387691167 : Nimbus
+3387691167 : Nimbus
+3238513736 : Chioma Esi, research log: SIVA.
+3512552869 : Chioma Esi, research log: SIVA.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4061880965 : SIVA is a nanotech fabrication system, intended to be used by Exodus ships to rapidly build necessary resources from base matter.
+2422096116 : SIVA is a nanotech fabrication system, intended to be used by Exodus ships to rapidly build necessary resources from base matter.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2137049763 : Maya calls it "Willa Bray's obsession" without a hint of self-awareness. But we—we both see the potential it poses for the future.
+2480283782 : Maya calls it "Willa Bray's obsession" without a hint of self-awareness. But we—we both see the potential it poses for the future.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1144856434 : Each nanomachine in SIVA's design is an independent, thinking machine, utilizing a distributed quantum network to coordinate movement.
+151667355 : Each nanomachine in SIVA's design is an independent, thinking machine, utilizing a distributed quantum network to coordinate movement.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+190804810 : Like a... mechanical version of radiolaria. Probably where the design was inspired from, if I'm being honest.
+1497004947 : Like a... mechanical version of radiolaria. Probably where the design was inspired from, if I'm being honest.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3467066518 : But the design can be pushed. We're, uh—we're looking at ways of incorporating components from disabled Vex and erased Exominds.
+3682965927 : But the design can be pushed. We're, uh—we're looking at ways of incorporating components from disabled Vex and erased Exominds.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2057671847 : If we can insulate the nanomachines from the radiation that killed the Exos, maybe… maybe their deaths won't be for nothing.
+2113925698 : If we can insulate the nanomachines from the radiation that killed the Exos, maybe… maybe their deaths won't be for nothing.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1591712906 : Wait… does this really mean I'm part Vex?
+4188345575 : Wait… does this really mean I'm part Vex?
+3387691167 : Nimbus
+3387691167 : Nimbus
+692974950 : It's too early to jump to these conclusions, Nimbus! But there does seem to be some connection between the Vex and the Cloud Striders.
+3551366655 : It's too early to jump to these conclusions, Nimbus! But there does seem to be some connection between the Vex and the Cloud Striders.
+3079912270 : Osiris
+3079912270 : Osiris
+1917230964 : It may explain why you and the others are able to enter the Vex network without the aid of Splicers.
+3863077253 : It may explain why you and the others are able to enter the Vex network without the aid of Splicers.
+3079912270 : Osiris
+3079912270 : Osiris
+499103472 : Can I... time travel?
+2907615913 : Can I... time travel?
+3387691167 : Nimbus
+3387691167 : Nimbus
+339086222 : [laughs] Oh… let's hope not.
+2248093171 : [laughs] Oh… let's hope not.
+3079912270 : Osiris
+3079912270 : Osiris
+2857292651 : The Veil is too great a power for humanity to wield responsibly. All that's left is to close down the facility. 
+4276502794 : The Veil is too great a power for humanity to wield responsibly. All that's left is to close down the facility. 
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2410565225 : Neomuna will go on. Humanity will persist on the back of our unspeakable work. But I won't pass that guilt on to humanity's future.
+515413724 : Neomuna will go on. Humanity will persist on the back of our unspeakable work. But I won't pass that guilt on to humanity's future.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+990665340 : My hands can be bloodied. Let the children have innocence.
+3033312629 : My hands can be bloodied. Let the children have innocence.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+894720266 : And in my dissolution, I will find peace.
+2474689059 : And in my dissolution, I will find peace.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+135794614 : I don't know if I agree with Chioma's choice to hide the sins of the past. But… I also do not know what I would do in her place.
+175870991 : I don't know if I agree with Chioma's choice to hide the sins of the past. But… I also do not know what I would do in her place.
+3079912270 : Osiris
+3079912270 : Osiris
+1362662569 : Quinn says there's a data signature on this file, like something else was crawling the network. A… Vex signature?
+4202064952 : Quinn says there's a data signature on this file, like something else was crawling the network. A… Vex signature?
+3387691167 : Nimbus
+3387691167 : Nimbus
+4186718293 : What's… MSund12?
+1562350320 : What's… MSund12?
+3387691167 : Nimbus
+3387691167 : Nimbus
+2066005831 : There's one log left to decrypt. Perhaps we'll find out.
+2860883882 : There's one log left to decrypt. Perhaps we'll find out.
+3079912270 : Osiris
+3079912270 : Osiris
+4164500116 : Chioma Esi, research log: Veil interface.
+4110152621 : Chioma Esi, research log: Veil interface.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3411675601 : Maya and I have finalized a prototype interface for the Veil. Hopefully, it'll allow our research team to investigate it in detail.
+2497712724 : Maya and I have finalized a prototype interface for the Veil. Hopefully, it'll allow our research team to investigate it in detail.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2018935005 : The system's designed like an orchestra, with a central "conductor" directing a symphony of minds to act like a distributed network.
+3820032460 : The system's designed like an orchestra, with a central "conductor" directing a symphony of minds to act like a distributed network.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2631738078 : The... idea came to us by watching how collective networks like SIVA and the Vex operate.
+2926172659 : The... idea came to us by watching how collective networks like SIVA and the Vex operate.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1552441417 : The hope is we can aggregate and parse the vast amounts of psychic data emitting from the Veil. Turn it into something intelligible.
+1286831892 : The hope is we can aggregate and parse the vast amounts of psychic data emitting from the Veil. Turn it into something intelligible.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2194967103 : If we're successful, the interface will provide us with a starting point for any future technological research tied to the Veil.
+723484598 : If we're successful, the interface will provide us with a starting point for any future technological research tied to the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2448058560 : The risks of—of such integration are high. The estimated mortality rates are… but I… I…
+3930898317 : The risks of—of such integration are high. The estimated mortality rates are… but I… I…
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2244634153 : I don't know what I'm doing.
+4150694312 : I don't know what I'm doing.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3859179165 : This is wrong. This is so wrong! We shouldn't—all she ever talks about is survival! "Think big picture!"
+1554733440 : This is wrong. This is so wrong! We shouldn't—all she ever talks about is survival! "Think big picture!"
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2725878917 : What about your survival? What about your heart? My heart?
+25652220 : What about your survival? What about your heart? My heart?
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3851077241 : [sighs tearfully] I can't keep doing this. I can't. I can't!
+1590745880 : [sighs tearfully] I can't keep doing this. I can't. I can't!
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+922992731 : Damn.
+2831456506 : Damn.
+3387691167 : Nimbus
+3387691167 : Nimbus
+3726120080 : I… again, I see a shadow of myself in Maya Sundaresh. The man I could have become had I let obsession continue to rule me.
+233158825 : I… again, I see a shadow of myself in Maya Sundaresh. The man I could have become had I let obsession continue to rule me.
+3079912270 : Osiris
+3079912270 : Osiris
+115961228 : I'm worried what the next recording will reveal.
+486489781 : I'm worried what the next recording will reveal.
+3079912270 : Osiris
+3079912270 : Osiris
+965748166 : Me too.
+1121893979 : Me too.
+3387691167 : Nimbus
+3387691167 : Nimbus
+2506344258 : Chioma Esi, incident log: the Vex.
+3777873067 : Chioma Esi, incident log: the Vex.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+296751713 : Interesting.
+1934121672 : Interesting.
+3079912270 : Osiris
+3079912270 : Osiris
+2599562306 : Six weeks ago, our settlement came under attack by an intrusion of Vex forces. It was a test of our defenses for a larger incursion.
+1194306203 : Six weeks ago, our settlement came under attack by an intrusion of Vex forces. It was a test of our defenses for a larger incursion.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2798036381 : Yesterday, scouts discovered temporally realigned architecture just outside the stronghold limits.
+3442109016 : Yesterday, scouts discovered temporally realigned architecture just outside the stronghold limits.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3703240930 : The Vex had retroactively inserted themselves into Neptune's history… just like they did on Venus.
+2864665195 : The Vex had retroactively inserted themselves into Neptune's history… just like they did on Venus.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3208762351 : But unlike Venus, something stopped them short of our habitat. They had to fight their way in. I think it's the Veil.
+1571768138 : But unlike Venus, something stopped them short of our habitat. They had to fight their way in. I think it's the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2648018151 : Something about the paracausal nature of the Veil is preventing their temporal excursions. But the Vex aren't giving up.
+3125051606 : Something about the paracausal nature of the Veil is preventing their temporal excursions. But the Vex aren't giving up.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1507520880 : They did something to Neptune's magnetic field—wove a sim into it. A screen to isolate us.
+1819583757 : They did something to Neptune's magnetic field—wove a sim into it. A screen to isolate us.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+990520463 : It's a double-edged sword. The Vex screen hides us from the outside world, from whatever's happened. So we're safe… ish.
+1016202742 : It's a double-edged sword. The Vex screen hides us from the outside world, from whatever's happened. So we're safe… ish.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2625706176 : But we're stuck with the Vex. Thankfully, they're slow to react, and it's giving us time to research countermeasures.
+62549813 : But we're stuck with the Vex. Thankfully, they're slow to react, and it's giving us time to research countermeasures.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+142144387 : Huh… it's almost our anniversary. I should do something for Maya. She'll forget. She's always so busy.
+970726126 : Huh… it's almost our anniversary. I should do something for Maya. She'll forget. She's always so busy.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1703091199 : Computer, prepare food synthesis. File: Chioma date night 6. Oh, and add a bottle of port.
+3293241438 : Computer, prepare food synthesis. File: Chioma date night 6. Oh, and add a bottle of port.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2740945066 : Osiris? You… all right?
+3986303679 : Osiris? You… all right?
+3387691167 : Nimbus
+3387691167 : Nimbus
+1245606687 : Y—yes, I'm fine; I just, um… saw shadows. My choices. Saint. Dr. Sundaresh and I walked very similar paths of obsession, it seems.
+1674330050 : Y—yes, I'm fine; I just, um… saw shadows. My choices. Saint. Dr. Sundaresh and I walked very similar paths of obsession, it seems.
+3079912270 : Osiris
+3079912270 : Osiris
+1583885070 : Oh.
+2647217563 : Oh.
+3387691167 : Nimbus
+3387691167 : Nimbus
+3393950074 : [stutters] Nevertheless… it appears that Neomuna's history is deeply tied to the Vex. Hopefully the next decryption will shed more light on this.
+1682193347 : [stutters] Nevertheless… it appears that Neomuna's history is deeply tied to the Vex. Hopefully the next decryption will shed more light on this.
+3079912270 : Osiris
+3079912270 : Osiris
+357017427 : Excellent. That terminal is functional. I've sent a data-mining application to your Ghost. Upload it, and let's see what we can find.
+3689524738 : Excellent. That terminal is functional. I've sent a data-mining application to your Ghost. Upload it, and let's see what we can find.
+3079912270 : Osiris
+3079912270 : Osiris
+168223033 : What've we got?
+2401630316 : What've we got?
+3387691167 : Nimbus
+3387691167 : Nimbus
+3680072326 : Interesting. The Vex have been attempting to breach an air-gap firewall in the old Ishtar Collective systems at Veil Containment.
+1903521707 : Interesting. The Vex have been attempting to breach an air-gap firewall in the old Ishtar Collective systems at Veil Containment.
+3079912270 : Osiris
+3079912270 : Osiris
+3454706173 : My initial investigation indicated those systems had been wiped in some sort of electromagnetic event. But perhaps, in our haste, we overlooked something.
+182021980 : My initial investigation indicated those systems had been wiped in some sort of electromagnetic event. But perhaps, in our haste, we overlooked something.
+3079912270 : Osiris
+3079912270 : Osiris
+2079063601 : Let us go discover what the Vex have been after.
+993750524 : Let us go discover what the Vex have been after.
+3079912270 : Osiris
+3079912270 : Osiris
+1828531504 : This Vex data is intriguing. It seems as though they're trying to access servers not currently connected to the CloudArk.
+3269263125 : This Vex data is intriguing. It seems as though they're trying to access servers not currently connected to the CloudArk.
+3079912270 : Osiris
+3079912270 : Osiris
+2360922757 : Do we even have systems that aren't connected? Huh, that's weird. Does it say where they're digging?
+3074317164 : Do we even have systems that aren't connected? Huh, that's weird. Does it say where they're digging?
+3387691167 : Nimbus
+3387691167 : Nimbus
+994828674 : Not yet, no. We need a few more data points. Guardian, let's get moving.
+3625961075 : Not yet, no. We need a few more data points. Guardian, let's get moving.
+3079912270 : Osiris
+3079912270 : Osiris
+3699778880 : Chioma Esi, research log: the Veil.
+506349937 : Chioma Esi, research log: the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1922462005 : [sighs] I don't even know where to start. When we landed on Neptune, there was… something waiting for us. An alien structure.
+3342113316 : [sighs] I don't even know where to start. When we landed on Neptune, there was… something waiting for us. An alien structure.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2842154622 : It's an electromagnetic anomaly. No mass, but a tangible surface area. It's like a thesis statement to the Von Neumann-Wigner hypothesis.
+1987972503 : It's an electromagnetic anomaly. No mass, but a tangible surface area. It's like a thesis statement to the Von Neumann-Wigner hypothesis.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3289355043 : It's definitely paracausal, like the Traveler. Maya calls it the Veil. She says she heard the name in a whisper when… when she looked at it.
+2800526326 : It's definitely paracausal, like the Traveler. Maya calls it the Veil. She says she heard the name in a whisper when… when she looked at it.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2795055825 : When I asked her who whispered, she said it was... her own voice. I still haven't had time to process that.
+2993333224 : When I asked her who whispered, she said it was... her own voice. I still haven't had time to process that.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2613842425 : Everyone on the initial survey team died. The minute they touched the object, they entered a state of… of brain death. All of them.
+1361508208 : Everyone on the initial survey team died. The minute they touched the object, they entered a state of… of brain death. All of them.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2021147889 : To make it worse, the EM radiation emitting from the Veil is causing psychological distress in the Exos that came with us.
+467650372 : To make it worse, the EM radiation emitting from the Veil is causing psychological distress in the Exos that came with us.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+773239665 : They've all described moments of intense, hallucinogenic reverie. Some of them went silent and rigid and just… stopped.
+2793764504 : They've all described moments of intense, hallucinogenic reverie. Some of them went silent and rigid and just… stopped.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+152837796 : Maya called it "billboarding." Something from the early days of Clovis Bray's Exomind project. She doesn't seem afraid. Or surprised.
+842516857 : Maya called it "billboarding." Something from the early days of Clovis Bray's Exomind project. She doesn't seem afraid. Or surprised.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1071739754 : She's convinced this thing—in her own words, she says—it'll be our "salvation."
+289581363 : She's convinced this thing—in her own words, she says—it'll be our "salvation."
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+275362879 : Fascinating. This corroborates what Nezarec said… that the Veil survived Savathûn's escapade.
+693569050 : Fascinating. This corroborates what Nezarec said… that the Veil survived Savathun's escapade.
+3079912270 : Osiris
+3079912270 : Osiris
+448941815 : This must have been the root of Savathûn's betrayal: stalling the Witness's plan to buy time to counter it.
+3601688814 : This must have been the root of Savathun's betrayal: stalling the Witness's plan to buy time to counter it.
+3079912270 : Osiris
+3079912270 : Osiris
+3125182969 : So... she stole the Veil from Nezarec?
+4203872756 : So... she stole the Veil from Nezarec?
+3387691167 : Nimbus
+3387691167 : Nimbus
+852516428 : And killed him in doing so. It explains what happened to the lunar Pyramid. Why it's dormant.
+1603111401 : And killed him in doing so. It explains what happened to the lunar Pyramid. Why it's dormant.
+3079912270 : Osiris
+3079912270 : Osiris
+3490873327 : And what about the rest of this? What happened to the Exos? Is… is that what happened to all of them?
+2369202930 : And what about the rest of this? What happened to the Exos? Is… is that what happened to all of them?
+3387691167 : Nimbus
+3387691167 : Nimbus
+4226353989 : I have some theories, but… it's too early. Regardless, it sounds like the Veil had an ill effect on Dr. Sundaresh. We must be cautious.
+1403400148 : I have some theories, but… it's too early. Regardless, it sounds like the Veil had an ill effect on Dr. Sundaresh. We must be cautious.
+3079912270 : Osiris
+3079912270 : Osiris
+100380370 : Hopefully the next log we decrypt will shed more light on this enigma.
+3867467339 : Hopefully the next log we decrypt will shed more light on this enigma.
+3079912270 : Osiris
+3079912270 : Osiris
+2783998863 : Chioma Esi, research log: the Veil.
+209413606 : Chioma Esi, research log: the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3705284550 : She did it! Maya connected people to the Veil. Our own scientists. And they survived.
+2512758747 : She did it! Maya connected people to the Veil. Our own scientists. And they survived.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1110149691 : I should be happy, but… happy that all this horror wasn't for nothing? But I'm not. I'm disgusted. In myself. In Maya. In all of us.
+3798153150 : I should be happy, but… happy that all this horror wasn't for nothing? But I'm not. I'm disgusted. In myself. In Maya. In all of us.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4255351376 : This thing, the Veil. It's... it's some kind of web of consciousness. Just like the Vex network, but organic instead of artificial.
+2134445777 : This thing, the Veil. It's... it's some kind of web of consciousness. Just like the Vex network, but organic instead of artificial.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3250069424 : It makes sense why the Vex want it. Paracausal simulations? There'd be no stopping them. 
+2736824089 : It makes sense why the Vex want it. Paracausal simulations? There'd be no stopping them. 
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2774588201 : I should be happy. To—to be a part of history, to solve a cosmic riddle. Happy for Maya; happy for all of us. But I'm not.
+539573172 : I should be happy. To—to be a part of history, to solve a cosmic riddle. Happy for Maya; happy for all of us. But I'm not.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2536671090 : I don't feel anything.
+792563823 : I don't feel anything.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4108976313 : Maya is gone. The woman I knew... may as well have died when we landed on Neptune. 
+2827301944 : Maya is gone. The woman I knew... may as well have died when we landed on Neptune. 
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1202404822 : But her ghost still haunts me… this place. I don't know what to do. There's a generation of children born here now. This is their home.
+3498447919 : But her ghost still haunts me… this place. I don't know what to do. There's a generation of children born here now. This is their home.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3620980169 : [sighs] I don't know what to do.
+3398220576 : [sighs] I don't know what to do.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+468079178 : Damn. Osiris, this is… I don't know if I want to listen to this anymore.
+3762090111 : Damn. Osiris, this is… I don't know if I want to listen to this anymore.
+3387691167 : Nimbus
+3387691167 : Nimbus
+1271854986 : Obsession is a beast with long, sharp talons. A beast that does not so easily release its prey. Maya Sundaresh is… but one victim.
+1284199691 : Obsession is a beast with long, sharp talons. A beast that does not so easily release its prey. Maya Sundaresh is… but one victim.
+3079912270 : Osiris
+3079912270 : Osiris
+745072390 : That sounds like you're talking from experience.
+4225990359 : That sounds like you're talking from experience.
+3387691167 : Nimbus
+3387691167 : Nimbus
+3139771025 : Painfully so. But unlike Dr. Sundaresh, I found a way out of the beast's grasp, before it was too late.
+4226623340 : Painfully so. But unlike Dr. Sundaresh, I found a way out of the beast's grasp, before it was too late.
+3079912270 : Osiris
+3079912270 : Osiris
+488254035 : How?
+3096446346 : How?
+3387691167 : Nimbus
+3387691167 : Nimbus
+3202582149 : By losing.
+1512582548 : By losing.
+3079912270 : Osiris
+3079912270 : Osiris
+3183538310 : Years ago, back on Venus, the Vex simulated copies of us—Maya and I. Trapped in a virtual hell.
+2561907151 : Years ago, back on Venus, the Vex simulated copies of us—Maya and I. Trapped in a virtual hell.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4014218281 : After so long, even hell can look like heaven, can't it? [chuckles] I'm tired. I'm done.
+3057678084 : After so long, even hell can look like heaven, can't it? [chuckles] I'm tired. I'm done.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+130013721 : Maya has to be out there. The Maya I remember. And all I want is one more moment with her.
+768394116 : Maya has to be out there. The Maya I remember. And all I want is one more moment with her.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2648876744 : To hold her in my arms. Tell her that I love her. So she can tell me to "hush" one more time.
+3245363669 : To hold her in my arms. Tell her that I love her. So she can tell me to "hush" one more time.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1321009014 : If… if we learned anything from the Veil, it's that eventually… we all have to learn to let go.
+4203169199 : If… if we learned anything from the Veil, it's that eventually… we all have to learn to let go.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3539186895 : So… I made contact with the Vex. I'm ready. And it's time to say goodbye.
+542544046 : So… I made contact with the Vex. I'm ready. And it's time to say goodbye.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1032268261 : In the end, Maya Sundaresh was consumed by her desire to understand and her inability to let go. 
+3597475724 : In the end, Maya Sundaresh was consumed by her desire to understand and her inability to let go. 
+3079912270 : Osiris
+3079912270 : Osiris
+3753973650 : She and Chioma lost everything in pursuit of knowledge. Chioma abandoned it all—sought to wipe the slate clean for future generations.
+3565098319 : She and Chioma lost everything in pursuit of knowledge. Chioma abandoned it all—sought to wipe the slate clean for future generations.
+3079912270 : Osiris
+3079912270 : Osiris
+3631467124 : What did we learn from all of this?
+1202336565 : What did we learn from all of this?
+3387691167 : Nimbus
+3387691167 : Nimbus
+2553205494 : That the Veil is Darkness—the power of consciousness made manifest—as much as the Traveler is the Light, the power of the physical world.
+4276740099 : That the Veil is Darkness—the power of consciousness made manifest—as much as the Traveler is the Light, the power of the physical world.
+3079912270 : Osiris
+3079912270 : Osiris
+229102938 : The implications are great. But so too are the risks. As a younger man, I may have fallen into the same trap Maya did. But now, I know better.
+1251064227 : The implications are great. But so too are the risks. As a younger man, I may have fallen into the same trap Maya did. But now, I know better.
+3079912270 : Osiris
+3079912270 : Osiris
+3149305373 : We must proceed with caution… lest the river sweeps us away.
+2198485456 : We must proceed with caution… lest the river sweeps us away.
+3079912270 : Osiris
+3079912270 : Osiris
+3479284361 : Chioma Esi, personal log: incidental.
+2796230392 : Chioma Esi, personal log: incidental.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1928856576 : Maya's dead.
+234099185 : Maya's dead.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1547324947 : I found her in the conductor's chair, alone. Nobody knows what she was doing.
+892548002 : I found her in the conductor's chair, alone. Nobody knows what she was doing.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2709102776 : Her "copy"—that thing, Lakshmi—is still developmentally incomplete. It doesn't understand what happened to Maya.
+1358536469 : Her "copy"—that thing, Lakshmi—is still developmentally incomplete. It doesn't understand what happened to Maya.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2583254923 : I had it quarantined until we can...
+2038976710 : I had it quarantined until we can...
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1446116919 : Until we...
+2797262122 : Until we...
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3150897825 : …Do something.
+2163438824 : …Do something.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2710705927 : There's no dates on any of these files. There's no telling how much time is set between them.
+1672906306 : There's no dates on any of these files. There's no telling how much time is set between them.
+3387691167 : Nimbus
+3387691167 : Nimbus
+2820819898 : Time enough for loss. How many are left?
+2639168387 : Time enough for loss. How many are left?
+3079912270 : Osiris
+3079912270 : Osiris
+530792610 : Three more.
+2860999731 : Three more.
+3387691167 : Nimbus
+3387691167 : Nimbus
+3417743928 : Then let us hope there are yet more answers to uncover.
+1685985281 : Then let us hope there are yet more answers to uncover.
+3079912270 : Osiris
+3079912270 : Osiris
+2593501503 : Chioma Esi, research log: the Veil.
+2297041302 : Chioma Esi, research log: the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+918584700 : We shouldn't settle here. It's a mistake. But Maya is insistent that we have to build our long-term shelters near the Veil.
+3352100397 : We shouldn't settle here. It's a mistake. But Maya is insistent that we have to build our long-term shelters near the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+533150091 : We're almost done constructing an enclosure around it. Once the field emitters are up, we should at least be safe from its radiation.
+3054158054 : We're almost done constructing an enclosure around it. Once the field emitters are up, we should at least be safe from its radiation.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3427539078 : The SIVA tech Maya had on the Exodus was a lifesaver. Not only for building the enclosure, but shelters, tools—we'd be dead without it.
+241141635 : The SIVA tech Maya had on the Exodus was a lifesaver. Not only for building the enclosure, but shelters, tools—we'd be dead without it.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2797520964 : But it still wasn't fast enough. The last Exo in our group succumbed to brain death yesterday. Maya's... quarantined the bodies for study.
+3013660033 : But it still wasn't fast enough. The last Exo in our group succumbed to brain death yesterday. Maya's... quarantined the bodies for study.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1418439555 : She says our next step should be finding a way to draw power from the Veil so we're self-sufficient. I'm insisting on turbines instead.
+2627996278 : She says our next step should be finding a way to draw power from the Veil so we're self-sufficient. I'm insisting on turbines instead.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3315026474 : But she doesn't think that's good enough. Not for as long-term as this might be. Which—I guess. But I can't shake this feeling…
+2460256343 : But she doesn't think that's good enough. Not for as long-term as this might be. Which—I guess. But I can't shake this feeling…
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+59327452 : Like we're making a terrible mistake.
+724947277 : Like we're making a terrible mistake.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3840171216 : I'm not getting a good vibe from this. Quinn says these records contradict some of her own.
+1297108985 : I'm not getting a good vibe from this. Quinn says these records contradict some of her own.
+3387691167 : Nimbus
+3387691167 : Nimbus
+2926287815 : But there's a ton of references to Maya Sundaresh in our archives that are redacted. I'm… I'm worried, Osiris.
+3513375082 : But there's a ton of references to Maya Sundaresh in our archives that are redacted. I'm… I'm worried, Osiris.
+3387691167 : Nimbus
+3387691167 : Nimbus
+2324700625 : What if everything we've been told our whole lives—what if it was all a lie?
+1329151888 : What if everything we've been told our whole lives—what if it was all a lie?
+3387691167 : Nimbus
+3387691167 : Nimbus
+86551626 : Don't despair yet, young friend. The truth may be somewhere between these logs and what you've been told in the past.
+4219124415 : Don't despair yet, young friend. The truth may be somewhere between these logs and what you've been told in the past.
+3079912270 : Osiris
+3079912270 : Osiris
+1879110312 : In my experience, history can be contradictory. Regardless, we won't know until we decrypt more of these logs.
+2436870549 : In my experience, history can be contradictory. Regardless, we won't know until we decrypt more of these logs.
+3079912270 : Osiris
+3079912270 : Osiris
+373044263 : Chioma Esi, research log: Exos.
+2562198682 : Chioma Esi, research log: Exos.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2565359981 : Maya and I have built a working theory around the deaths of our Exo crewmates after their exposure to the Veil.
+3977192380 : Maya and I have built a working theory around the deaths of our Exo crewmates after their exposure to the Veil.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2556565937 : According to Maya, Exominds contain a combination of Vex radiolaria and something known as "Clarity."
+625448640 : According to Maya, Exominds contain a combination of Vex radiolaria and something known as "Clarity."
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+499149192 : Radiolaria are alien microorganisms living within a hive mind state. Or, I suppose more accurately, a community.
+3202151013 : Radiolaria are alien microorganisms living within a hive mind state. Or, I suppose more accurately, a community.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1929068731 : Clarity is… Maya described it as a paracausal power derived from an alien artifact. Something BrayTech had kept secret. Something Maya…
+3676433490 : Clarity is… Maya described it as a paracausal power derived from an alien artifact. Something BrayTech had kept secret. Something Maya…
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1731351884 : Maya thinks the Veil and this artifact are related. That the paracausal force from the Veil overloaded their Exominds. Unraveled them.
+1630504685 : Maya thinks the Veil and this artifact are related. That the paracausal force from the Veil overloaded their Exominds. Unraveled them.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1443063001 : It's like taking a powerful magnet to an archaic magnetic storage device. Full erasure.
+784501848 : It's like taking a powerful magnet to an archaic magnetic storage device. Full erasure.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3582763694 : But Maya... she thinks we can reverse-engineer this phenomenon. Use it to write data to a Clarity-infused object. Fabricate consciousness.
+1784660923 : But Maya... she thinks we can reverse-engineer this phenomenon. Use it to write data to a Clarity-infused object. Fabricate consciousness.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1278790140 : Scientifically, the process seems sound, but morally… [sighs] Maya keeps saying that we're past the point of morality. She said that!
+3667591537 : Scientifically, the process seems sound, but morally… [sighs] Maya keeps saying that we're past the point of morality. She said that!
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4154277963 : She's convinced that our survival hinges on mastery of the Veil. It's like SHE'S the one unraveling. I feel like I'm losing her.
+1795737602 : She's convinced that our survival hinges on mastery of the Veil. It's like SHE'S the one unraveling. I feel like I'm losing her.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2271631326 : But every time I try and push, I feel her move a little further away. I'm—I don't know if I can lose anything else.
+2818770355 : But every time I try and push, I feel her move a little further away. I'm—I don't know if I can lose anything else.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3586106319 : How much more can any of us lose before there's nothing left?
+2884454562 : How much more can any of us lose before there's nothing left?
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3548122636 : Nimbus… how much do you know about the Cloud Striders' creation? The technology used?
+2656109385 : Nimbus… how much do you know about the Cloud Striders' creation? The technology used?
+3079912270 : Osiris
+3079912270 : Osiris
+1003966585 : You don't think…
+2437196408 : You don't think…
+3387691167 : Nimbus
+3387691167 : Nimbus
+2541270659 : I make no assertions yet. But I worry that your neon-lit city may have darker roots than either of us knew.
+446370738 : I make no assertions yet. But I worry that your neon-lit city may have darker roots than either of us knew.
+3079912270 : Osiris
+3079912270 : Osiris
+67984970 : Oh.
+342840111 : Oh.
+3387691167 : Nimbus
+3387691167 : Nimbus
+1533402184 : Chioma Esi, research log: Veil interface, supplemental.
+1490210777 : Chioma Esi, research log: Veil interface, supplemental.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1767082804 : They're all dead.
+264605953 : They're all dead.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4020378414 : Chorus, conductor… everyone. It was too much. Swept their minds away like… like grains of sand on a beach. They're all dead!
+820393843 : Chorus, conductor… everyone. It was too much. Swept their minds away like… like grains of sand on a beach. They're all dead!
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4161300589 : Maya… Maya called it "valuable data points." Wellsprings and rivers, or… something.
+1590871272 : Maya… Maya called it "valuable data points." Wellsprings and rivers, or… something.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+452007154 : What have I done?
+303408435 : What have I done?
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2056915240 : Dead? They—this killed their entire research team, but it sounds like—it's like—
+2439517937 : Dead? They—this killed their entire research team, but it sounds like—it's like—
+3387691167 : Nimbus
+3387691167 : Nimbus
+3336485980 : Like their lives held no value to Dr. Sundaresh. There's a troubling symmetry with data we've recovered from Titan.
+2479275453 : Like their lives held no value to Dr. Sundaresh. There's a troubling symmetry with data we've recovered from Titan.
+3079912270 : Osiris
+3079912270 : Osiris
+3279885537 : Data on the origin of the Witness.
+2447494028 : Data on the origin of the Witness.
+3079912270 : Osiris
+3079912270 : Osiris
+1925336869 : It, too, was once multiple people that became conjoined by the way of some sort of… ritual with the Veil. Perhaps a "conductor" and a "chorus."
+466991896 : It, too, was once multiple people that became conjoined by the way of some sort of… ritual with the Veil. Perhaps a "conductor" and a "chorus."
+3079912270 : Osiris
+3079912270 : Osiris
+2580103598 : It is troubling that Dr. Sundaresh seemed to be moving down that same path.
+2061371403 : It is troubling that Dr. Sundaresh seemed to be moving down that same path.
+3079912270 : Osiris
+3079912270 : Osiris
+1025807740 : I don't like this, Osiris. I don't like this at all.
+3141241141 : I don't like this, Osiris. I don't like this at all.
+3387691167 : Nimbus
+3387691167 : Nimbus
+3756428209 : You know, ever since we defeated Calus, I've been wondering a lot more about the Veil. I think… I think we take it for granted.
+193201904 : You know, ever since we defeated Calus, I've been wondering a lot more about the Veil. I think… I think we take it for granted.
+3387691167 : Nimbus
+3387691167 : Nimbus
+460302717 : It's always been here. We always assumed that the Ishtar Collective brought it with them on the Exodus ship, but… 
+724290296 : It's always been here. We always assumed that the Ishtar Collective brought it with them on the Exodus ship, but… 
+3387691167 : Nimbus
+3387691167 : Nimbus
+1126407483 : But now you question that assumption.
+2927420658 : But now you question that assumption.
+3079912270 : Osiris
+3079912270 : Osiris
+2329874176 : Nezarec seemed to know something, didn't he? When we were inside the Vex network, he said something about… Savathûn.
+1953298333 : Nezarec seemed to know something, didn't he? When we were inside the Vex network, he said something about… Savathun.
+3387691167 : Nimbus
+3387691167 : Nimbus
+4263192460 : My memories cast shadows of Savathûn's. Echoes of the time she and I were bound by her dark magic.
+2631146913 : My memories cast shadows of Savathun's. Echoes of the time she and I were bound by her dark magic.
+3079912270 : Osiris
+3079912270 : Osiris
+2768570663 : The more time we spend here, the clearer the outline of those shadows become. The Ishtar Collective didn't bring the Veil here, Nimbus. 
+1948314986 : The more time we spend here, the clearer the outline of those shadows become. The Ishtar Collective didn't bring the Veil here, Nimbus. 
+3079912270 : Osiris
+3079912270 : Osiris
+1704351125 : Savathûn stole it from the Witness and left it here… quite possibly for the Ishtar Collective to find.
+3690873628 : Savathun stole it from the Witness and left it here… quite possibly for the Ishtar Collective to find.
+3079912270 : Osiris
+3079912270 : Osiris
+3096446738 : Why? Why would she do that? Isn't she our enemy?
+1991616487 : Why? Why would she do that? Isn't she our enemy?
+3387691167 : Nimbus
+3387691167 : Nimbus
+1473609694 : She is. And yet, at times, she is our ally… when it is convenient to her, and in that convenience, we find common ground.
+2354588287 : She is. And yet, at times, she is our ally… when it is convenient to her, and in that convenience, we find common ground.
+3079912270 : Osiris
+3079912270 : Osiris
+2373830724 : Or as a friend once said, the line between Light and Dark… is very thin.
+942971793 : Or as a friend once said, the line between Light and Dark… is very thin.
+3079912270 : Osiris
+3079912270 : Osiris
+4179115305 : [grunts] I kinda hate that.
+3420075708 : [grunts] I kinda hate that.
+3387691167 : Nimbus
+3387691167 : Nimbus
+1503169559 : As do I.
+1360981414 : As do I.
+3079912270 : Osiris
+3079912270 : Osiris
+1421887430 : I've reached the extent of what I can glean from the research data.
+2293706015 : I've reached the extent of what I can glean from the research data.
+3079912270 : Osiris
+3079912270 : Osiris
+198235485 : What've we got?
+4276114368 : What've we got?
+3387691167 : Nimbus
+3387691167 : Nimbus
+4081605343 : Less than I'd hoped for. But the last of Chioma Esi's research has led me to an intriguing topic: Ghosts.
+4097422382 : Less than I'd hoped for. But the last of Chioma Esi's research has led me to an intriguing topic: Ghosts.
+3079912270 : Osiris
+3079912270 : Osiris
+2260225281 : Ghosts? As far as I know, Neomuna never had any contact with a Ghost before you all showed up. We knew about them, but…
+15438572 : Ghosts? As far as I know, Neomuna never had any contact with a Ghost before you all showed up. We knew about them, but…
+3387691167 : Nimbus
+3387691167 : Nimbus
+295937105 : Precisely. Chioma Esi was researching the entanglement of Light and Dark without fully understanding either.
+1549399308 : Precisely. Chioma Esi was researching the entanglement of Light and Dark without fully understanding either.
+3079912270 : Osiris
+3079912270 : Osiris
+3924550977 : Our Ghosts are a link to the Light of the Traveler. Then how was the Witness able to—on numerous occasions—communicate through them?
+2955651144 : Our Ghosts are a link to the Light of the Traveler. Then how was the Witness able to—on numerous occasions—communicate through them?
+3079912270 : Osiris
+3079912270 : Osiris
+1166206705 : Is this about the, uh, the magnets thing? The parallel energy fields, right? 
+3286522252 : Is this about the, uh, the magnets thing? The parallel energy fields, right? 
+3387691167 : Nimbus
+3387691167 : Nimbus
+665844968 : Very good. In areas of Darkness, the Witness is able to create a link, not unlike what it created with the Veil and the Traveler.
+2723544437 : Very good. In areas of Darkness, the Witness is able to create a link, not unlike what it created with the Veil and the Traveler.
+3079912270 : Osiris
+3079912270 : Osiris
+2126054171 : Ah, like the Vex are able to hack into the CloudArk with their tech! It's a parallel connection.
+4134578422 : Ah, like the Vex are able to hack into the CloudArk with their tech! It's a parallel connection.
+3387691167 : Nimbus
+3387691167 : Nimbus
+4138090233 : And I believe that connection may not be one-sided. I believe that our Ghosts may be able to leverage this connection against it.
+484901088 : And I believe that connection may not be one-sided. I believe that our Ghosts may be able to leverage this connection against it.
+3079912270 : Osiris
+3079912270 : Osiris
+3825584638 : Turn the enemy's weapon against 'em—well, that sounds great. But how?
+610913531 : Turn the enemy's weapon against 'em—well, that sounds great. But how?
+3387691167 : Nimbus
+3387691167 : Nimbus
+2019215951 : That… I do not know. But what I do know is that while the Witness is out of our reach, it is also out of the reach of our Ghosts.
+4195551182 : That… I do not know. But what I do know is that while the Witness is out of our reach, it is also out of the reach of our Ghosts.
+3079912270 : Osiris
+3079912270 : Osiris
+2327680772 : Which means whatever lies beyond that portal—whatever is inside the Traveler—has left the Witness blind to OUR actions.
+2924101033 : Which means whatever lies beyond that portal—whatever is inside the Traveler—has left the Witness blind to OUR actions.
+3079912270 : Osiris
+3079912270 : Osiris
+3529633317 : And given us an opportunity to make a plan without it knowing.
+3104265684 : And given us an opportunity to make a plan without it knowing.
+3387691167 : Nimbus
+3387691167 : Nimbus
+1857306057 : Precisely! The Witness has played all the pieces it can. This is its final act, win or lose.
+1969231096 : Precisely! The Witness has played all the pieces it can. This is its final act, win or lose.
+3079912270 : Osiris
+3079912270 : Osiris
+2740757460 : Whatever we do from here determines the fate of everything.
+814491253 : Whatever we do from here determines the fate of everything.
+3079912270 : Osiris
+3079912270 : Osiris
+2034593143 : No pressure.
+3879951882 : No pressure.
+3387691167 : Nimbus
+3387691167 : Nimbus
+634440122 : Exterior's all clear. How you doing down there?
+2410792451 : Exterior's all clear. How you doing down there?
+3387691167 : Nimbus
+3387691167 : Nimbus
+1353618986 : The Tormentor is defeated, and the area is secure. However, the remainder of Dr. Esi's logs are encrypted.
+4242868239 : The Tormentor is defeated, and the area is secure. However, the remainder of Dr. Esi's logs are encrypted.
+3079912270 : Osiris
+3079912270 : Osiris
+2891806411 : She's using an adaptive Vex algorithm to protect them. It will take me several days to break through. Whatever this is, it must be valuable.
+3254888006 : She's using an adaptive Vex algorithm to protect them. It will take me several days to break through. Whatever this is, it must be valuable.
+3079912270 : Osiris
+3079912270 : Osiris
+2110781483 : Guardian, I recommend you check back here later to see what we've uncovered.
+1988361918 : Guardian, I recommend you check back here later to see what we've uncovered.
+3079912270 : Osiris
+3079912270 : Osiris
+1064836135 : Not to cut this short, but we've got incoming! There's Taken popping up all over the courtyard and—Tormentor! 
+1071205550 : Not to cut this short, but we've got incoming! There's Taken popping up all over the courtyard and—Tormentor! 
+3387691167 : Nimbus
+3387691167 : Nimbus
+3305198932 : There's a Tormenter heading into the facility!
+3963640665 : There's a Tormenter heading into the facility!
+3387691167 : Nimbus
+3387691167 : Nimbus
+2852619347 : Guardian, neutralize the Tormentor! We can't lose this data!
+226645506 : Guardian, neutralize the Tormentor! We can't lose this data!
+3079912270 : Osiris
+3079912270 : Osiris
+1759204222 : I found no more logs from Dr. Esi, but I have used her algorithm to crack the data core of the Vex Conceptual Mind.
+1349578363 : I found no more logs from Dr. Esi, but I have used her algorithm to crack the data core of the Vex Conceptual Mind.
+3079912270 : Osiris
+3079912270 : Osiris
+1509887047 : That's the doodad we got from the Black Garden, right?
+881834162 : That's the doodad we got from the Black Garden, right?
+3387691167 : Nimbus
+3387691167 : Nimbus
+113248987 : Indeed. The data within contained the Vex's blueprints for their artificial Veil: the Black Heart. It all but proved Dr. Esi's theory.
+2488786970 : Indeed. The data within contained the Vex's blueprints for their artificial Veil: the Black Heart. It all but proved Dr. Esi's theory.
+3079912270 : Osiris
+3079912270 : Osiris
+753050792 : Dr. Esi theorized that the paracausal energy of the Traveler operated on a quantum wavelength parallel to electrons.
+1677033765 : Dr. Esi theorized that the paracausal energy of the Traveler operated on a quantum wavelength parallel to electrons.
+3079912270 : Osiris
+3079912270 : Osiris
+1117474713 : Um… magnets?
+1657330148 : Um… magnets?
+3387691167 : Nimbus
+3387691167 : Nimbus
+3711361919 : In simpler terms: the Traveler's power runs parallel to the forces of nature. Gravity, magnetism, sound, light. The Veil does this too.
+1215419598 : In simpler terms: the Traveler's power runs parallel to the forces of nature. Gravity, magnetism, sound, light. The Veil does this too.
+3079912270 : Osiris
+3079912270 : Osiris
+3299941920 : It is synchronized with the Traveler. Wherever the Traveler came from, the Veil may have as well. 
+707545041 : It is synchronized with the Traveler. Wherever the Traveler came from, the Veil may have as well. 
+3079912270 : Osiris
+3079912270 : Osiris
+1467332782 : But what the Vex made, while connected to the Traveler, was inherently flawed. It did not create the link the Witness desired.
+2709713667 : But what the Vex made, while connected to the Traveler, was inherently flawed. It did not create the link the Witness desired.
+3079912270 : Osiris
+3079912270 : Osiris
+1207117544 : Instead, it weakened the Traveler, created… "static" in the flow of their cosmic forces. But it did reveal one intriguing possibility…
+4262516641 : Instead, it weakened the Traveler, created… "static" in the flow of their cosmic forces. But it did reveal one intriguing possibility…
+3079912270 : Osiris
+3079912270 : Osiris
+1612651318 : That at one time, they may have been… united. Part of a whole.
+240533567 : That at one time, they may have been… united. Part of a whole.
+3079912270 : Osiris
+3079912270 : Osiris
+1979705433 : Whoa! So, wait… does this mean the Light and Darkness… were the same once? One force?
+2154685728 : Whoa! So, wait… does this mean the Light and Darkness… were the same once? One force?
+3387691167 : Nimbus
+3387691167 : Nimbus
+700800869 : Dr. Esi believed so. I am… not as convinced. But it is a theory. One many scholars will explore once this data is shared. 
+2922716528 : Dr. Esi believed so. I am… not as convinced. But it is a theory. One many scholars will explore once this data is shared. 
+3079912270 : Osiris
+3079912270 : Osiris
+2453876895 : But this data allowed me to calculate the telemetry of the beam the Veil fired at the Traveler.
+1365173770 : But this data allowed me to calculate the telemetry of the beam the Veil fired at the Traveler.
+3079912270 : Osiris
+3079912270 : Osiris
+4009536966 : When the Witness linked to the Veil through a Ghost, it created a faster-than-light connection of Darkness to the Traveler's Light…
+986501599 : When the Witness linked to the Veil through a Ghost, it created a faster-than-light connection of Darkness to the Traveler's Light…
+3079912270 : Osiris
+3079912270 : Osiris
+3605632528 : …A bridge to the Traveler's consciousness. If it has one. But the beam did not stop at the Traveler… rather, a point inside of it.
+2488821825 : …A bridge to the Traveler's consciousness. If it has one. But the beam did not stop at the Traveler… rather, a point inside of it.
+3079912270 : Osiris
+3079912270 : Osiris
+2181243354 : Inside? Wait, what's inside the Traveler?
+123700763 : Inside? Wait, what's inside the Traveler?
+3387691167 : Nimbus
+3387691167 : Nimbus
+431042544 : No one knows.
+1439273069 : No one knows.
+3079912270 : Osiris
+3079912270 : Osiris
+2397955255 : But if the data I have been able to extrapolate here is correct, that is where the Witness is now: inside the Traveler.
+582789946 : But if the data I have been able to extrapolate here is correct, that is where the Witness is now: inside the Traveler.
+3079912270 : Osiris
+3079912270 : Osiris
+3445421506 : It may be the reason why the Traveler has gone dormant—its attention directed inward, where the true threat is. But I am speculating.
+320339531 : It may be the reason why the Traveler has gone dormant—its attention directed inward, where the true threat is. But I am speculating.
+3079912270 : Osiris
+3079912270 : Osiris
+2128949799 : There is more I need to study, but I fear it will take a substantially longer amount of time.
+103116266 : There is more I need to study, but I fear it will take a substantially longer amount of time.
+3079912270 : Osiris
+3079912270 : Osiris
+233840467 : How long do you need?
+2326180242 : How long do you need?
+3387691167 : Nimbus
+3387691167 : Nimbus
+3763407109 : Months. If we have that long left, that is. Until then, I suppose.
+3572030476 : Months. If we have that long left, that is. Until then, I suppose.
+3079912270 : Osiris
+3079912270 : Osiris
+2131495564 : Chioma Esi, personal log: incidental.
+1710366213 : Chioma Esi, personal log: incidental.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1201911518 : Maya arrived yesterday with the Exodus Indigo. I should be relieved, but… in light of the current situation, I… I don't feel much of anything.
+288593439 : Maya arrived yesterday with the Exodus Indigo. I should be relieved, but… in light of the current situation, I… I don't feel much of anything.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+2400048518 : We're presently en route from Hyperion to the terraformed surface of Neptune. I'm scared. I'm so scared!
+494007843 : We're presently en route from Hyperion to the terraformed surface of Neptune. I'm scared. I'm so scared!
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+4198220789 : We don't even know what we've lost. Comms are dead. It's just silence everywhere. We might be all that's left.
+2538535996 : We don't even know what we've lost. Comms are dead. It's just silence everywhere. We might be all that's left.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+1437349202 : Maya was right about everything. The cult, the end… how we'll survive. [sighs] I hate this.
+3971048987 : Maya was right about everything. The cult, the end… how we'll survive. [sighs] I hate this.
+2371478110 : Chioma Esi
+2371478110 : Chioma Esi
+3332627663 : Chioma Esi was one of the founders of Neomuna. There's a part of the city named after her! This is… like hearing a legend.
+221274238 : Chioma Esi was one of the founders of Neomuna. There's a part of the city named after her! This is… like hearing a legend.
+3387691167 : Nimbus
+3387691167 : Nimbus
+1745118764 : I knew of Chioma Esi and her wife, Maya Sundaresh. They were Ishtar Collective researchers on Venus during the Golden Age.
+1462922773 : I knew of Chioma Esi and her wife, Maya Sundaresh. They were Ishtar Collective researchers on Venus during the Golden Age.
+3079912270 : Osiris
+3079912270 : Osiris
+2336184762 : Is this all there is? The one log?
+3123289635 : Is this all there is? The one log?
+3387691167 : Nimbus
+3387691167 : Nimbus
+3335782100 : No—there's an entire archive here. It could be the key to unraveling the mystery of the Veil.
+701477641 : No—there's an entire archive here. It could be the key to unraveling the mystery of the Veil.
+3079912270 : Osiris
+3079912270 : Osiris
+3663443551 : Thank you for assisting me in this fact-finding mission, Guardian. There is much to uncover about the Veil, and your work here is indispensable.
+2114600814 : Thank you for assisting me in this fact-finding mission, Guardian. There is much to uncover about the Veil, and your work here is indispensable.
+3079912270 : Osiris
+3079912270 : Osiris
+4269052029 : I got you on overwatch. Heh, let's get to work!
+1043536760 : I got you on overwatch. Heh, let's get to work!
+3387691167 : Nimbus
+3387691167 : Nimbus
+
+
+

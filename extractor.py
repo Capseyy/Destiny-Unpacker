@@ -131,7 +131,8 @@ class File:
                 DirName=PkgID+"-"+EntryID
                 output=open(os.getcwd()+"/cache/directive.txt","a")
                 output.write("Dialogue Table \n")
-                output.write(DirName+"\n")
+                #output.write(DirName+".tab \n")
+                output.write(DirName+".tab \n")
                     
                 print("try")
                 with open(custom_direc+"/audio/"+DirName+".tab", 'rb') as f:
@@ -153,7 +154,7 @@ class File:
                         #print(ans)
                         if str(ans) != "-1":
                             #print("written")
-                            output.write(str(self.StrData[ans][0])+" : "+self.StrData[ans][1]+"\n")
+                            output.write(str(self.StrData[ans][1])+" : "+self.StrData[ans][2]+"\n")
                     f.close()
                 output.write("\n\n\n")
                         
@@ -235,13 +236,39 @@ class File:
         print("Done Getting Hashes")
         self.Hashes=Hashes
     def PullStrings(self):
+        #Get String Container
+        file=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+        Data=file.read().split("\n")
+        for Act in Data:
+            temp=Act.split(" : ")
+            try:
+                temp[1]
+            except IndexError:
+                continue
+            if temp[1] == self.ActName:
+                StringContainer=temp[3]
+                break
+        
+        for Line in Hash64Data:
+            Lines=Line.split(": ")
+            #print(Lines)
+            if Lines[0] == str("0x"+StringContainer):
+                Found=True
+                AudioFile=Lines[1]
+                new=literal_eval(AudioFile)
+                PkgID=Hex_String(Package_ID(new))
+                EntryID=Hex_String(Entry_ID(new))
+                DirName=PkgID.upper()+"-"+EntryID.upper()
+        if StringContainer == "0000000000000000":
+            DirName=""
+        print(DirName)
         output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("\nMusic Script + Loadzones : \n")
         if self.ActName != []:
             output.write(self.ActName+"\n")
         for Hash in self.Data:
             if "0000" not in Hash:
-                dat=StringHash(Hash,self.StrData)
+                dat=StringHash(Hash,self.StrData,DirName)
                 if dat != False:
                     if [dat,Hash] not in self.Strings:
                         self.Strings.append([dat,Hash])
@@ -352,7 +379,7 @@ class File:
         self.Direct=[Data[i:i+8] for i in range(0, len(Data), 8)]
         for Hash in self.Direct:
             if "0000" not in Hash:
-                dat=StringHash(Hash,self.StrData)
+                dat=StringHash(Hash,self.StrData,"")
                 if dat != False:
                     if [dat,Hash] not in self.Strings:
                         self.Strings.append([dat,Hash])
@@ -784,8 +811,15 @@ class Package:
         for entry in entries_to_decode:
             # print("\n\n")
             ref_id, ref_pkg_id, ref_unk_id = decode_entry_a(entry.EntryA)
-            if (hex(entry.EntryA) in self.useful) or (self.useful == ["All"]) or (self.useful == ["Cube"]) or (self.useful == ["Norm"]) or (self.useful == ["Map"]):
+            if (hex(entry.EntryA) in self.useful) or (self.useful == ["All"]) or (self.useful == ["Cube"]) or (self.useful == ["Norm"]) or ("Map" in self.useful):
                 file_type, file_subtype = decode_entry_b(entry.EntryB)
+                if "Map" in self.useful:
+                    #print("check")
+                    if (file_type != 40):
+                        #print(entry.EntryA)
+                        if hex(entry.EntryA) not in self.useful:
+                            count+=1
+                            continue
                 starting_block, starting_block_offset = decode_entry_c(entry.EntryC)
                 file_size, unknown = decode_entry_d(entry.EntryC, entry.EntryD)
                 file_name = f"{self.package_header.PackageIDH}-{gf.fill_hex_with_zeros(hex(count)[2:], 4)}"
@@ -876,7 +910,8 @@ class Package:
         return decompressed
 
     def output_files(self, all_pkg_bin, custom_direc):
-        refFile=open(os.getcwd()+"/cache/refFile.txt","w")
+
+        
         for entry in self.entry_table.Entries[::-1]:
             #print(entry)
             current_block_id = entry.StartingBlock
@@ -951,13 +986,12 @@ class Package:
                     if entry.SubType == 1:
                         refFile.write(entry.FileName.upper()+" : "+entry.EntryA+"\n")
                         fileFormat=".norm"
-            if self.useful == ["Map"]:
+            if "Map" in self.useful:
                 if entry.EntryA == "0x808093ad":  #0x28 leads to modelocclusionbounds                         #LHash->Dt->
                     fileFormat=".load"
                 elif entry.EntryA == "0x80806d44":
                     fileFormat=".model"
-                elif entry.EntryA == "0x80806daa": 
-                    fileFormat=".model"
+    
                 elif entry.EntryA == "0x80806d30":  #modelData
                     fileFormat=".sub"
                 elif entry.EntryA == "0x80808707":   #contains all data to make map  points to .dt 's
@@ -972,6 +1006,10 @@ class Package:
                     fileFormat=".occlu"
                 elif entry.EntryA == "0x80806a0d":  #points to .Load
                     fileFormat=".test"
+                elif entry.EntryA == "0x80808e8e":  #0x28 leads to modelocclusionbounds                         #LHash->Dt->
+                    fileFormat=".act"
+                elif entry.EntryA == "0x80806daa":
+                    fileFormat = ".mat"
                 else:
                     fileFormat=".bin"
                 if entry.Type == 40:
@@ -1003,7 +1041,7 @@ class Package:
                         f.write(file_buffer[:entry.FileSize])
 
             #print(f"Wrote to {entry.FileName} successfully")
-        refFile.close()
+        
 def check_input(event):
     global lst, combo_box
     value = event.widget.get()
@@ -1294,8 +1332,13 @@ def GenerateActivityNames():
                 count+=1
                 #print(name)
             #print(FilesNames)
+            file.close()
+            file=open(custom_direc+"/"+File,"rb")
+            file.seek(0x18)
+            Data=binascii.hexlify(bytes(file.read(8))).decode()
+            Hash=binascii.hexlify(bytes(hex_to_little_endian(Data))).decode('utf-8')
             for FileName in FilesNames:
-                ActNames.append(FileName)
+                ActNames.append([FileName,Hash])
     theFile=open(os.getcwd()+"/cache/ActivityHashes.txt","w")
     stuff=[]
     for File in os.listdir(os.getcwd()+"/out"):
@@ -1306,22 +1349,22 @@ def GenerateActivityNames():
             Data=binascii.hexlify(file.read()).decode('utf-8')
             DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
             for Act in ActNames:
-                if Act.split(" : ")[0] in Data:
+                if Act[0].split(" : ")[0] in Data:
                     pkgId= File.split("-")[0]
                     for file in os.listdir(path):
                         temp=file.split("_")
                         if pkgId.lower() in file.split("_"):
                             PackageName="_".join(temp[:len(temp)-2])
-                            stuffToAdd=Act+" : "+PackageName
+                            stuffToAdd=Act[0]+" : "+PackageName+" : "+Act[1]
                             if stuffToAdd not in stuff:
                                 stuff.append(stuffToAdd)
     for Thing in stuff:
         theFile.write(str(Thing)+"\n")
     theFile.close()
                     
-    for file in os.listdir(os.getcwd()+"/out"):
-        if file != "audio":
-            os.remove(os.getcwd()+"/out/"+file)        
+    #for file in os.listdir(os.getcwd()+"/out"):
+    #    if file != "audio":
+    #        os.remove(os.getcwd()+"/out/"+file)        
 def ActivityRipper(entry):
     print("Starting ACT")
     package=""
@@ -1331,13 +1374,14 @@ def ActivityRipper(entry):
     data=File2.read()
     File2.close()
     Activities=data.split("\n")
-    for Act in Activities:
-        temp=Act.split(" : ")
-        if entry.get() in temp:
-            package=temp[2]
-            ActId=temp[0]
-            print("found")
-            break
+    if ActName != "All":
+        for Act in Activities:
+            temp=Act.split(" : ")
+            if entry.get() in temp:
+                package=temp[2]
+                ActId=temp[0]
+                print("found")
+                break
     output=open(os.getcwd()+"/cache/directive.txt","w")   #Comment out to not clear on reset
     filelist=[]
     filelist2=[]
@@ -1351,6 +1395,20 @@ def ActivityRipper(entry):
                     filelist2.append(file)
                 if fnmatch.fnmatch(file,'w64_sr_dia*'):
                     filelist2.append(file)
+    else:
+        for file in os.listdir(path)[::-1]:
+            if int(num) < 10:
+                if fnmatch.fnmatch(file,'w64_sr_audio*'):
+                    filelist2.append(file)
+                if fnmatch.fnmatch(file,'w64_sr_dia*'):
+                    filelist2.append(file)
+            if "audio"  in file.split("_"):
+                continue
+            elif "dialog" in file.split("_"):
+                continue
+            else:
+                if fnmatch.fnmatch(file,"w64*"):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
+                    filelist.append(file)
     useful=["0x808045eb","0x80808e8e","0x80808ec7","0x80808e8b","0x80809650","0x80809738","0x80808363","0x808090d5","0x808097b8"]
     print("run unpack")
     unpack_all(path,custom_direc,useful,filelist)
@@ -1364,21 +1422,27 @@ def ActivityRipper(entry):
     data=file2.read()
     file2.close()
     StrData=data.split("\n")
+    #print(StrData)
     #file.close()
     newStrData=[]
     for String in StrData:
         try:
-            int(String.split(" // ")[0])
-        except ValueError:
+            String.split(" // ")[1]
+        except IndexError:
             continue
         try:
-            newStrData.append([int(String.split(" // ")[0]),String.split(" // ")[1]])
+            int(String.split(" // ")[1])
+        except ValueError:
+            continue
             
+        try:
+            newStrData.append([(String.split(" // ")[0]),int(String.split(" // ")[1]),String.split(" // ")[2]])
         except IndexError:
             #print(String)
             continue
+        
         #print(newStrData)
-    newStrData.sort(key=lambda x: x[0])
+    newStrData.sort(key=lambda x: x[1])
     StrData=newStrData
     for FileName in os.listdir(custom_direc):
         if FileName != "audio":
@@ -1387,7 +1451,7 @@ def ActivityRipper(entry):
                 Data=binascii.hexlify(ActFile.read()).decode('utf-8')
                 ActFile.close()
                 DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
-                if ActId in DataSplit:
+                if ActName == "All":
                     print("Extracting")
                     file=File(FileName,FileName.split(".")[1],StrData,ActName)
                     Files.append(file)
@@ -1401,6 +1465,21 @@ def ActivityRipper(entry):
                     file.GetMusAndDir()
                     print("Get Mus and Dir")
                     file.GetDialogue()
+                else:
+                    if ActId in DataSplit:
+                        print("Extracting")
+                        file=File(FileName,FileName.split(".")[1],StrData,ActName)
+                        Files.append(file)
+                        print(FileName)
+                        file.FindHashes()
+                        print("Got HAshes")
+                        file.GetName()
+                        print("GotName")
+                        file.PullStrings()
+                        print("Got Strings")
+                        file.GetMusAndDir()
+                        print("Get Mus and Dir")
+                        file.GetDialogue()
     print("done")
     for file in os.listdir(custom_direc):
         if file != "audio":
@@ -1408,8 +1487,7 @@ def ActivityRipper(entry):
     Popup()
     DataView(top,entry.get())
     
-    
-def binary_search(arr, x):
+def binary_search2(arr, x):
     low = 0
     high = len(arr) - 1
     mid = 0
@@ -1428,8 +1506,29 @@ def binary_search(arr, x):
         else:
             return mid
     # If we reach here, then the element was not present
+    return -1    
+def binary_search(arr, x):
+    low = 0
+    high = len(arr) - 1
+    mid = 0
+ 
+    while low <= high:
+ 
+        mid = (high + low) // 2
+        if int(arr[mid][1]) < x:
+            low = mid + 1
+ 
+        # If x is smaller, ignore right half
+        elif int(arr[mid][1]) > x:
+            high = mid - 1
+ 
+        # means x is present at mid
+        else:
+            return mid
+    # If we reach here, then the element was not present
     return -1
-def StringHash(Hash,StrData):
+def StringHash(Hash,StrData,Ref):
+    #print(Ref)
     flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
     #print(flipped)
     dec = ast.literal_eval("0x"+flipped)
@@ -1439,13 +1538,20 @@ def StringHash(Hash,StrData):
     if str(ans) != "-1":
         Found=True
     if Found == True:
-        return StrData[ans][1]
+        if Ref != "":
+            while True:
+                if StrData[ans][0] != Ref:
+                    #print(StrData[ans]
+                    ans=ans+1
+                else:
+                    break
+        return StrData[ans][2]
     else:
         return False
             
 def ActivityMenu(top):
     global lst, combo_box
-    lst=[]
+    lst=["All"]
     file=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
     data=file.read()
     file.close()
@@ -1477,6 +1583,7 @@ def ActivityMenu(top):
 
 
 def Strings(ans):
+    RefFile=open(os.getcwd()+"/cache/refFile.txt","w")
     useful=[]
     filelist = []
     for file in os.listdir(path)[::-1]:
@@ -1501,6 +1608,7 @@ def Strings(ans):
     for Ref in allRefs:
         #print(Ref)
         file=open((strPath+"/"+Ref),"rb")
+        FileName=Ref.split(".")[0]
         length=len(binascii.hexlify(bytes(file.read())))
         file.close()
         RefHeader=[]
@@ -1633,12 +1741,12 @@ def Strings(ans):
             #print(text)
             #print(str(Hash))
             
-            textout=str(Hash)+" // "+text+"\n"
+            textout=str(FileName)+" // "+str(Hash)+" // "+text+"\n"
             #print(textout)
             try:
                 out.write(textout)
             except UnicodeEncodeError:
-                out.write(str(Hash)+" // ?\n")
+                out.write(str(FileName)+" // "+str(Hash)+" // ?\n")
             else:
                 if text != "":
                     num+=1
@@ -2271,6 +2379,7 @@ class LoadZone:
     def __init__(self,Name,InstCount,Ref):
         self.FileName=Name
         self.Statics=[]
+        self.H64Sort=SortH64(ReadHash64())
         self.StaticMeta=[]
         self.Ref=Ref
         self.CWD=os.getcwd()
@@ -2285,16 +2394,25 @@ class LoadZone:
         self.PullStaticMeta()
         self.PullStaticData()
         self.OutputCFG()
-        #self.PullDyns()
-        #self.RipDyns()
+        self.PullDyns()
+        self.RipDyns()
         
         #print(self.Statics)
         #print(str(len(self.Statics)))
     def RipDyns(self):
+        os.chdir(self.CWD+"/ThirdParty")
         for Dyn in self.DynNames:
-            cmd='MDE -p "'+path+'" -o "C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/MapExtracter/data/Statics/Statics" -i '+Dyn.upper()
+            cmd='MDE -p "'+path+'" -o "'+os.getcwd()+"/data/Statics/Statics"' -i '+Dyn.upper()
             print(cmd)
             ans=subprocess.call(cmd, shell=True)
+            #for File in os.listdir(currentPath+"/ThirdParty/output/"+str(pkgID)):
+            try:
+                shutil.move(os.getcwd()+"/data/Statics/Statics/"+Dyn.upper()+"/"+Dyn.upper()+".fbx",os.getcwd()+"/data/Statics/Statics/"+Dyn.lower()+".fbx")
+            except FileNotFoundError:
+                continue
+            else:
+                os.rmdir(os.getcwd()+"/data/Statics/Statics/"+Dyn.upper())
+        os.chdir(self.CWD)
             
             
     def PullDyns(self):
@@ -2364,10 +2482,10 @@ class LoadZone:
                             temp=list(Lines[1])
                             temp="".join(temp[2:])
                             DynHash=binascii.hexlify(bytes(hex_to_little_endian(temp))).decode('utf-8')
-                            print(DynHash)
+                            #print(DynHash)
                             if DynHash not in self.DynNames:
                                 
-                                print(Table)
+                                #print(Table)
                                 self.DynNames.append(DynHash)
                             ValidDyn=True
                     if ValidDyn == True:
@@ -2544,14 +2662,15 @@ class LoadZone:
     def RipOwnStatics(self):
         for Static in self.Statics:
             start=binascii.hexlify(bytes(hex_to_little_endian(Static))).decode('utf-8')
-            new=ast.literal_eval("0x"+start)
 
+            new=ast.literal_eval("0x"+start)
             pkg = Hex_String(Package_ID(new))
             #print(result)
             ent = Hex_String(Entry_ID(new))
             Bank=pkg+"-"+ent+".model"
-            print(Bank)
+            #print(Bank)
             file=open(os.getcwd()+"/out/"+Bank,"rb")
+            mainData=binascii.hexlify(bytes(file.read())).decode()
             file.seek(0x8)
 
             s = binascii.hexlify(bytes(file.read(4))).decode()
@@ -2562,10 +2681,14 @@ class LoadZone:
             yScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))[0]
             z=binascii.hexlify(bytes(file.read(4))).decode()
             zScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))[0]
-            print(x,y,z)
-            print(s)
+            MainData=[mainData[i:i+8] for i in range(0, len(mainData), 8)]
+            Materials=[]
+            FoundMat=False
+            
+            #print(x,y,z)
+            #print(s)
             flipped=binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')
-            print(flipped)
+            #print(flipped)
             new=ast.literal_eval("0x"+flipped)
 
             pkg = Hex_String(Package_ID(new))
@@ -2578,9 +2701,16 @@ class LoadZone:
             sub.seek(0x4C)
             Scale=binascii.hexlify(bytes(sub.read(4))).decode()
             Scale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Scale))).decode('utf-8'))))[0]
-            print(Scale)
+            
+            sub.seek(0x50)
             DataHashes=[]
             SubData=[SubData[i:i+8] for i in range(0, len(SubData), 8)]
+            count=0
+            for Hash in SubData:
+                if Hash == "366d8080":
+                    
+                    SubData=SubData[count:]
+                count+=1
             for Hash in SubData:
                 temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
                 if (temp[3] == "80") or (temp[3] == "81"):
@@ -2588,19 +2718,42 @@ class LoadZone:
                     #isHash
                         flipped=binascii.hexlify(bytes(hex_to_little_endian("".join(temp)))).decode('utf-8')
                         DataHashes.append(flipped)  #index at 0 vert at 1
+            print("MADE IT")
             if len(DataHashes) < 2:
+                print("Not enough data")
                 continue
+            if len(DataHashes) > 2:
+                #print("Finding UV")
+                sub.seek(0x48)
+                uvXScale=binascii.hexlify(bytes(sub.read(4))).decode()
+                uvXScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvXScale))).decode('utf-8')))[0]
+                sub.seek(0x50)
+                uvYScale=binascii.hexlify(bytes(sub.read(4))).decode()
+                uvYScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvYScale))).decode('utf-8')))[0]
+                uvXOff=binascii.hexlify(bytes(sub.read(4))).decode()
+                uvXOff=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvXOff))).decode('utf-8')))[0]
+                uvYOff=binascii.hexlify(bytes(sub.read(4))).decode()
+                uvYOff=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvYOff))).decode('utf-8')))[0]
+                FindUV=True
+                FirstVert=False
             new=ast.literal_eval("0x"+DataHashes[1])
             new=new+1
             pkg = Hex_String(Package_ID(new))
             #print(result)
             ent = Hex_String(Entry_ID(new))
-            print(DataHashes)
+            #print(DataHashes)
             HashDiff=int(ast.literal_eval("0x"+DataHashes[len(DataHashes)-1]))-int(ast.literal_eval("0x"+DataHashes[0]))+3
             vertFound=False
             indFound=False
+            FindUV=False
+            FirstVert=True
+            if len(DataHashes) > 2:
+                #print("Finding UV")
+                FindUV=True
+                FirstVert=False
             for i in range(int(HashDiff)):
-                new=int(ast.literal_eval("0x"+DataHashes[0]))+i-1
+                
+                new=int(ast.literal_eval("0x"+DataHashes[0]))+i-2
                 #new=ast.literal_eval("0x"+DataHashes[1])
 
                 pkg = Hex_String(Package_ID(new))
@@ -2613,8 +2766,14 @@ class LoadZone:
                     except FileNotFoundError:
                         u=1
                     else:
-                        vertFound=True
-                   
+                        
+                        if FirstVert == True:
+                            vertFound=True
+                            UV=vert
+                        else:
+                            FirstVert= True
+                            Vert=vert
+                    
                 if indFound==False:
                     Bank=pkg+"-"+ent+".index"
                     try:
@@ -2626,13 +2785,14 @@ class LoadZone:
             if (vertFound == True) and (indFound == True):
                 verts=[]
                 print("RUNNING")
-                Length=binascii.hexlify(bytes(vert.read())).decode()
-                vert.seek(0x0)
+                Length=binascii.hexlify(bytes(Vert.read())).decode()
+                Vert.seek(0x0)
                 print(len(Length))
                 num=len(Length)/32
                 print(num)
+                norms=[]
                 for i in range(int(num)):
-                    s = binascii.hexlify(bytes(vert.read(16))).decode()
+                    s = binascii.hexlify(bytes(Vert.read(16))).decode()
                     Data=[s[i:i+4] for i in range(0, len(s), 4)]
                     #x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8')))/32767
                     #y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8')))/32767  #i = struct.unpack('<I', padded)
@@ -2640,8 +2800,96 @@ class LoadZone:
                     x= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8'),16)/32767)*(Scale*10)
                     y= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8'),16)/32767)*(Scale*10)
                     z= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    xNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    yNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[4]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    zNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[5]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    wNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[6]))).decode('utf-8'),16)/32767)*(Scale*10)
                     verts.append([x,y,z])
+                    norms.append([xNorm,yNorm,zNorm,wNorm])
                 #print(verts)
+                if FindUV == True:
+                    Data=binascii.hexlify(bytes(UV.read())).decode()
+                    Length=len(Data)/8
+                    UV.seek(0)
+                    UVData=[]
+                    for i in range(int(Length)):
+                        Data=binascii.hexlify(bytes(UV.read(4))).decode()
+                        Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
+                        U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),16)/32767) * uvXScale) - uvXOff
+                        V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),16)/32767) * (uvYScale)*-1) - uvYOff
+                        #print(U,V)
+                        UVData.append([U,V])
+                    
+                for Hash in MainData:
+                    if Hash == "00000000":
+                        continue
+                    if FoundMat == True:
+                        Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+                        if (Data[3] == "80") or (Data[3] == "81"):
+                            if Hash not in Materials:
+                                Materials.append(Hash)
+                    if Hash == "14008080":
+                        FoundMat=True
+                #ParseMaterials
+                MatNames=[]
+                for Material in Materials:
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Material))).decode('utf-8')
+                    new=ast.literal_eval("0x"+flipped)
+                    pkg = Hex_String(Package_ID(new))
+                    #print(result)
+                    ent = Hex_String(Entry_ID(new))
+                    MatBank=pkg+"-"+ent+".mat"
+                    #print(MatBank)
+                    try:
+                        MatFile=open(os.getcwd()+"/out/"+MatBank,"rb")
+                    except FileNotFoundError:
+                        continue
+                    MatFile.seek(0x3E0)
+                    Num=binascii.hexlify(bytes(MatFile.read(4))).decode()
+                    Num=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Num))).decode('utf-8'))
+                    if Num == "":
+                        continue
+                    Num=ast.literal_eval("0x"+Num)
+                    MatFile.seek(0x3F0)
+                    for i in range(Num):
+                        Mat=binascii.hexlify(bytes(MatFile.read(0x18))).decode()
+                        temp=[Mat[i:i+8] for i in range(0, len(Mat), 8)]
+                        #print(temp)
+                        try:
+                            temp[4]
+                        except IndexError:
+                            continue
+                        hashCheck=[temp[4][i:i+2] for i in range(0, len(temp[4]), 2)]
+                        if (hashCheck == "80") or (hashCheck == "81"):
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')
+                            new=ast.literal_eval="0x"+flipped
+                            pkg = Hex_String(Package_ID(new))
+                            #print(result)
+                            ent = Hex_String(Entry_ID(new))
+                            MatToAppend=pkg+"-"+ent
+                            if MatToAppend not in MatNames:
+                                MatNames.append(MatToAppend)
+                        else:
+                            h64=str(temp[4])+str(temp[5])
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(h64))).decode('utf-8')
+                            new=ast.literal_eval("0x"+flipped)
+                            MatToAppend=Hash64Search(self.H64Sort,new)
+                            if MatToAppend != False:
+                                new=ast.literal_eval(MatToAppend)
+                                pkg = Hex_String(Package_ID(new))
+                                #print(result)
+                                ent = Hex_String(Entry_ID(new))
+                                MatToAppend=pkg+"-"+ent
+                                if MatToAppend not in MatNames:
+                                    MatNames.append(MatToAppend)
+
+
+
+
+
+
+
+
                 new=ast.literal_eval("0x"+DataHashes[0])
                 new=new-1
                 pkg = Hex_String(Package_ID(new))
@@ -2660,21 +2908,22 @@ class LoadZone:
 
                 #print(faces[len(faces)-1]) 
                 
-       
+
                 memory_manager = fbx.FbxManager.Create()
                 scene = fbx.FbxScene.Create(memory_manager, '')
-                my_mesh = fbx.FbxMesh.Create(scene, Static)
+                my_mesh = fbx.FbxMesh.Create(scene, start)
                 count=0
                 my_mesh.InitControlPoints(len(verts))
+                
                 for Set in verts:
                     v = fbx.FbxVector4(Set[0]/10, Set[1]/10, Set[2]/10)
                     my_mesh.SetControlPointAt( v, count )
                     count+=1
-                print(verts[0])
+                #print(verts[0])
                 #for i in range(0,int(len(faces)/3),3):
                 #    data=[faces[i],faces[i+1],faces[i+2]]
                 #    my_mesh.addface(data)
-                print(len(faces)/ 3)
+                #print(len(faces)/ 3)
                 for i in range(0, len(faces), 3):
                         my_mesh.BeginPolygon()
                         for j in range(3):
@@ -2701,6 +2950,41 @@ class LoadZone:
                 #newNode.LclScaling.Set(px)
                 #root_node.AddChild(my_mesh)
                 #scene.add(my_mesh)
+                if FindUV == True:
+                    
+                    layer = my_mesh.GetLayer(0)
+                    uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
+                    uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                    uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                    for UV in UVData:
+                        uvLayer.GetDirectArray().Add(fbx.FbxVector2(UV[0],UV[1]))
+                    count=0
+                    #for i in range(0, len(faces), 3):
+                    #    for j in range(3):
+                    #        vertex_index = faces[i + j]
+                    #        uvLayer.GetIndexArray().Add(vertex_index)
+                    #    count+=1
+                    #    my_mesh.EndPolygon()
+                    layer.SetUVs(uvLayer)
+                normLayer = fbx.FbxLayerElementNormal.Create(my_mesh, Static)
+                normLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                normLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                
+                
+                # Create the materials.
+                # Each polygon face will be assigned a unique material.
+                count=0
+                lLayer = my_mesh.GetLayer(0)
+                if len(MatNames) > 0:
+                    file5=open(os.getcwd()+"/data/Statics/Materials/Materials.txt","a")
+                    file5.write(start+".fbx : "+",".join(MatNames))
+                    file5.write("\n")
+                    file5.close()
+                    
+               
+                #for normals in norms:
+                #    normLayer.GetDirectArray().Add(fbx.FbxVector4(normals[0],normals[1],normals[2],normals[3]))
+                #layer.SetNormals(normLayer)
                 filename = os.getcwd()+"\\data\\Statics\\Statics\\"+Static+".fbx"
                 FbxCommon.SaveScene(memory_manager, scene, filename)
                 #exporter = fbx.FbxExporter.Create(memory_manager, filename)
@@ -2712,8 +2996,32 @@ class LoadZone:
                 #print(status)
                 #exporter.Destroy()
                 memory_manager.Destroy()
-            else:
-                print("Skipped")
+
+
+def SortH64(Hash64Data):
+    newH64=[]
+    for Line in Hash64Data:
+        if Line == "":
+            continue
+        temp=Line.split(": ")
+        new=ast.literal_eval(temp[0])
+        newH64.append([int(new),temp[1]])
+    newH64.sort(key=lambda x: x[0])
+    #for row in newH64:
+    #    print(row)
+    return newH64
+    
+def Hash64Search(Hash64Data,Input):
+    Found=False
+    ans=binary_search2(Hash64Data,int(Input))
+    #print(ans)
+    if str(ans) != "-1":
+        Found=True
+    if Found == True:
+        return Hash64Data[ans][1]
+    else:
+        return False
+    
 def addNode( pScene, nodeName, **kwargs ):
     
     # Obtain a reference to the scene's root node.
@@ -2788,21 +3096,118 @@ def TextureWindow(top):
     ClearTex.place(x=1000, y=470)
     filelist = []
     top.mainloop()
-def LoadNames(top):
+def LoadNames(top,ActId,ActName):
     for widget in top.winfo_children():
         widget.destroy()
     lengths=[]
+    print(ActName)
     Rotations=[]
     Translations=[]
     DynamicHashes=[]
+    file=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+    Data=file.read().split("\n")
+    file.close()
+    for Act in Data:
+        temp=Act.split(" : ")
+        #print(temp)
+        if ActName == temp[1]:
+            StringContainer=temp[3]
+            break
+    Hash64Data=ReadHash64()
+    for Line1 in Hash64Data:
+        Lines=Line1.split(": ")
+        #print(Lines)
+        if Lines[0].lower() == str("0x"+StringContainer):
+            Ref=Lines[1]
+            num=ast.literal_eval(Ref)
+            StrRef=Hex_String(Package_ID(num)).upper()+"-"+Hex_String(Entry_ID(num)).upper()
+            break
     LoadNames=[]
     file=open(os.getcwd()+"/cache/output.txt","r")
     data=file.read()
     StrData=data.split("\n")
     file.close()
+    newStrData=[]
+    for String in StrData:
+        try:
+            String.split(" // ")[1]
+        except IndexError:
+            continue
+        try:
+            int(String.split(" // ")[1])
+        except ValueError:
+            continue
+            
+        try:
+            newStrData.append([(String.split(" // ")[0]),int(String.split(" // ")[1]),String.split(" // ")[2]])
+        except IndexError:
+            #print(String)
+            continue
+        
+        #print(newStrData)
+    newStrData.sort(key=lambda x: x[1])
+    MapHashes=[]
+    OrderedLoads=[]
     for File in os.listdir(custom_direc):
         if File != "audio":
-             if File.split(".")[1] == "top":
+            if File.split(".")[1] == "act":
+                
+                file=open(custom_direc+"/"+File,"rb")
+                Data=binascii.hexlify(bytes(file.read())).decode()
+                file.close()
+                DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
+                if ActId in DataSplit:
+                    file=open(custom_direc+"/"+File,"rb")
+                    Hash=binascii.hexlify(bytes(file.read(4))).decode()
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+                    new=ast.literal_eval("0x"+stripZeros(flipped))
+                    currentPointer=4
+                    while currentPointer < new:
+                        Hash=binascii.hexlify(bytes(file.read(4))).decode()
+                        currentPointer+=4
+                        if Hash == "1d898080":
+                            currentPointer+=12
+                            file.read(12)
+                            MapHash=binascii.hexlify(bytes(file.read(8))).decode()
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(MapHash))).decode('utf-8')
+                            MapHashes.append(flipped)
+                            currentPointer+=8
+                    file=open(custom_direc+"/"+File,"rb")
+                    Data=binascii.hexlify(bytes(file.read())).decode()
+                    file.close()
+                    DataSplit=[Data[i:i+8] for i in range(0, len(Data), 8)]
+                    for Hash in DataSplit:
+                        if "0000" not in Hash:
+                            dat=StringHash(Hash,newStrData,StrRef)
+                            if dat != False:
+                                if dat not in OrderedLoads:
+                                    OrderedLoads.append(dat)
+                            
+                             
+    TopNames=[]
+    Hash64Data=ReadHash64()
+    for Map in MapHashes:
+        for Line1 in Hash64Data:
+            Lines=Line1.split(": ")
+            #print(Lines)
+            #print(Lines)
+            Hash="0x"+str(Map)
+            #print(Hash)
+            if str(Lines[0].lower()) == Hash:
+                print("MATCH")
+                LhashFile=Lines[1]
+                num=ast.literal_eval(LhashFile)
+                name=Hex_String(Package_ID(num))+"-"+Hex_String(Entry_ID(num))+".top"
+                TopNames.append(name.lower())
+                
+                
+                break
+    print(MapHashes)
+    print(TopNames)
+    #time.sleep(60)
+    for File in os.listdir(custom_direc):
+        if File != "audio":
+             if File.lower() in TopNames:
                  file=open(custom_direc+"/"+File,"rb")
                  file.seek(0x8)
                  Hash=binascii.hexlify(bytes(file.read(4))).decode()
@@ -2824,9 +3229,10 @@ def LoadNames(top):
                      except IndexError:
                          pass
                      else:
-                         if Lines[0] == str(new):
-                             StringTxt=Lines[1]
-                             possibleNames.append(StringTxt)
+                         if Lines[1] == str(new):
+                             if Lines[0] == StrRef:
+                                 StringTxt=Lines[2]
+                                 possibleNames.append(StringTxt)
                              
                  LoadNames.append([str([possibleNames]),File,RefHash])
     count=0
@@ -2852,15 +3258,25 @@ def LoadNames(top):
                         LhashFile=Lines[1]
                         LoadNames[count].append(LhashFile)
                         break
-        count+=1     
-                    
-    #print(LoadNames)           
+        count+=1
+    newLoadNames=[]
+    #print(OrderedLoads)
+    #for Load in OrderedLoads:
+    #    for LoadName in LoadNames:
+    #        if Load in LoadName[0]:
+    #            newLoadNames.append(LoadName)
+    #            break
+        
+            
+        
+            
+    #print(LoadNames)
+    #LoadNames=newLoadNames
     count=0    
     for Load in LoadNames:
         count+=1
         print(str(count)+" "+Load[0]+Load[2])
     global lst, combo_box
-    lst=[]
     lst=LoadNames
     #answer=int(input("Enter which Load you want to pull from: "))
     bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
@@ -2873,9 +3289,18 @@ def LoadNames(top):
     combo_box.bind('<KeyRelease>', check_input)
     combo_box.place(x=500, y=125)
     Map = Button(top, text="Extract Load", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames))
-    Map.place(x=500, y=175)
+    Map.place(x=500, y=400)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
+    Clear = Button(top, text="Clear Audio", height=1, width=15,command=partial(ClearAudio,top))
+    Clear.place(x=1000, y=550)
+    #ClearOut = Button(top, text="Clear Out", height=1, width=15,command=partial(ClearDir,top))
+    #ClearOut.place(x=1000, y=510)
+    ClearTex = Button(top, text="Clear Textures", height=1, width=15,command=partial(ClearTextures,top))
+    ClearTex.place(x=1000, y=470)
+    ClearMap = Button(top, text="Clear Maps", height=1, width=15,command=partial(ClearMaps,top))
+    ClearMap.place(x=1000, y=430)
+
     top.mainloop()
 
 
@@ -3022,29 +3447,47 @@ def InitialiseMapFiles(loadfile,InstCount,Ref):
     Popup()
 def MapRipper(entry,top):
     filelist=[]
+    package=""
+    ActId=""
+    ActName=entry.get()
+    File2=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+    data=File2.read()
+    File2.close()
+    Activities=data.split("\n")
+    for Act in Activities:
+        temp=Act.split(" : ")
+        if entry.get() in temp:
+            package=temp[2]
+            ActId=temp[0]
+            print("found")
+            break
     for file in os.listdir(path)[::-1]:
-        if fnmatch.fnmatch(file,entry.get()+"*"):
+        if fnmatch.fnmatch(file,package+"*"):
             filelist.append(file)
-    useful=["Map"]
+    useful=["Map","0x808093ad","0x80806d44","0x80806daa","0x80806d30","0x80808707","0x80809883","0x8080891e","0x80808701","0x808093b1","0x80806a0d","0x80808e8e","0x80806daa"]
     unpack_all(path,custom_direc,useful,filelist)
-    LoadNames(top)
+    LoadNames(top,ActId,ActName)
 def QuitOut(top):
     top.destroy()
     sys.exit()
 def MapWindow(top):
     global lst, combo_box
     lst=[]
+    file=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+    data=file.read()
+    file.close()
+    ActDat=data.split("\n")
+    ActDat.remove("")
+    for Act in ActDat:
+        #print(Act)
+        things=Act.split(" : ")
+        lst.append(things[1])
     for widget in top.winfo_children():
         widget.destroy()
+    lst.sort(reverse=False)
     bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
     label1 = Label(top, image = bg)
     label1.pack()
-    for File in os.listdir(path):
-        temp=File.split("_")
-        if "video" not in temp:
-            new="_".join(temp[:(len(temp)-2)])
-            if new not in lst:
-                lst.append(new)
     #print(lst)
     useful=[]
     combo_box = ttk.Combobox(top,height=20, width=40)
