@@ -1481,9 +1481,9 @@ def ActivityRipper(entry):
                         print("Get Mus and Dir")
                         file.GetDialogue()
     print("done")
-    for file in os.listdir(custom_direc):
-        if file != "audio":
-            os.remove(custom_direc+"/"+file)
+    #for file in os.listdir(custom_direc):
+    #    if file != "audio":
+    #        os.remove(custom_direc+"/"+file)
     Popup()
     DataView(top,entry.get())
     
