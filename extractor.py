@@ -1671,7 +1671,7 @@ def Strings(ans):
         #print(result)
         ent = Hex_String(Entry_ID(int(Hash1)))
         Bank=pkg+"-"+ent+".str"
-        print(Bank)
+        #print(Bank)
         try:
             Bnk=open(strPath+"/"+Bank,"rb")
         except FileNotFoundError:
@@ -1800,9 +1800,9 @@ def Strings(ans):
             
         Bnk.close()
         #break
-    #for file in os.listdir(custom_direc):
-    #    if file != "audio":
-    #        os.remove(custom_direc+"/"+file)
+    for file in os.listdir(custom_direc):
+        if file != "audio":
+            os.remove(custom_direc+"/"+file)
             
     Popup()
 
