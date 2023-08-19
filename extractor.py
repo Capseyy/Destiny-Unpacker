@@ -2309,10 +2309,12 @@ def ClearDir(top):
             os.remove(os.getcwd()+"/out/"+file)
     Popup()
 def ClearMaps(top):
-    for file in os.listdir(os.getcwd()+"/data/Statics/Statics"):
-        os.remove(os.getcwd()+"/data/Statics/Statics/"+file)
-    for file in os.listdir(os.getcwd()+"/data/Statics/Instances"):
-        os.remove(os.getcwd()+"/data/Statics/Instances/"+file)
+    for file in os.listdir(os.getcwd()+"/data/Statics"):
+        os.remove(os.getcwd()+"/data/Statics/"+file)
+    for file in os.listdir(os.getcwd()+"/data/Instances"):
+        os.remove(os.getcwd()+"/data/Instances/"+file)
+    for file in os.listdir(os.getcwd()+"/data/Materials"):
+        os.remove(os.getcwd()+"/data/Materials/"+file)
     Popup()
 def ClearTextures(top):
     for file in os.listdir(os.getcwd()+"/Textures"):
@@ -2446,16 +2448,16 @@ class LoadZone:
     def RipDyns(self):
         os.chdir(self.CWD+"/ThirdParty")
         for Dyn in self.DynNames:
-            cmd='MDE -p "'+path+'" -o "'+os.getcwd()+"/data/Statics/Statics"' -i '+Dyn.upper()
+            cmd='MDE -p "'+path+'" -o "'+os.getcwd()+"/data/Statics"' -i '+Dyn.upper()
             print(cmd)
             ans=subprocess.call(cmd, shell=True)
             #for File in os.listdir(currentPath+"/ThirdParty/output/"+str(pkgID)):
             try:
-                shutil.move(os.getcwd()+"/data/Statics/Statics/"+Dyn.upper()+"/"+Dyn.upper()+".fbx",os.getcwd()+"/data/Statics/Statics/"+Dyn.lower()+".fbx")
+                shutil.move(os.getcwd()+"/data/"+Dyn.upper()+"/"+Dyn.upper()+".fbx",os.getcwd()+"/data/"+Dyn.lower()+".fbx")
             except FileNotFoundError:
                 continue
             else:
-                os.rmdir(os.getcwd()+"/data/Statics/Statics/"+Dyn.upper())
+                os.rmdir(os.getcwd()+"/data/"+Dyn.upper())
         os.chdir(self.CWD)
             
             
@@ -2533,7 +2535,7 @@ class LoadZone:
                                 self.DynNames.append(DynHash)
                             ValidDyn=True
                     if ValidDyn == True:
-                        file1=open("C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/MapExtracter/data/Statics/Instances/"+DynHash.lower()+".inst","a")
+                        file1=open("C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/MapExtracter/data/Instances/"+DynHash.lower()+".inst","a")
                         file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
                         file1.close()
 
@@ -2602,7 +2604,7 @@ class LoadZone:
             #print(Index)
             #print(NumofInstance)
             #print(self.Statics[Index])
-            file=open(self.CWD+"/data/Statics/Instances/"+self.Statics[Index]+".inst","a")
+            file=open(self.CWD+"/data/Instances/"+self.Statics[Index]+".inst","a")
       
             for i in range(int(NumofInstance)):
                 try:
@@ -2694,12 +2696,12 @@ class LoadZone:
     def RipStatics(self):
         os.chdir(self.CWD+"/ThirdParty")
         for Static in self.Statics:
-            cmd='d2staticextractor.exe -p "'+path+'" -o '+self.CWD+'/data/Statics/Statics -i '+Static
+            cmd='d2staticextractor.exe -p "'+path+'" -o '+self.CWD+'/data/Statics -i '+Static
             print(cmd)
             ans=subprocess.call(cmd, shell=True)
             #print(ans)
             try:
-                os.rename(self.CWD+"/data/Statics/Statics/"+Static.lower()+".fbx",self.CWD+"/data/Statics/Statics/"+Static.upper()+".fbx")
+                os.rename(self.CWD+"/data/Statics/"+Static.lower()+".fbx",self.CWD+"/data/Statics/"+Static.upper()+".fbx")
             except FileNotFoundError:
                 print("L")
         os.chdir(self.CWD)
@@ -3020,7 +3022,7 @@ class LoadZone:
                 count=0
                 lLayer = my_mesh.GetLayer(0)
                 if len(MatNames) > 0:
-                    file5=open(os.getcwd()+"/data/Statics/Materials/Materials.txt","a")
+                    file5=open(os.getcwd()+"/data/Materials/Materials.txt","a")
                     file5.write(start+".fbx : "+",".join(MatNames))
                     file5.write("\n")
                     file5.close()
@@ -3029,7 +3031,7 @@ class LoadZone:
                 #for normals in norms:
                 #    normLayer.GetDirectArray().Add(fbx.FbxVector4(normals[0],normals[1],normals[2],normals[3]))
                 #layer.SetNormals(normLayer)
-                filename = os.getcwd()+"\\data\\Statics\\Statics\\"+Static+".fbx"
+                filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
                 FbxCommon.SaveScene(memory_manager, scene, filename)
                 #exporter = fbx.FbxExporter.Create(memory_manager, filename)
                 
@@ -3596,7 +3598,35 @@ if __name__ == '__main__':
     entry1.place(x=500,y=105)
     turn_on = Button(top, text="Set D2 Location", height=1, width=12,command=partial(setD2Location, entry1,top))
     turn_on.place(x=500, y=125)
-
+    try:
+        os.makedirs(os.getcwd()+"/Cutscenes")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/Activity")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/out")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/out/audio")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/Textures")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/Textures/cubemaps")
+    except FileExistsError:
+        print("Drive Exists")
+    
+    
+    
+    
+    
     
     #turn_on.pack()
 
