@@ -3622,6 +3622,10 @@ if __name__ == '__main__':
         os.makedirs(os.getcwd()+"/Textures/cubemaps")
     except FileExistsError:
         print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/cache")
+    except FileExistsError:
+        print("Drive Exists")
     
     
     
