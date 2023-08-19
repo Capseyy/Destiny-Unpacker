@@ -1,5 +1,0 @@
-.Net Runtime 6.0+ x64
-numpy(should work without installing)
-pycryptodome(should work without installing)
-python 3.10.6
-Python FBX SDK

@@ -12,6 +12,7 @@ import io
 import fnmatch
 import time,ast,struct
 import fbx
+from fbx import *
 from fbx import FbxManager
 import FbxCommon
 from ast import literal_eval
@@ -19,8 +20,8 @@ from tkinter import *
 from tkinter import ttk
 from functools import partial
 global custom_direc,useful ,path,Hash64Data
-#path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
-path="E:/SteamLibrary/steamapps/common/Destiny2/packages"
+path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
+#path="C:\Program Files (x86)\Steam\steamapps\common\Destiny2\packages"
 #path="D:/oldd2/packages"
 custom_direc = os.getcwd()+"/out" #Where you want the bin files to go
 oodlepath = os.getcwd()+"/ThirdParty/oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
@@ -1362,9 +1363,9 @@ def GenerateActivityNames():
         theFile.write(str(Thing)+"\n")
     theFile.close()
                     
-    #for file in os.listdir(os.getcwd()+"/out"):
-    #    if file != "audio":
-    #        os.remove(os.getcwd()+"/out/"+file)        
+    for file in os.listdir(os.getcwd()+"/out"):
+        if file != "audio":
+            os.remove(os.getcwd()+"/out/"+file)        
 def ActivityRipper(entry):
     print("Starting ACT")
     package=""
@@ -1670,12 +1671,43 @@ def Strings(ans):
         #print(result)
         ent = Hex_String(Entry_ID(int(Hash1)))
         Bank=pkg+"-"+ent+".str"
+        print(Bank)
         try:
             Bnk=open(strPath+"/"+Bank,"rb")
         except FileNotFoundError:
             continue
         #print(Bank)
+        #################
+        data=binascii.hexlify(bytes(Bnk.read())).decode("utf-8")
+        Data=[data[i:i+32] for i in range(0, len(data), 32)]
+        count=0
+        Blocks=False
+        for Line in Data:
+            temp=[Line[i:i+8] for i in range(0, len(Line), 8)]
+            if "f5998080" in temp:
+                count+=1
+              
+                BlockLengthsOffset=(16*count)
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')
+                BlockLengthsCount=ast.literal_eval("0x"+stripZeros(flipped))
+                Blocks=True
+                break
+
+            count+=1
+        if Blocks == False:
+            continue
+        Bnk.seek(BlockLengthsOffset)
+        BlockCounts=[]
+        for i in range(BlockLengthsCount):
+            data=binascii.hexlify(bytes(Bnk.read(16))).decode("utf-8")
+            temp=[data[i:i+4] for i in range(0, len(data), 4)]
+            Offset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
+            Counts=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')))
+            BlockCounts.append(int(Counts))
+        Bnk.seek(0)
         #print("opened bnk")
+        #print(BlockCounts)
+        ##############################
         tooSmall=0
         while True:
             data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
@@ -1690,23 +1722,46 @@ def Strings(ans):
         #print(BnkHeader)
         if tooSmall == 30:
             continue
-        while True:
-            data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
-            if data == "c59d1c81":
-                StrData=[]
-                data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
-                if data == "b89f8080":
-                    break
-                else:
-                    StrData.append(data)
-                    for i in range(4):
-                        data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
-                    data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
-                    StrData.append(data)
-                    BnkLengths.append(StrData)
-            elif data == "05008080":
+        Bnk.seek(0)
+        data=binascii.hexlify(bytes(Bnk.read())).decode("utf-8")
+        Data=[data[i:i+32] for i in range(0, len(data), 32)]
+        count=0
+        Entires=False
+        for Line in Data:
+            temp=[Line[i:i+8] for i in range(0, len(Line), 8)]
+            if "f7998080" in temp:
+                count+=1
+                EntryCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
+                EntryStartingOffset=count*16
+                Entries=True
                 break
-            #print("stuck")
+            count+=1
+        Bnk.seek(EntryStartingOffset)
+        StringData=[]#Start Offset,Length
+        CurrentOffset=EntryStartingOffset
+        j=0
+        num=0
+        if Entries == False:
+            continue
+        for i in range(int(EntryCount)):
+            if j == BlockCounts[num]:
+                num+=1
+                j=0
+            EntryData=binascii.hexlify(bytes(Bnk.read(32))).decode("utf-8")
+            Data=[EntryData[i:i+4] for i in range(0, len(EntryData), 4)]
+            StringOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(str(Data[4])+str(Data[5])))).decode('utf-8')))
+            StrLength=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[10]))).decode('utf-8')))
+            StringData.append([int(StringOffset)+CurrentOffset+8,int(StrLength),RefHashes[num],CurrentOffset])
+            CurrentOffset+=32
+            j+=1
+            
+            
+            
+            
+        #print(StringData)
+            
+            
+        
         #print("notstuck")
         #for i in range(4):
         data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
@@ -1714,51 +1769,40 @@ def Strings(ans):
         #onto Str
         #print(BnkLengths)
         
-        num=0
-        
-        for String in BnkLengths:
+        HashVal=0
+        count=0
+        #print(str(len(RefHashes))+" ----- "+str(len(BlockCounts)))
+        for String in StringData:
+            #print(String)
             out=open(os.getcwd()+"/cache/output.txt","a")
-            if str(list(String[0])[2]+list(String[0])[3]) != "00":
-                #print("CHAT COMMAND DETECTED")
-                #print(list(String[0]))
-                StrLength=str(list(String[0])[2]+list(String[0])[3]+list(String[0])[0]+list(String[0])[1])
-                #print(strLength)
-                #break
-            else:
-                StrLength=str(list(String[0])[0]+list(String[0])[1])
-            length=int(StrLength,16)
-            #print(length)
-            try:
-                text=Bnk.read(length).decode()
-            except UnicodeDecodeError:
-                #end of file
-                break
-            try:
-                Hash=int(RefHashes[num],16)
-            except IndexError:
-                #hashbroke
-                Hash="HashBroke"
-            #print(text)
-            #print(str(Hash))
+            Bnk.seek(String[0])
+            text=Bnk.read(String[1]).decode()
+            Hash=int(String[2],16)
             
+            
+                
             textout=str(FileName)+" // "+str(Hash)+" // "+text+"\n"
             #print(textout)
             try:
                 out.write(textout)
             except UnicodeEncodeError:
                 out.write(str(FileName)+" // "+str(Hash)+" // ?\n")
-            else:
-                if text != "":
-                    num+=1
-            out.close()
+            
                 
+            out.close()
+            
             #print("written")
+            count+=1
+                
+                    
+                
+           
             
         Bnk.close()
         #break
-    for file in os.listdir(custom_direc):
-        if file != "audio":
-            os.remove(custom_direc+"/"+file)
+    #for file in os.listdir(custom_direc):
+    #    if file != "audio":
+    #        os.remove(custom_direc+"/"+file)
             
     Popup()
 
@@ -2394,8 +2438,8 @@ class LoadZone:
         self.PullStaticMeta()
         self.PullStaticData()
         self.OutputCFG()
-        self.PullDyns()
-        self.RipDyns()
+        #self.PullDyns()
+        #self.RipDyns()
         
         #print(self.Statics)
         #print(str(len(self.Statics)))
@@ -2695,7 +2739,7 @@ class LoadZone:
             #print(result)
             ent = Hex_String(Entry_ID(new))
             Bank=pkg+"-"+ent+".sub" #subfile
-            print(Bank)
+            #print(Bank)
             sub=open(os.getcwd()+"/out/"+Bank,"rb")
             SubData=binascii.hexlify(bytes(sub.read())).decode()
             sub.seek(0x4C)
