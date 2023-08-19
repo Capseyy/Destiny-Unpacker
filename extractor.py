@@ -11,13 +11,13 @@ import binascii
 import io
 import fnmatch
 import time,ast,struct
-import fbx
-from fbx import *
-from fbx import FbxManager
 import FbxCommon
 from ast import literal_eval
 from tkinter import *
 from tkinter import ttk
+import fbx
+from fbx import *
+from fbx import FbxManager
 from functools import partial
 global custom_direc,useful ,path,Hash64Data
 path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
@@ -1264,7 +1264,9 @@ def GenerateActivityNames():
     useful=["ActName","0x80808e8e","0x80808e8b"]
     for file in os.listdir(path)[::-1]:
         if fnmatch.fnmatch(file,'w64*'):   #CHANGE HERE
-            filelist.append(file)
+            if "sandbox" not in file.split("_"):
+                if "audio" not in file.split("_"):
+                    filelist.append(file)
     unpack_all(path,custom_direc,useful,filelist)
     for File in os.listdir(os.getcwd()+"/out"):
         if File == "audio":
@@ -3492,6 +3494,7 @@ def InitialiseMapFiles(loadfile,InstCount,Ref):
                     count+=1
     Popup()
 def MapRipper(entry,top):
+    
     filelist=[]
     package=""
     ActId=""
@@ -3623,6 +3626,18 @@ if __name__ == '__main__':
         print("Drive Exists")
     try:
         os.makedirs(os.getcwd()+"/cache")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/data/Statics")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/data/Instances")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/data/Materials")
     except FileExistsError:
         print("Drive Exists")
     Hash64(path)
