@@ -3586,8 +3586,7 @@ def MainWindow(top):
     top.mainloop()
     
 if __name__ == '__main__':
-    Hash64(path)
-    Hash64Data=ReadHash64()
+    
     top = Tk()
     top.title("The Tech")
     top.geometry("1200x600")
@@ -3626,7 +3625,8 @@ if __name__ == '__main__':
         os.makedirs(os.getcwd()+"/cache")
     except FileExistsError:
         print("Drive Exists")
-    
+    Hash64(path)
+    Hash64Data=ReadHash64()
     
     
     
