@@ -92,29 +92,7 @@ def assemble_map():
         tmp = []
         bpy.ops.object.select_all(action='DESELECT')
      
-        #merge static parts into one object
-        #for obj in tmp:
-        #    bpy.ops.object.select_all(action='DESELECT')
-        #    for meshes, mats in config["Parts"].items():
-        #        if meshes[:8] == obj and meshes in bpy.context.view_layer.objects:
-        #            print(meshes + " belongs to " + obj)
-        #            bpy.data.objects[meshes].select_set(True)
-        #            bpy.context.view_layer.objects.active = bpy.data.objects[meshes]
-        #    bpy.ops.object.join()
-        #bpy.ops.outliner.orphans_purge()
 
-        #merge static parts into one object, Old method
-        # for x in range(0, 4): #For some reason one pass doesnt work, this slows the import down a bit, idk a better fix
-        #     for obj in tmp:
-        #         bpy.ops.object.select_all(action='DESELECT')
-        #         #print(obj)
-        #         for obj2 in newobjects:
-        #             if obj2.name[:8] == obj and obj in tmp:
-        #                 tmp.remove(obj)
-        #                 obj2.select_set(True)
-        #                 bpy.context.view_layer.objects.active = obj2
-        #         bpy.ops.object.join()
-        #         bpy.ops.outliner.orphans_purge()
 
         newobjects = [] #Clears the list just in case
         newobjects = bpy.data.collections[str(Name)].objects #Readds the objects in the collection to the list
@@ -149,25 +127,7 @@ def assemble_map():
                     location = [float(instance[4]), float(instance[5]), float(instance[6])]
                     #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
                     quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
-                #flipped=binascii.hexlify(bytes(hex_to_little_endian(static))).decode('utf-8')
-                #print(flipped)
-                #new=ast.literal_eval("0x"+flipped)
-                #PkgID=Hex_String(Package_ID(new))
-                #EntryID=Hex_String(Entry_ID(new))
-                #DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
-                #file=open("C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/MapExtracter/data/"+DirName,"rb")
-                #data=Data=binascii.hexlify(bytes(file.read())).decode()
-                #file.close()
-                #Data=[data[i:i+32] for i in range(0, len(data), 32)]
-                #Vert=Data[5]
-                #Dat=[Vert[i:i+8] for i in range(0, len(Vert), 8)] #X,Y,Z,Scale
-                #x=binascii.hexlify(bytes(hex_to_little_endian(Dat[0]))).decode('utf-8')
-                #y=binascii.hexlify(bytes(hex_to_little_endian(Dat[1]))).decode('utf-8')
-                #z=binascii.hexlify(bytes(hex_to_little_endian(Dat[2]))).decode('utf-8')
-                #X=struct.unpack('!f', bytes.fromhex(x))[0]
-                #Y=struct.unpack('!f', bytes.fromhex(y))[0]
-                #Z=struct.unpack('!f', bytes.fromhex(z))[0]
-                #location = [instance["Translation"][0], instance["Translation"][1], instance["Translation"][2]]
+                
                     ob_copy.location = location
                     ob_copy.rotation_mode = 'QUATERNION'
                     ob_copy.rotation_quaternion = quat
@@ -220,7 +180,7 @@ currentPath=os.getcwd()
 
 count=0
 for Fbx in os.listdir(Filepath+"/Statics"):
-    
+    #break
     split=Fbx.split(".")
     if split[1] == "fbx":
         path=Filepath+"/Statics/"+Fbx
@@ -344,5 +304,123 @@ for mat in bpy.data.materials:
 #    #added material will be last in material slots
 #    #so make last slot active
 #    obj.active_material_index = len(obj.data.materials) - 1 
+def InstanceDyn(Object,HasRoot):
+    try:
+        file=open(Filepath+"/Instances/"+(str(Object.name)[:8]).lower()+".inst","r")
+    except:
+        print("no file")
+    else:
         
+        data=file.read().split("\n")
+        file.close()
+        #print(data)
+        data.remove('')
+        #print(data)
+        #print(Object.name)               
+        flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
+#print(flipped)
+        new=ast.literal_eval("0x"+flipped)
+        PkgID=Hex_String(Package_ID(new))
+        EntryID=Hex_String(Entry_ID(new))
+        DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
+        #print(data)
+        for instance in data:
+            instance=instance.split(",")
+            ob_copy = bpy.data.objects[Object.name].copy()
+            bpy.context.collection.objects.link(ob_copy) #makes the instances
+
+            location = [float(instance[4]), float(instance[5]), float(instance[6])]
+            #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
+            quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
+        
+            ob_copy.location = location
+            ob_copy.rotation_mode = 'QUATERNION'
+            #ob_copy.rotation_quaternion = quat
+            if HasRoot == True:
+                ob_copy.delta_scale=[0.01]*3
+            #if 7<Scale<8:
+            
+                #ob_copy.delta_scale=([Scale/10])*3
+            ob_copy.scale = [float(instance[7])]*3
 assemble_map()
+for Fbx in os.listdir(Filepath+"/Dynamics"):
+    
+    split=Fbx.split(".")
+    if split[1] == "fbx":
+        path=Filepath+"/Dynamics/"+Fbx
+        print("ran")
+        bpy.ops.object.select_all(action='DESELECT')
+        thing=(0,0,0)
+        bpy.context.scene.cursor.rotation_euler = (0, 0, 0)
+        bpy.data.collections.new(str(split[0]).upper())
+        bpy.context.scene.collection.children.link(bpy.data.collections[str(split[0]).upper()])
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
+        #bpy.ops.import_scene.fbx(filepath=path)
+        bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
+        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+        HasRoot=False
+        for Obj in bpy.data.objects:
+            Obj.parent = None
+            if Obj.name == "root":
+                Obj.select_set(state=True)
+                bpy.ops.object.delete()
+                HasRoot=True
+            
+        #    split=Obj.name.split("_")
+        #    if split[1] == "0":
+        #        bpy.data.objects.remove(Obj)
+        #for Obj in bpy.data.objects:
+        
+        bpy.ops.object.select_all(action='DESELECT')
+        newobjects = bpy.data.collections[str(split[0]).upper()].objects
+        #newobjects = bpy.data.collections[str(Name)].objects
+        #for obj in newobjects:
+        #    #deselect all objects
+        #    bpy.ops.object.select_all(action='DESELECT')
+        #    tmp.append(obj.name[:8])
+            #print(obj.name[:8])
+            
+        count=0
+        MSH_OBJS = [m for m in bpy.data.collections[str(split[0]).upper()].objects if m.type == 'MESH']
+        bpy.ops.outliner.orphans_purge()
+        for OBJS in MSH_OBJS:
+            #Select all mesh objects
+            OBJS.select_set(state=True)
+            bpy.context.view_layer.objects.active = OBJS
+        #bpy.ops.object.join()
+        #break    
+        count+=1
+        flipped=binascii.hexlify(bytes(hex_to_little_endian(split[0]))).decode('utf-8')
+        print(flipped)
+        new=ast.literal_eval("0x"+flipped)
+        PkgID=Hex_String(Package_ID(new))
+        EntryID=Hex_String(Entry_ID(new))
+        DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
+        modelExists=False
+        #or file in os.listdir(installLoc+"/out"):
+        #   if file != "audio":
+        #       if file == DirName:
+        #           print("modelexists")
+        modelExists=True
+        if modelExists == True:
+            
+            for obj in bpy.context.selected_objects:
+                #if 7<Scale<8:
+                #    obj.scale=([Scale/10])*3
+                #obj.rotation_mode = 'XYZ'
+                #obj.location=[0,0,0]
+            #currentRotation=bpy.data.objects[len(bpy.data.objects)-1].rotation_euler[0]
+            #print(currentRotation)
+                
+                #obj.location=location
+                obj.location=[0,0,0]
+                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+                InstanceDyn(obj,HasRoot)
+                #obj.rotation_euler=[math.radians(0),math.radians(0),math.radians(180)]
+            #XRot=bpy.data.objects[len(bpy.data.objects)-1].rotation_euler[0]
+            #YRot=bpy.data.objects[len(bpy.data.objects)-1].rotation_euler[1]
+            #ZRot=bpy.data.objects[len(bpy.data.objects)-1].rotation_euler[2]
+            #print(math.radians(180))
+            #bpy.data.objects[len(bpy.data.objects)-1].rotation_euler=[math.radians(-90),math.radians(YRot),math.radians(ZRot)]
+            #bpy.data.objects[len(bpy.data.objects)-1].scale=(Scale/10,Scale/10,Scale/10)
+            #bpy.context.scene.cursor.location=location
