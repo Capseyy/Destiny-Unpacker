@@ -123,7 +123,7 @@ def assemble_map():
         
         for Object in bpy.data.objects:
             try:
-                file=open(Filepath+"/Instances/"+str(Object.name)[:8]+".inst","r")
+                file=open(Filepath+"/Instances/"+(str(Object.name)[:8]).lower()+".inst","r")
             except:
                 print("no file")
             else:
@@ -231,12 +231,15 @@ for Fbx in os.listdir(Filepath+"/Statics"):
         bpy.data.collections.new(str(split[0]).upper())
         bpy.context.scene.collection.children.link(bpy.data.collections[str(split[0]).upper()])
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
-        bpy.ops.import_scene.fbx(filepath=path)
-        #for Obj in bpy.data.objects:
+        #bpy.ops.import_scene.fbx(filepath=path)
+        bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
+        for Obj in bpy.data.objects:
+            Obj.parent = None
         #    split=Obj.name.split("_")
         #    if split[1] == "0":
         #        bpy.data.objects.remove(Obj)
         #for Obj in bpy.data.objects:
+        
         bpy.ops.object.select_all(action='DESELECT')
         newobjects = bpy.data.collections[str(split[0]).upper()].objects
         #newobjects = bpy.data.collections[str(Name)].objects
@@ -253,7 +256,7 @@ for Fbx in os.listdir(Filepath+"/Statics"):
             #Select all mesh objects
             OBJS.select_set(state=True)
             bpy.context.view_layer.objects.active = OBJS
-        bpy.ops.object.join()
+        #bpy.ops.object.join()
         #break    
         count+=1
         flipped=binascii.hexlify(bytes(hex_to_little_endian(split[0]))).decode('utf-8')
@@ -324,22 +327,22 @@ for mat in bpy.data.materials:
     for n in mat.node_tree.nodes:
         if n.type == 'BSDF_PRINCIPLED':
             n.inputs["Metallic"].default_value = 1
-for obj in bpy.data.objects:
-    #get name of object
-    name = obj.name
-    
-    # check if object has material same as object name
-    # if there is then continue to next object
-    if name in obj.data.materials:
-        continue
-    
-    #create new material with name of object
-    
-    
-    #add new material to object
-    obj.data.materials.append(new_mat)
-    #added material will be last in material slots
-    #so make last slot active
-    obj.active_material_index = len(obj.data.materials) - 1 
+#for obj in bpy.data.objects:
+#    #get name of object
+#    name = obj.name
+#    
+#    # check if object has material same as object name
+#    # if there is then continue to next object
+#    if name in obj.data.materials:
+#        continue
+#    
+#    #create new material with name of object
+#    
+#    
+#    #add new material to object
+#    obj.data.materials.append(new_mat)
+#    #added material will be last in material slots
+#    #so make last slot active
+#    obj.active_material_index = len(obj.data.materials) - 1 
         
 assemble_map()
