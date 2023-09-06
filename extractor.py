@@ -2341,6 +2341,7 @@ def ClearAudio(top):
     Popup()
     #MainWindow(top)
 def DevMenu():
+    global lst, combo_box
     lst=[]
     for widget in top.winfo_children():
         widget.destroy()
@@ -2353,6 +2354,7 @@ def DevMenu():
         if new not in lst:
             lst.append(new)
     #print(lst)
+    lst.sort(reverse=False)
     useful=[]
     combo_box = ttk.Combobox(top,height=20, width=30)
     combo_box['values'] = lst
@@ -2372,32 +2374,1008 @@ def DevRipper(entry):
  
     useful=["All","Scripts"]
     unpack_all(path,custom_direc,useful,filelist)
-    Dev=open("mechout.txt","w")
-    Dev.close()
-    Dev=open("mechout.txt","a")
-    for File in os.listdir(custom_direc):
-        if File != "audio":
-            file=open(custom_direc+"/"+File,"rb")
+    file=open(os.getcwd()+"/cache/output.txt","r")
+    data=file.read()
+    StrData=data.split("\n")
+    file.close()
+    newStrData=[]
+    for String in StrData:
+        try:
+            String.split(" // ")[1]
+        except IndexError:
+            continue
+        try:
+            int(String.split(" // ")[1])
+        except ValueError:
+            continue
             
+        try:
+            newStrData.append([(String.split(" // ")[0]),int(String.split(" // ")[1]),String.split(" // ")[2]])
+        except IndexError:
+            #print(String)
+            continue
+        
+        #print(newStrData)
+    newStrData.sort(key=lambda x: x[1])
+    for File in os.listdir(custom_direc):
+        if File == "audio":
+            continue
+        if File.split(".")[1] == "bin":
+            Pointers=[]
+            #print(File)
+            file=open(custom_direc+"/"+File,"rb")
             Data=binascii.hexlify(bytes(file.read())).decode()
+            temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
+            FileHash=False
             count=0
-            Data=[Data[i:i+8] for i in range(0, len(Data), 8)]
-            for Hash in Data:
+            StringStartP=False
+            for Hash in temp:
+                if Hash == "00000000":
+                    continue
                 if Hash == "65008080":
-                    string="".join(Data[count+2:])
-                    #print(File)
-                    try:
-                        temp=bytearray.fromhex(string).decode()
-                    except:
-                        continue
-                    else:
-                        temp2=temp.split(" ")
-                        Dev.write(File+"\n")
-                        Things="/".join(temp2)
-                        Dev.write(Things+"\n")
-                                   
+                    StringStartP=count
+                    break
+                if len(list(Hash)) == 8:
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode())
+                    dec=ast.literal_eval("0x"+flipped)
+                    PkgID=Hex_String(Package_ID(dec))
+                    EntryID=Hex_String(Entry_ID(dec))
+                    DirName=PkgID+"-"+EntryID
+                    if DirName.upper() == File.split(".")[0].upper():
+                        FileHash=Hash
+                        break
                 count+=1
-    Dev.close()
+                    
+                
+            Max=len(temp)
+            Pointer=0
+            DataBlocks=[]
+            DataBlocks2=[]
+            DataBlocks3=[]
+            DataBlocks4=[]
+            StringPointer=""
+            DataBlocks5=[]
+            DataBlocks6=[]
+            DataBlocks7=[]
+            DataBlocks8=[]
+            DataBlocks9=[]
+            DataBlocks10=[]
+            DataBlocks11=[]
+            DataBlocks12=[]
+            DataBlocks13=[]
+            DataBlocks14=[]
+            DataBlocks15=[]
+            DataBlocks16=[]
+            DataBlocks17=[]
+            DataBlocks18=[]
+            DataBlocks19=[]
+            for i in range(len(temp)):
+                if temp[Pointer] == "65008080":
+                    StringPointer=Pointer
+                    break
+                if temp[Pointer].upper() == "1EB13A0F":
+                    print("FOUND: "+File)
+                if temp[Pointer] == "79008080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks.append(dat)
+                    #Pointer+=5
+                if temp[Pointer] == "53008080":
+                    dat=temp[Pointer+1:Pointer+2]
+                    dat.append((Pointer+1)*4)
+                    #print(dat)
+                    #Pointer+=2
+                    DataBlocks2.append(dat)
+                if temp[Pointer] == "5a9b8080":
+                    dat=temp[Pointer+1:Pointer+2]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks3.append(dat)  
+                    #Pointer+=2
+                if temp[Pointer] == "0d018080":
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[Pointer+1]))).decode())
+                    Count=ast.literal_eval("0x"+flipped)
+                    Pointer+=3
+                    for i in range(Count):
+                        dat=temp[Pointer:Pointer+3]
+                        dat.append((Pointer)*4)
+                        DataBlocks4.append(dat)
+                        Pointer+=4
+                    #print(dat)
+                    #Pointer-=2
+                if temp[Pointer] == "70008080":
+                    
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    #print(dat)
+                    
+                    DataBlocks5.append(dat)
+                    #Pointer+=2
+                if temp[Pointer] == "ef008080":  ####TODO
+                    dat=temp[Pointer+1:Pointer+12]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks7.append(dat)  
+                    #Pointer+=2
+                #if temp[Pointer] == "04008080":  ####TODO----Find Hash Val and ref to name 
+                #    dat=temp[Pointer+1:Pointer+2]
+                #    dat.append((Pointer+1)*4)
+                #    DataBlocks3.append(dat)  
+                    #Pointer+=2
+                if temp[Pointer] == "01998080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks8.append(dat)
+                if temp[Pointer] == "fe988080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks9.append(dat)
+                if temp[Pointer] == "00998080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks10.append(dat)
+                if temp[Pointer] == "47998080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks11.append(dat)
+                if temp[Pointer] == "00998080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks12.append(dat)
+                if temp[Pointer] == "189b8080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks13.append(dat)
+                if temp[Pointer] == "b68e8080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks14.append(dat)
+                if temp[Pointer] == "029b8080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks15.append(dat)
+                if temp[Pointer] == "46998080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks16.append(dat)
+                if temp[Pointer] == "b68e8080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks17.append(dat)
+                if temp[Pointer] == "b38e8080":
+                    dat=temp[Pointer+1:Pointer+5]
+                    dat.append((Pointer+1)*4)
+                    DataBlocks18.append(dat)
+                #if temp[Pointer] == "46998080":
+                #    dat=temp[Pointer+1:Pointer+5]
+                #    dat.append((Pointer+1)*4)
+                #    DataBlocks19.append(dat)
+                if FileHash != False:
+                    if temp[Pointer] == FileHash.lower():
+                        dat=temp[Pointer+1:Pointer+5]
+                        dat.append((Pointer+1)*4)
+                        DataBlocks6.append(dat)  
+                Pointer+=1
+            #print(DataBlocks)
+            DataBlocks.reverse()
+            Offset=len(Data)
+            Run=False
+            First=True
+            outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","w")
+            outfile.close()
+            for Hash in temp:
+                dat=StringHash(Hash,newStrData,"")
+                if dat != False:
+                    if First == True:
+                        outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                        outfile.write("Strings\n")
+                        outfile.write(dat+"\n")
+                        First=False
+                    else:
+                        outfile.write(dat+"\n")
+            if First == False:
+                outfile.close()
+            if DataBlocks != []:
+                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile.write("Block1  "+str(len(DataBlocks))+"\n")
+                for Block in DataBlocks:
+                    #CurrentRef=[]
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                    new=ast.literal_eval("0x"+flipped)
+                    flipped2=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
+                    new2=ast.literal_eval("0x"+flipped2)
+                    file.seek(new+Block[4])
+                    Length=Offset-(new+Block[4])
+                    Text=[]
+                    for i in range(150):
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            Text.append(binascii.unhexlify(temp).decode())
+                        else:
+                            
+                            break
+                    CurrentRef="".join(Text)
+                    Offset=new+Block[4]
+                    outfile.write(str(Block))
+                    outfile.write("\n"+CurrentRef+"\n")
+                    #print(str(CurrentRef).split("\x00")[0])
+                    file.seek(new2+Block[4]+8)
+                    Text=[]
+                    for i in range(150):
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            Text.append(binascii.unhexlify(temp).decode())
+                        else:
+                            
+                            break
+                    Length=Offset-(new+Block[4])
+                    CurrentRef="".join(Text)
+                    Offset=new+Block[4]
+                    outfile.write(CurrentRef+"\n\n\n")
+                    #print("\n\n\n")
+                outfile.close()
+            
+            
+            if DataBlocks2 != []:
+                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile.write("Block2  "+str(len(DataBlocks2))+"\n")
+                for Block in DataBlocks2:
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                    new=ast.literal_eval("0x"+flipped)
+                    file.seek(new+Block[1])
+                    #Length=Offset-(new)
+                    Text=[]
+                    for i in range(150):
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            try:
+                                Text.append(binascii.unhexlify(temp).decode())
+                            except UnicodeDecodeError:
+                                continue
+                        else:
+                            break
+                    CurrentRef="".join(Text)
+                    #Offset=new+Block[4]
+                    outfile.write(str(Block))
+                    outfile.write("\n"+CurrentRef+"\n\n\n")
+                outfile.close()
+          
+            if DataBlocks3 != []:
+               
+                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile.write("Block3  "+str(len(DataBlocks3))+"\n")
+                for Block in DataBlocks3:
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                    new=ast.literal_eval("0x"+flipped)
+                    file.seek(new+Block[1])
+                    #Length=Offset-(new)
+                    Text=[]
+                    for i in range(150):
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            try:
+                                Text.append(binascii.unhexlify(temp).decode())
+                            except UnicodeDecodeError:
+                                continue
+                        else:
+                            break
+                    CurrentRef="".join(Text)
+                    #Offset=new+Block[4]
+                    outfile.write(str(Block))
+                    outfile.write("\n"+CurrentRef+"\n\n\n")
+                outfile.close()
+           
+            if DataBlocks4 != []:
+                
+           
+                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile.write("Block4  "+str(len(DataBlocks4))+"\n")
+                #print(DataBlocks4)
+                for Block in DataBlocks4:
+                    if Block[0] != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[3])
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                    if Block[2] != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[3]+8)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+                        outfile.write(str(Block))
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                    
+                outfile.close()
+            outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                
+            if DataBlocks5 != []:
+                
+                outfile.write("Block5  "+str(len(DataBlocks5))+"\n")
+                #print("b5")
+                #print(DataBlocks5)
+                for Block in DataBlocks5:   #Pointer0 Len?1 StrPoint3 Offset4
+                    
+                    try:
+                        Block[3][4:]
+                    except IndexError:
+                        continue
+                    except TypeError:
+                        continue
+                    
+                    if Block[3][4:] == "8080":
+                        Block2Find=Block[1]
+                    else:
+                        Block2Find=Block[3]
+                    if Block2Find != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block2Find))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                     
+                        for i in range(150):
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            
+                            else:
+                                break
+                            
+                        if Text == []:
+                            continue
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        outfile.write("".join(str(Block)))
+                        outfile.write("\n"+CurrentRef+"\n")
+                    if Block[0] != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4])
+                        temp=binascii.hexlify(bytes(file.read(4))).decode()
+                        if temp == "00000000":
+                            continue
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp))).decode())
+                        new2=ast.literal_eval("0x"+flipped)
+                        newSet=new2+new+Block[4]
+                        #print(newSet)
+                        file.seek(int(newSet))
+                        Text=[]
+                        for i in range(100):
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            
+                            else:
+                                break
+                            
+                            if Text == []:
+                                continue
+                        CurrentRef="".join(Text)
+                        outfile.write("\n"+CurrentRef+"\n\n\n")
+            outfile.write("\nBlock6\n")
+            #if DataBlocks6 != []:
+                #print(DataBlocks6)
+            for Block in DataBlocks6:
+                if len(Block) != 5:
+                    continue
+                if len(list(Block[3])) != 8:
+                    continue
+                if Block[3] != "00000000":
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                    new=ast.literal_eval("0x"+flipped)
+                    file.seek(new+Block[4]+12)
+                    #Length=Offset-(new)
+                    Text=[]
+                    for i in range(150):
+                        
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            try:
+                                Text.append(binascii.unhexlify(temp).decode())
+                            except UnicodeDecodeError:
+                                continue
+                        else:
+                            break
+                    CurrentRef="".join(Text)
+                    #Offset=new+Block[4]
+                    outfile.write(str(Block))
+
+                    outfile.write("\n"+CurrentRef+"\n\n")
+                if Block[1] != "00000000":
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[1]))).decode())
+                    new=ast.literal_eval("0x"+flipped)
+                    file.seek(new+Block[4]+4)
+                    #Length=Offset-(new)
+                    Text=[]
+                    for i in range(150):
+                        
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            try:
+                                Text.append(binascii.unhexlify(temp).decode())
+                            except UnicodeDecodeError:
+                                continue
+                        else:
+                            break
+                    CurrentRef="".join(Text)
+                    #Offset=new+Block[4]
+                    outfile.write(str(Block))
+            if DataBlocks7 != []:
+                #print(DataBlocks7)
+                outfile.write("\nBlock7\n\n")
+                for Block in DataBlocks7:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if Block[0] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[11])
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                    if Block[2] != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[11]+8)
+                        
+                        Text=binascii.hexlify(bytes(file.read(4))).decode()
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                        
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
+                        try:
+                            new2=ast.literal_eval("0x"+flipped)
+                        except SyntaxError:
+                            continue
+                        file.seek(new+Block[11]+8+new2)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                    if Block[3] != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[11]+12-4)
+                        #Length=Offset-(new)
+                        Text=binascii.hexlify(bytes(file.read(4))).decode()
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
+                        try:
+                            new2=ast.literal_eval("0x"+flipped)
+                        except SyntaxError:
+                            continue
+                        file.seek(new+Block[11]+8+new2)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                    if Block[5] != "00000000":
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[5]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[11]+20-4)
+                        Text=binascii.hexlify(bytes(file.read(4))).decode()
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
+                        try:
+                            new2=ast.literal_eval("0x"+flipped)
+                        except SyntaxError:
+                            continue
+                        file.seek(new+Block[11]+8+new2)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        outfile.write("\n"+CurrentRef+"\n\n")
+                       
+
+                        #outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks8 != []:
+                #print(DataBlocks8)
+                outfile.write("\nBlock8\n\n")
+                for Block in DataBlocks8:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks9 != []:
+                if len(Block) != 5:
+                        continue
+                outfile.write("\nBlock9\n\n")
+                for Block in DataBlocks9:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks10 != []:
+                if len(Block) != 5:
+                        continue
+                outfile.write("\nBlock10\n\n")
+                for Block in DataBlocks10:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks11 != []:
+                
+                outfile.write("\nBlock11\n\n")
+                for Block in DataBlocks11:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks12 != []:
+                
+                outfile.write("\nBlock12\n\n")
+                for Block in DataBlocks12:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks13 != []:
+                #print(DataBlocks13)
+                outfile.write("\nBlock13\n\n")
+                for Block in DataBlocks13:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            if DataBlocks14 != []:
+                
+                outfile.write("\nBlock14\n\n")
+                for Block in DataBlocks14:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            #print("15")
+            if DataBlocks15 != []:
+                
+                outfile.write("\nBlock15\n\n")
+                for Block in DataBlocks15:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            #print("16")
+            if DataBlocks16 != []:
+                
+                outfile.write("\nBlock16\n\n")
+                for Block in DataBlocks16:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            #print("17")
+            if DataBlocks17 != []:
+                
+                outfile.write("\nBlock17\n\n")
+                for Block in DataBlocks17:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            #print("18")
+            if DataBlocks18 != []:
+                
+                outfile.write("\nBlock18\n\n")
+                for Block in DataBlocks18:#0 str ref, 2 rel off 3 rel off  5 RelOff
+                    if len(Block) != 5:
+                        continue
+                    if Block[3] != "00000000":
+                        outfile.write(str(Block))
+                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                        new=ast.literal_eval("0x"+flipped)
+                        file.seek(new+Block[4]+12)
+                        #Length=Offset-(new)
+                        Text=[]
+                        for i in range(150):
+                            
+                            temp=binascii.hexlify(bytes(file.read(1))).decode()
+                            #print(str(temp))
+                            if str(temp) != "00":
+                                #print(binascii.unhexlify(temp).decode())
+                                try:
+                                    Text.append(binascii.unhexlify(temp).decode())
+                                except UnicodeDecodeError:
+                                    continue
+                            else:
+                                break
+                        CurrentRef="".join(Text)
+                        #Offset=new+Block[4]
+                        #outfile.write(str(Block))
+
+                        outfile.write("\n"+CurrentRef+"\n\n")
+            #print("ref")
+            outfile.write("References\n")
+            RefFiles=[]
+            temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
+            for Hash in temp:
+                if len(Hash) == 8:
+                    #print("ran")
+                    temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+                    if temp[3] == "80" or temp[3] == "81":
+                        flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode()
+                        new=ast.literal_eval("0x"+flipped)
+                        PkgID=Hex_String(Package_ID(new))
+                        EntryID=Hex_String(Entry_ID(new))
+                        DirName=PkgID.upper()+"-"+EntryID.upper()+".bin"
+                        #print(DirName)
+                        #if DirName in os.listdir(custom_direc):
+                        if DirName not in RefFiles:
+                            RefFiles.append(DirName)
+            if RefFiles != []:
+                for Ref in RefFiles:
+                    outfile.write(Ref+"\n")
+            #print("test")
+            outfile.write("TESTING\n")
+            temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
+            TempLen=len(temp)
+            Pointer=0
+            for Hash in temp:
+                if Hash == "65008080":
+                    break
+                if len(Hash) != 8:
+                    continue
+                if Hash != "00000000":
+                    #print(Hash)
+                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode())
+                    new=ast.literal_eval("0x"+flipped)
+                    #Pointer+=1
+                    #if new != 0:
+                    Offset=(Pointer*4)+new
+                    #print(Offset)
+                    if StringPointer != "":
+                        #print((len(temp)*4))
+                        if int((StringPointer*4)) < Offset < int((TempLen*4)):
+                            #print("Run")
+                            
+                        #print(newSet)
+                            file.seek(Offset)
+                            Text=[]
+                            for i in range(150):
+                                
+                                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                                #print(str(temp))
+                                if str(temp) != "00":
+                                    #print(binascii.unhexlify(temp).decode())
+                                    try:
+                                        Text.append(binascii.unhexlify(temp).decode())
+                                    except UnicodeDecodeError:
+                                        continue
+                                else:
+                                    break
+                            CurrentRef="".join(Text)
+                            outfile.write("\n"+Hash+","+str(Pointer*4))
+                            outfile.write("\n"+CurrentRef+"\n\n")
+                            #CurrentRef="".join(Text)
+                        #outfile.write("\n"+Hash+"\n"+CurrentRef+"\n\n")
+                Pointer+=1
+            if StringPointer != "":
+                file.seek((StringPointer+2)*4)
+                temp=binascii.hexlify(bytes(file.read())).decode()
+                temp=temp.split("00")
+                temp=binascii.unhexlify("20".join(temp)).decode()
+                outfile.write("\n\nDump\n\n"+temp)
+            outfile.close()
     #for file in os.listdir(os.getcwd()+"/out"):
     #    if file != "audio":
     #        os.remove(os.getcwd()+"/out/"+file)
@@ -3649,7 +4627,10 @@ def MapWindow(top):
     ClearMap = Button(top, text="Clear Maps", height=1, width=15,command=partial(ClearMaps,top))
     ClearMap.place(x=1000, y=430)
     top.mainloop()
-    
+def ClearScripts(top):
+    for file in os.listdir(os.getcwd()+"/Scripts"):
+        os.remove(os.getcwd()+"/Scripts/"+file)
+    Popup()
 def MainWindow(top):
     for widget in top.winfo_children():
         widget.destroy()
@@ -3682,6 +4663,8 @@ def MainWindow(top):
     ClearTex.place(x=1000, y=470)
     ClearMap = Button(top, text="Clear Maps", height=1, width=15,command=partial(ClearMaps,top))
     ClearMap.place(x=1000, y=430)
+    ClearScript = Button(top, text="Clear Scripts", height=1, width=15,command=partial(ClearScripts,top))
+    ClearScript.place(x=1000, y=390)
     Quit = Button(top, text="Quit", height=1, width=15,command=partial(QuitOut,top))
     Quit.place(x=100, y=510)
     
@@ -3745,6 +4728,10 @@ if __name__ == '__main__':
         print("Drive Exists")
     try:
         os.makedirs(os.getcwd()+"/data/Entities")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/Scripts")
     except FileExistsError:
         print("Drive Exists")
     Hash64(path)
