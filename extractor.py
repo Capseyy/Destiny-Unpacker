@@ -234,6 +234,22 @@ class File:
                         Mus=True
                 if Dir == True and Mus == True:
                     break
+            if (Data[0] == "81"):
+                Hashes.append("".join(Data))
+                Hash="".join(Data)
+                hash2="0x"+Hash
+                new=literal_eval(hash2)
+                PkgID=Hex_String(Package_ID(new))
+                EntryID=Hex_String(Entry_ID(new))
+                DirName=PkgID.upper()+"-"+EntryID.upper()+".directive"
+                MusName=PkgID.upper()+"-"+EntryID.upper()+".mus"
+                for File in os.listdir(custom_direc):
+                    if File.lower() == DirName.lower():
+                        Dir=True
+                    if File.lower() == MusName.lower():
+                        Mus=True
+                if Dir == True and Mus == True:
+                    break
         print("Done Getting Hashes")
         self.Hashes=Hashes
     def PullStrings(self):
