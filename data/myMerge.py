@@ -6,7 +6,7 @@ import binascii
 import ast
 import math
 import struct
-#!!!DO NOT MANUALLY IMPORT THE FBX, THE SCRIPT WILL DO IT FOR YOU!!!
+#!!!DO NOT MANUALLY IMPORT THE FBX, THE SCRIPT WILL DO IT FOR YOU!!!#
 
 #Adapted from Monteven's UE5 import script
 #installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
@@ -335,7 +335,7 @@ def InstanceEnt(Object,HasRoot):
             ob_copy.scale = [float(instance[7])]*3
 assemble_map()
 for Fbx in os.listdir(Filepath+"/Dynamics"):
-    #break
+    break
     split=Fbx.split(".")
     if split[1] == "fbx":
         path=Filepath+"/Dynamics/"+Fbx
@@ -357,10 +357,10 @@ for Fbx in os.listdir(Filepath+"/Dynamics"):
                 HasRoot=True
         
         #bpy.ops.object.select_all(action='DESELECT')
-        for Obj in bpy.data.objects:
-            Obj.parent = None
-            if Obj.name[:8] == split[0]:
-                Obj.select_set(state=True)
+        #for Obj in bpy.data.objects:
+        #    Obj.parent = None
+        #    if Obj.name[:8] == split[0]:
+        #        Obj.select_set(state=True)
        
         modelExists=True
         if modelExists == True:

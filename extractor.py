@@ -998,8 +998,9 @@ class Package:
                     fileFormat=".model"
                 elif entry.EntryA == "0x80806c81":
                     fileFormat=".terrain"
-                
-                elif entry.EntryA == "0x80806d30":  #modelData
+                elif entry.EntryA == "0x80809ed2":
+                    fileFormat=".dyntable"
+                elif entry.EntryA == "0x80806d30":  #modelData0x80809ed2
                     fileFormat=".sub"
                 elif entry.EntryA == "0x80808707":   #contains all data to make map  points to .dt 's
                     fileFormat=".Lhash"
@@ -1549,6 +1550,11 @@ def StringHash(Hash,StrData,Ref):
     if Found == True:
         if Ref != "":
             while True:
+                try:
+                    StrData[ans][0]
+                except IndexError:
+                    ans=ans-1
+                    break
                 if StrData[ans][0] != Ref:
                     #print(StrData[ans]
                     ans=ans+1
@@ -3433,7 +3439,7 @@ class LoadZone:
         self.OutputCFG()
         self.PullDyns()
         self.RipDyns()
-        self.PullMechanicStructs()
+        #self.PullMechanicStructs()
         #print(self.Statics)
         #print(str(len(self.Statics)))
    
@@ -3875,7 +3881,7 @@ class LoadZone:
                 FirstVert=False
             for i in range(int(HashDiff)):
                 
-                new=int(ast.literal_eval("0x"+DataHashes[0]))+i-2
+                new=int(ast.literal_eval("0x"+DataHashes[0]))+i-1
                 #new=ast.literal_eval("0x"+DataHashes[1])
 
                 pkg = Hex_String(Package_ID(new))
@@ -4104,9 +4110,9 @@ class LoadZone:
                     file5.close()
                     
                
-                #for normals in norms:
-                #    normLayer.GetDirectArray().Add(fbx.FbxVector4(normals[0],normals[1],normals[2],normals[3]))
-                #layer.SetNormals(normLayer)
+                for normals in norms:
+                    normLayer.GetDirectArray().Add(fbx.FbxVector4(normals[0],normals[1],normals[2],normals[3]))
+                layer.SetNormals(normLayer)
                 filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
                 FbxCommon.SaveScene(memory_manager, scene, filename)
                 #exporter = fbx.FbxExporter.Create(memory_manager, filename)
@@ -4410,8 +4416,10 @@ def LoadNames(top,ActId,ActName):
     combo_box['values'] = lst
     combo_box.bind('<KeyRelease>', check_input)
     combo_box.place(x=500, y=125)
-    Map = Button(top, text="Extract Load", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames))
+    Map = Button(top, text="Extract Load", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,True))
     Map.place(x=500, y=400)
+    Map2 = Button(top, text="Extract Map (No Dyn)", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,False))
+    Map2.place(x=500, y=350)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
     Clear = Button(top, text="Clear Audio", height=1, width=15,command=partial(ClearAudio,top))
@@ -4427,7 +4435,7 @@ def LoadNames(top,ActId,ActName):
 
 
 
-def MapExtractor(entry,LoadNames):
+def MapExtractor(entry,LoadNames,Dyns):
     things=entry.get().split(" ")
     count=0
     for Load in LoadNames:
@@ -4555,10 +4563,12 @@ def MapExtractor(entry,LoadNames):
     print(refs)                                   
     #print(LoadFiles)                                       
     #ans2=int(input("Enter which Load to extract from: "))
-    InitialiseMapFiles(LoadFiles,InstCount,refs)
-def InitialiseMapFiles(loadfile,InstCount,Ref):
+    InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns)
+def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns):
     lengths=[]
     count=0
+    if Dyns == True:
+        PullMechanicStructs()
     for Load in loadfile:
         for File in os.listdir(custom_direc):
             if File != "audio":
@@ -4567,6 +4577,93 @@ def InitialiseMapFiles(loadfile,InstCount,Ref):
                     lengths.append([File,str(len(Load.Statics))])
                     count+=1
     Popup()
+def PullMechanicStructs():
+    #DynNames=[]
+    H64Sort=SortH64(ReadHash64())
+    for file in os.listdir(os.getcwd()+"/out"):
+        if file == "audio":
+            continue
+        if file.split(".")[1] == "dt":
+            Test=open(os.getcwd()+"/out/"+file,"rb")
+            Test.seek(0x60)
+            hcheck=binascii.hexlify(bytes(Test.read(8))).decode()
+            flipped=binascii.hexlify(bytes(hex_to_little_endian(hcheck))).decode('utf-8')
+            try:
+                num=ast.literal_eval("0x"+flipped)
+            except SyntaxError:
+                Test.close()
+                continue
+            Check=Hash64Search(H64Sort,num)
+            
+            if Check != False:
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[2:]))).decode('utf-8')
+                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                if Exists != True:
+                    PullDyn(str(flipped))
+                file1=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
+                Test.seek(0x30)
+                rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                #print(PosX)
+                if PosX != "00000000":
+                    PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                else:
+                    PosX=0
+                if PosY != "00000000":
+                    PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                else:
+                    PosY=0
+                if PosZ != "00000000":
+                    PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                else:
+                    PosZ=0
+                if rotX != "00000000":
+                    rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
+                else:
+                    rotX=0
+                if rotY != "00000000":
+                    rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
+                else:
+                    rotY=0
+                if rotZ != "00000000":
+                    rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
+                else:
+                    rotZ=0
+                if rotW != "00000000":
+                    rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
+                else:
+                    rotW=0
+               
+                
+                if ScaleX != "00000000":
+                    ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                else:
+                    ScaleX=1
+            
+                file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
+                file1.close()
+            Test.close()
+def PullDyn(Hash):
+    CWD=os.getcwd()
+    os.chdir(CWD+"/ThirdParty")
+    
+    cmd='MDE -p "'+path+'" -o "'+CWD+'/data/Dynamics" -i '+Hash
+    #print(cmd)
+    ans=subprocess.call(cmd, shell=True)
+    #for File in os.listdir(currentPath+"/ThirdParty/output/"+str(pkgID)):
+    try:
+        shutil.move(CWD+"/data/Dynamics/"+Hash+"/"+Hash+".fbx",CWD+"/data/Dynamics/"+Hash+".fbx")
+    except FileNotFoundError:
+        u=1
+    else:
+        os.rmdir(CWD+"/data/Dynamics/"+Hash)
+    os.chdir(CWD)
 def MapRipper(entry,top,skip):
     
     filelist=[]
@@ -4587,7 +4684,7 @@ def MapRipper(entry,top,skip):
     for file in os.listdir(path)[::-1]:
         if fnmatch.fnmatch(file,package+"*"):
             filelist.append(file)
-    useful=["Map","0x808093ad","0x80806d44","0x80806c81","0x80806daa","0x80806d30","0x80808707","0x80809883","0x8080891e","0x80808701","0x808093b1","0x80806a0d","0x80808e8e","0x80806daa"]
+    useful=["Map","0x808093ad","0x80806d44","0x80806c81","0x80809ed2","0x80806daa","0x80806d30","0x80808707","0x80809883","0x8080891e","0x80808701","0x808093b1","0x80806a0d","0x80808e8e","0x80806daa"]
     if skip == False:
         unpack_all(path,custom_direc,useful,filelist)
     LoadNames(top,ActId,ActName)
@@ -4620,6 +4717,7 @@ def MapWindow(top):
     combo_box.place(x=500, y=125)
     Map = Button(top, text="Extract Map", height=1, width=30,command=partial(MapRipper,combo_box,top,False))
     Map.place(x=500, y=175)
+    
     Map2 = Button(top, text="Extract Map(no ext)", height=1, width=30,command=partial(MapRipper,combo_box,top,True))
     Map2.place(x=800, y=175)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
