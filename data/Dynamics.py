@@ -9,6 +9,29 @@ import struct
 #!!!DO NOT MANUALLY IMPORT THE FBX, THE SCRIPT WILL DO IT FOR YOU!!!
 
 #Adapted from Monteven's UE5 import script
+
+def euler_from_quaternion(x, y, z, w):
+    if 1 == 1:
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+     
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+     
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians
 #installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
 Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_DIR"
 def InstanceDyn(Object,HasRoot):
@@ -35,25 +58,30 @@ def InstanceDyn(Object,HasRoot):
             location = [float(instance[4]), float(instance[5]), float(instance[6])]
             #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
             quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
-            
+            x,y,z=euler_from_quaternion(float(instance[0]),float(instance[1]),float(instance[2]),float(instance[3]))
             ob_copy.location = location
-            ob_copy.rotation_mode = 'QUATERNION'
-            #ob_copy.rotation_quaternion = quat
+            #ob_copy.rotation_mode = 'QUATERNION'
+            x=x+1.5708
+            if x > 1.57079632679:
+                x=1.57079632679-(x-1.57079632679)
+            elif x < 1.57079632679:
+                x=1.57079632679+(1.57079632679-x)
+            ob_copy.rotation_euler= (x,y*-1,z+3.1415)
             if HasRoot == True:
                 ob_copy.delta_scale=[0.01]*3
             #if 7<Scale<8:
             
                 #ob_copy.delta_scale=([Scale/10])*3
             ob_copy.scale = [float(instance[7])]*3
-count=0
+            #count=0
 for Fbx in os.listdir(Filepath+"/Dynamics"):
     #break
     
     split=Fbx.split(".")
-    #if split[0] != "eebcc180":
-        #continue
+    #f split[0] != "5085df80":
+        #ontinue
     if split[1] == "fbx":
-        print(count)
+        #print(count)
         print(Fbx)
         path=Filepath+"/Dynamics/"+Fbx
         print("ran")
@@ -92,7 +120,7 @@ for Fbx in os.listdir(Filepath+"/Dynamics"):
        
         modelExists=True
         if modelExists == True:
-            count+=1
+            #count+=1
             for obj in bpy.context.selected_objects:
                 
                 obj.location=[0,0,0]
