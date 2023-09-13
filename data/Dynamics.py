@@ -74,12 +74,52 @@ def InstanceDyn(Object,HasRoot):
                 #ob_copy.delta_scale=([Scale/10])*3
             ob_copy.scale = [float(instance[7])]*3
             #count=0
+def Material(Obj):
+    try:
+        file=open(Filepath+"/DynMaterials/"+Obj.name[:8]+".txt","r")
+    except FileNotFoundError:
+        u=1
+    else:
+        data=file.read()
+        data=data.split("\n")
+        for Line in data:
+            temp=Line.split(":")
+            if Obj.name.lower() == temp[0].lower():
+                try:
+                    temp[2]
+                except IndexError:
+                    continue
+                else:
+                    MaterialsToAdd=list(temp[2])
+                    while " " in MaterialsToAdd:
+                        MaterialsToAdd.remove(" ")
+                    #print(MaterialsToAdd)
+                    MaterialsToAdd="".join(MaterialsToAdd)
+                    MaterialList=MaterialsToAdd.split(",")
+                    mat_name = temp[1][4:12]
+                    mat = (bpy.data.materials.get(mat_name) or   bpy.data.materials.new(mat_name))
+                    mat.use_nodes = True
+                    nodes = mat.node_tree.nodes
+                    bsdf = mat.node_tree.nodes["Principled BSDF"]
+                    for Texture in MaterialList:
+                        texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                        try:
+                            texImage.image = bpy.data.images.load(Filepath+"/Textures/"+Texture+".png")
+                        except RuntimeError:
+                            continue
+                        mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
+                    Obj.data.materials.append(mat)
+                                                  
 for Fbx in os.listdir(Filepath+"/Dynamics"):
     #break
     
     split=Fbx.split(".")
-    #f split[0] != "5085df80":
-        #ontinue
+    #if split[0] != "4c83e080":
+    #    continue
+    try:
+        split[1]
+    except IndexError:
+        continue
     if split[1] == "fbx":
         #print(count)
         print(Fbx)
@@ -92,7 +132,6 @@ for Fbx in os.listdir(Filepath+"/Dynamics"):
         bpy.context.scene.collection.children.link(bpy.data.collections[str(split[0]).upper()])
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
         bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
-        
         HasRoot=False
         #bpy.ops.object.select_all(action='DESELECT')
         newobjects = bpy.data.collections[str(split[0]).upper()].objects
@@ -115,7 +154,8 @@ for Fbx in os.listdir(Filepath+"/Dynamics"):
             OBJS.select_set(state=True)
             bpy.context.view_layer.objects.active = OBJS
             bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-        bpy.ops.object.join()
+            Material(OBJS)
+        #bpy.ops.object.join()
 
        
         modelExists=True

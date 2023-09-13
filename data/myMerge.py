@@ -15,7 +15,7 @@ Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_
 objects = bpy.data.objects
 scene = bpy.context.scene
 Type = "Map"
-Name = "Test"
+Name = "Statics"
 def Is_Map():
     if "Map" in Type:
         return True
@@ -65,7 +65,21 @@ def add_to_collection():
                 coll.objects.unlink(ob)
             # Link each object to the target collection
             coll_target.objects.link(ob)
-
+def assign_materials():
+    for Obj in bpy.data.objects:
+        try:
+            file=open(Filepath+"/Materials/"+(str(Obj.name)[:8]).lower()+".txt","r")
+        except FileNotFoundError:
+            continue
+        data=file.read().split("\n")
+        data.remove("")
+        for Line in data:
+            temp=Line.split(" : ")
+            
+            if Obj.name == temp[0]:
+                mat = bpy.data.materials.get(temp[1])
+                Obj.data.materials.append(mat)
+        
 def assemble_map():
     print(f"Starting import on {Type}: {Name}")
     
@@ -76,8 +90,8 @@ def assemble_map():
 
     #bpy.ops.import_scene.fbx(filepath=FileName, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True) #Just imports the fbx, no special settings needed
     
-    #assign_materials()
-    add_to_collection() 
+    assign_materials()
+    #add_to_collection() 
 
     newobjects = bpy.data.collections[str(Name)].objects
     objects = bpy.data.objects
@@ -113,12 +127,7 @@ def assemble_map():
                 #print(data)
                 print(Object.name)               
                 flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
-        #print(flipped)
-                new=ast.literal_eval("0x"+flipped)
-                PkgID=Hex_String(Package_ID(new))
-                EntryID=Hex_String(Entry_ID(new))
-                DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
-                #print(data)
+
                 for instance in data:
                     instance=instance.split(",")
                     ob_copy = bpy.data.objects[Object.name].copy()
@@ -175,12 +184,70 @@ def Hex_String(Num):
         Hex_Digits[Num & 0xF]
     ])
 
-
-currentPath=os.getcwd()
-
-count=0
+def Material(Obj):
+    try:
+        file=open(Filepath+"/Materials/"+Obj.name[:8]+".txt","r")
+    except FileNotFoundError:
+        u=1
+    else:
+        data=file.read()
+        data=data.split("\n")
+        for Line in data:
+            temp=Line.split(" : ")
+            if Obj.name.lower() == temp[0].lower():
+                try:
+                    temp[2]
+                except IndexError:
+                    continue
+                else:
+                    MaterialsToAdd=temp[2]
+                    #print(MaterialsToAdd)
+                    mat_name = temp[1]
+                    mat = (bpy.data.materials.get(mat_name) or   bpy.data.materials.new(mat_name))
+                    mat.use_nodes = True
+                    nodes = mat.node_tree.nodes
+                    bsdf = mat.node_tree.nodes["Principled BSDF"]
+                    texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                    try:
+                        texImage.image = bpy.data.images.load(Filepath+"/Textures/"+MaterialsToAdd.split(",")[0]+".png")
+                    except RuntimeError:
+                        continue
+                    mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
+                    Obj.data.materials.append(mat)
+def GenerateMaterials():
+    Mats=[]
+    for File in os.listdir(Filepath+"/Materials/"):
+        print(File)
+        file=open(Filepath+"/Materials/"+File)
+        data=file.read()
+        data=data.split("\n")
+        data.remove("")
+        for Line in data:
+            temp=Line.split(" : ")
+            print(temp)
+            try:
+                temp[2]
+            except IndexError:
+                file.close()
+                break
+            if [temp[1],temp[2]] not in Mats:
+                Mats.append([temp[1],temp[2]])
+    for Mat in Mats:
+        mat=bpy.data.materials.new(Mat[0])
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        for Texture in Mat[1].split(","):
+            texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
+            try:
+                texImage.image = bpy.data.images.load(Filepath+"/Textures/"+Texture+".png")
+            except RuntimeError:
+                continue
+            mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
+        
 for Fbx in os.listdir(Filepath+"/Statics"):
-    #break
+    #if Fbx != "8321ba80.fbx":
+        #continue
     split=Fbx.split(".")
     if split[1] == "fbx":
         path=Filepath+"/Statics/"+Fbx
@@ -193,8 +260,8 @@ for Fbx in os.listdir(Filepath+"/Statics"):
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
         #bpy.ops.import_scene.fbx(filepath=path)
         bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
-        for Obj in bpy.data.objects:
-            Obj.parent = None
+        #for Obj in bpy.data.objects:
+           # Obj.parent = None
         #    split=Obj.name.split("_")
         #    if split[1] == "0":
         #        bpy.data.objects.remove(Obj)
@@ -204,6 +271,7 @@ for Fbx in os.listdir(Filepath+"/Statics"):
         newobjects = bpy.data.collections[str(split[0]).upper()].objects
         #newobjects = bpy.data.collections[str(Name)].objects
         #for obj in newobjects:
+         #   Material(obj)
         #    #deselect all objects
         #    bpy.ops.object.select_all(action='DESELECT')
         #    tmp.append(obj.name[:8])
@@ -216,50 +284,8 @@ for Fbx in os.listdir(Filepath+"/Statics"):
             #Select all mesh objects
             OBJS.select_set(state=True)
             bpy.context.view_layer.objects.active = OBJS
-        bpy.ops.object.join()
-        #break    
-        count+=1
-        flipped=binascii.hexlify(bytes(hex_to_little_endian(split[0]))).decode('utf-8')
-        print(flipped)
-        new=ast.literal_eval("0x"+flipped)
-        PkgID=Hex_String(Package_ID(new))
-        EntryID=Hex_String(Entry_ID(new))
-        DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
-        modelExists=False
-        #or file in os.listdir(installLoc+"/out"):
-        #   if file != "audio":
-        #       if file == DirName:
-        #           print("modelexists")
-        modelExists=True
-        if modelExists == True:
-            #ile=open(installLoc+"/out/"+DirName,"rb")
-            #ata=Data=binascii.hexlify(bytes(file.read())).decode()
-            #ata=[data[i:i+32] for i in range(0, len(data), 32)]
-            #ert=Data[5]
-            #at=[Vert[i:i+8] for i in range(0, len(Vert), 8)] #X,Y,Z,Scale
-            #=binascii.hexlify(bytes(hex_to_little_endian(Dat[0]))).decode('utf-8')
-            #=binascii.hexlify(bytes(hex_to_little_endian(Dat[1]))).decode('utf-8')
-            #=binascii.hexlify(bytes(hex_to_little_endian(Dat[2]))).decode('utf-8')
-            #cale=binascii.hexlify(bytes(hex_to_little_endian(Dat[3]))).decode('utf-8')
-            #=struct.unpack('!f', bytes.fromhex(x))[0]
-            #=struct.unpack('!f', bytes.fromhex(y))[0]
-            #=struct.unpack('!f', bytes.fromhex(z))[0]
-            
-    
-            #cale=struct.unpack('!f', bytes.fromhex(scale))[0]
-            #ocation=[X*-1,Y*-1,Z]
-            #rint(location)
-            #py.ops.object.join()
-            #for obj in bpy.context.selected_objects:
-                #if 7<Scale<8:
-                #    obj.scale=([Scale/10])*3
-                #obj.rotation_mode = 'XYZ'
-                #obj.location=[0,0,0]
-            #currentRotation=bpy.data.objects[len(bpy.data.objects)-1].rotation_euler[0]
-            #print(currentRotation)
-                
-                #obj.location=location
-            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+        #bpy.ops.object.join()
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
 
 def InstanceDyn(Object,HasRoot):
     #print(HasRoot)
@@ -295,44 +321,8 @@ def InstanceDyn(Object,HasRoot):
             
                 #ob_copy.delta_scale=([Scale/10])*3
             ob_copy.scale = [float(instance[7])]*3
-def InstanceEnt(Object,HasRoot):
-    try:
-        file=open(Filepath+"/Instances/"+(str(Object.name)[:8]).lower()+".inst","r")
-    except:
-        print("no file")
-    else:
-        
-        data=file.read().split("\n")
-        file.close()
-        #print(data)
-        data.remove('')
-        #print(data)
-        #print(Object.name)               
-        flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
-#print(flipped)
-        new=ast.literal_eval("0x"+flipped)
-        PkgID=Hex_String(Package_ID(new))
-        EntryID=Hex_String(Entry_ID(new))
-        DirName=PkgID.upper()+"-"+EntryID.upper()+".model"
-        #print(data)
-        for instance in data:
-            instance=instance.split(",")
-            ob_copy = bpy.data.objects[Object.name].copy()
-            bpy.context.collection.objects.link(ob_copy) #makes the instances
 
-            location = [float(instance[4]), float(instance[5]), float(instance[6])]
-            #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
-            quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
-        
-            ob_copy.location = location
-            ob_copy.rotation_mode = 'QUATERNION'
-            #ob_copy.rotation_quaternion = quat
-            if HasRoot == True:
-                ob_copy.delta_scale=[0.01]*3
-            #if 7<Scale<8:
-            
-                #ob_copy.delta_scale=([Scale/10])*3
-            ob_copy.scale = [float(instance[7])]*3
+GenerateMaterials()
 assemble_map()
 for Fbx in os.listdir(Filepath+"/Dynamics"):
     break
