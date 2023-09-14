@@ -1,0 +1,9 @@
+/out
+/data/Statics
+/data/Instances
+/data/Textures
+/data/Dynamics
+/data/DynMaterials
+/data/Materials
+/cache
+test.py

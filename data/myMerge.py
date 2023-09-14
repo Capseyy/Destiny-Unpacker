@@ -92,7 +92,11 @@ def assemble_map():
     
     assign_materials()
     #add_to_collection() 
-
+    bpy.ops.object.select_all(action='DESELECT')
+    for Obj in bpy.data.objects:
+        if len(Obj.data.materials) == 0:
+            Obj.select_set(state=True)
+            bpy.data.objects.remove(Obj)
     newobjects = bpy.data.collections[str(Name)].objects
     objects = bpy.data.objects
     for O in objects:
@@ -156,7 +160,6 @@ def assemble_map():
             #Clear the scale and rotation of the entity
             bpy.ops.object.rotation_clear(clear_delta=False)
             bpy.ops.object.scale_clear(clear_delta=False)
-
     cleanup()
 
 
@@ -323,6 +326,8 @@ def InstanceDyn(Object,HasRoot):
             ob_copy.scale = [float(instance[7])]*3
 
 GenerateMaterials()
+
+        
 assemble_map()
 for Fbx in os.listdir(Filepath+"/Dynamics"):
     break

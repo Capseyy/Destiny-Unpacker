@@ -936,7 +936,7 @@ class Package:
 
     def output_files(self, all_pkg_bin, custom_direc):
 
-        
+        VertexLogger=open(os.getcwd()+"/cache/ModelDataTable.txt","a")
         for entry in self.entry_table.Entries[::-1]:
             #print(entry)
             current_block_id = entry.StartingBlock
@@ -1009,7 +1009,6 @@ class Package:
                         fileFormat=".ndat"
                 if entry.Type == 32:
                     if entry.SubType == 1:
-                        refFile.write(entry.FileName.upper()+" : "+entry.EntryA+"\n")
                         fileFormat=".norm"
             if "Map" in self.useful:
                 if entry.EntryA == "0x808093ad":  #0x28 leads to modelocclusionbounds                         #LHash->Dt->
@@ -1041,6 +1040,7 @@ class Package:
                 else:
                     fileFormat=".bin"
                 if entry.Type == 40:
+                    VertexLogger.write(entry.FileName.upper()+" : "+entry.EntryA+"\n")
                     if entry.SubType == 4:
                         fileFormat=".vert"
                         #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
@@ -1048,6 +1048,7 @@ class Package:
                         fileFormat=".index"
                         #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
                 if entry.Type == 32:
+                    VertexLogger.write(entry.FileName.upper()+" : "+entry.EntryA+"\n")
                     if entry.SubType == 4:
                         fileFormat=".vheader"
                         #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
@@ -1079,7 +1080,8 @@ class Package:
                         f.write(file_buffer[:entry.FileSize])
 
             #print(f"Wrote to {entry.FileName} successfully")
-        
+        VertexLogger.close()
+
 def check_input(event):
     global lst, combo_box
     value = event.widget.get()
@@ -3716,36 +3718,22 @@ class LoadZone:
         #print(self.StaticData[0])
         #print(self.StaticData[len(self.StaticData)-1])
     def GetBufferInfo(self):
-        IndexBufferList=[]
-        IndexHeaderList=[]
-        VertexBufferList=[]
-        VertexHeaderList=[]
-        CWD=os.getcwd()
-        os.chdir(CWD+"/out/")
-        Files=sorted(os.listdir(CWD+"/out/"), key=os.path.getmtime)
-        os.chdir(CWD)
-        for File in Files:
-            #if File.split("-")[0] != "0215":
-            #    continue
-            if File == "audio":
-                continue
-            temp=File.split(".")
-            if temp[1] == "vert":
-                VertexBufferList.append(File)
-            elif temp[1] == "index":
-                IndexBufferList.append(File)
-            elif temp[1] == "iheader":
-                IndexHeaderList.append(File)
-            elif temp[1] == "vheader":
-                VertexHeaderList.append(File)
-        return VertexBufferList,IndexBufferList,IndexHeaderList,VertexHeaderList
+        data=open(os.getcwd()+"/cache/ModelDataTable.txt","r").read()
+        data=data.split("\n")
+        data.remove("")
+        BufferData=[]
+        for Entry in data:
+            temp=Entry.split(" : ")
+            BufferData.append([temp[0],int(ast.literal_eval(temp[1]))])
+        BufferData.sort(key=lambda x: x[1])
+        return BufferData
     def RipOwnStatics(self):
-        VertexBufferList,IndexBufferList,IndexHeaderList,VertexHeaderList=self.GetBufferInfo()
+        BufferData=self.GetBufferInfo()
         TexturesToRip=[]
         outcount=0
         #print(len(self.Statics))
         for Static in self.Statics:
-            #if Static != "2554c280":
+            #if Static != "802cba80":
                 #continue
             #print(outcount)
             start=binascii.hexlify(bytes(hex_to_little_endian(Static))).decode('utf-8')
@@ -3844,282 +3832,47 @@ class LoadZone:
                     uvYOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYOff))).decode('utf-8'))))[0]
                 FindUV=True
                 FirstVert=False
+            tally=0
             indFound=False
             vertFound=False
-            new=ast.literal_eval("0x"+DataHashes[1])
-            new=new+1
-            pkg = Hex_String(Package_ID(new))
-            ent = Hex_String(Entry_ID(new))
-            IndexHeaderVal=ast.literal_eval("0x"+DataHashes[0])
-            pkg = Hex_String(Package_ID(IndexHeaderVal))
-            ent = Hex_String(Entry_ID(IndexHeaderVal))
-            Bank=pkg+"-"+ent+".iheader"
-            IndexHeader=open(os.getcwd()+"/out/"+Bank,"rb")
-            IndexHeaderData=binascii.hexlify(bytes(IndexHeader.read(24))).decode()
-            temp=[IndexHeaderData[i:i+8] for i in range(0, len(IndexHeaderData), 8)]
-            IndexLength=int(ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[2]))).decode('utf-8'))))
-            IndexCount=0
-            for Item in IndexHeaderList:
-                if Item.lower() == Bank.lower():
-                    IndexFileOffset=IndexCount
-                    test=binascii.hexlify(bytes(open(os.getcwd()+"/out/"+IndexBufferList[IndexFileOffset],"rb").read())).decode()
-                    if int(len(test)/2) != IndexLength:
-                        for i in range(20):
-                            
-                            IndexFileOffset=IndexFileOffset+i+1
-                            try:
-                                IndexBufferList[IndexFileOffset]
-                            except IndexError:
-                                continue
-                            test=binascii.hexlify(bytes(open(os.getcwd()+"/out/"+IndexBufferList[IndexFileOffset],"rb").read())).decode()
-                            if int(len(test)/2) == IndexLength:
-                                indFound=True
-                                break
-                        if indFound==True:
-                            break
-                        for i in range(20):
-                            
-                            IndexFileOffset=IndexFileOffset-i-1
-                            try:
-                                IndexBufferList[IndexFileOffset]
-                            except IndexError:
-                                continue
-                           # print(VertexBufferList[VertexFileOffset])
-                            test=binascii.hexlify(bytes(open(os.getcwd()+"/out/"+IndexBufferList[IndexFileOffset],"rb").read())).decode()
-                            #print(len(test))
-                            if int(len(test)/2) == IndexLength:
-                                indFound=True
-                                break
-                        if indFound==True:
-                            break
-                    else:
-                        indFound=True
-                        break
-                    #indFound = True
-                IndexCount+=1
-            #print(IndexBufferList[IndexFileOffset])
-            
-            VertexHeaderVal=ast.literal_eval("0x"+DataHashes[1])
-            pkg = Hex_String(Package_ID(VertexHeaderVal))
-            ent = Hex_String(Entry_ID(VertexHeaderVal))
-            Bank=pkg+"-"+ent+".vheader"
-            VertexCount=0
-            for Item in VertexHeaderList:
-                if Item.lower() == Bank.lower():
-                    VHead=open(os.getcwd()+"/out/"+Bank,"rb")
-                    VertLen=int(ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(VHead.read(4))).decode()))).decode('utf-8'))))
-                    #print("LENNN "+str(Len))
-                    VertexFileOffset=VertexCount
-                    test=binascii.hexlify(bytes(open(os.getcwd()+"/out/"+VertexBufferList[VertexFileOffset],"rb").read())).decode()
-                    if int(len(test)/2) != VertLen:
-                        for i in range(20):
-                            
-                            VertexFileOffset=VertexFileOffset+i+1
-                            try:
-                                VertexBufferList[VertexFileOffset]
-                            except IndexError:
-                                continue
-                            #print(VertexBufferList[VertexFileOffset])
-                            test=binascii.hexlify(bytes(open(os.getcwd()+"/out/"+VertexBufferList[VertexFileOffset],"rb").read())).decode()
-                            #print(len(test))
-                            if int(len(test)/2) == VertLen:
-                                vertFound=True
-                                break
-                        if vertFound==True:
-                            break
-                        for i in range(20):
-                            
-                            VertexFileOffset=VertexFileOffset-i-1
-                            try:
-                                VertexBufferList[VertexFileOffset]
-                            except IndexError:
-                                continue
-                           # print(VertexBufferList[VertexFileOffset])
-                            test=binascii.hexlify(bytes(open(os.getcwd()+"/out/"+VertexBufferList[VertexFileOffset],"rb").read())).decode()
-                            #print(len(test))
-                            if int(len(test)/2) == VertLen:
-                                vertFound=True
-                                break
-                        if vertFound==True:
-                            break
-                    else:
-                        vertFound=True
-                        break
-                                
-                            
-                                                
-                    
-                    
-                VertexCount+=1
-            VertexHeader=open(os.getcwd()+"/out/"+Bank,"rb")
-            VertexHeaderData=binascii.hexlify(bytes(VertexHeader.read(0xC))).decode()
-            temp=[VertexHeaderData[i:i+8] for i in range(0, len(VertexHeaderData), 8)]
-            VertexLength=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
             UVFound=False
-            if len(DataHashes) > 2:
-                VertexHeaderVal=ast.literal_eval("0x"+DataHashes[2])#####FIX UV
-                pkg = Hex_String(Package_ID(VertexHeaderVal))
-                ent = Hex_String(Entry_ID(VertexHeaderVal))
-                Bank=pkg+"-"+ent+".vheader"
-                VertexCount=0
-                UVHeader=open(os.getcwd()+"/out/"+Bank,"rb")
-                UVLength=binascii.hexlify(bytes(UVHeader.read(4))).decode()
-                print(Bank)
-                #print(UVLength)
-                UVLength=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(UVLength))).decode('utf-8')))
-                FileOrder=[]
-                for i in range(8):
-                    
-                    pkg = Hex_String(Package_ID(SubFileU32-8+i))
-                    ent = Hex_String(Entry_ID(SubFileU32-8+i))
-                    name=pkg+"-"+ent
-                    try:
-                        file=open(os.getcwd()+"/out/"+name+".index","rb")
-                    except FileNotFoundError:
-                        u=1
-                    else:
-                        FileOrder.append([name,"index"])
-                    try:
-                        file=open(os.getcwd()+"/out/"+name+".iheader","rb")
-                    except FileNotFoundError:
-                        u=1
-                    else:
-                        FileOrder.append([name,"iheader"])
-                    try:
-                        file=open(os.getcwd()+"/out/"+name+".vheader","rb")
-                    except FileNotFoundError:
-                        u=1
-                    else:
-                        FileOrder.append([name,"vheader"])
-                    try:
-                        file=open(os.getcwd()+"/out/"+name+".vert","rb")
-                    except FileNotFoundError:
-                        u=1
-                    else:
-                        FileOrder.append([name,"vert"])
-                tally=0
-                for File in FileOrder:
-                    if File[1] == "vert":
-                        tally+=1
-                        if tally == 2:
-                            UVName=File[0]+"."+File[1]
-                            print(UVName)
-                            UVFound=True
             VColorFound=False
+            Value=int(ast.literal_eval("0x"+DataHashes[0]))
+            Index=binary_search(BufferData, Value)
+            if Index != -1:
+                IndexName=BufferData[Index][0]+".index"
+                indFound=True
+            Value=int(ast.literal_eval("0x"+DataHashes[1]))
+            Index=binary_search(BufferData, Value)
+            if Index != -1:
+                VertexName=BufferData[Index][0]+".vert"
+                vertFound=True
+            if len(DataHashes) > 2:
+                Value=int(ast.literal_eval("0x"+DataHashes[2]))
+                Index=binary_search(BufferData, Value)
+                if Index != -1:
+                    UVName=BufferData[Index][0]+".vert"
+                    UVFound=True
             if len(DataHashes) > 3:
-                VertexHeaderVal=ast.literal_eval("0x"+DataHashes[3])
-                pkg = Hex_String(Package_ID(VertexHeaderVal))
-                ent = Hex_String(Entry_ID(VertexHeaderVal))
-                Bank=pkg+"-"+ent+".vheader"
-                VertexCount=0
-                for Item in VertexHeaderList:
-                    if Item.lower() == Bank.lower():
-                        VColorOffset=VertexCount
-                        VColorFound = True
-                    VertexCount+=1
-            if vertFound == False:
-                for i in range(int(8)):
-                #    
-                    new=int(ast.literal_eval("0x"+DataHashes[1]))+i
-                    pkg = Hex_String(Package_ID(new))
-                    ent = Hex_String(Entry_ID(new))
-                    #print(pkg+"-"+ent)
-                    if vertFound == False:     #very poor way of finding buffers
-                        Bank=pkg+"-"+ent+".vert"
-                        #print(Bank)
-                        try:
-                            vert=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
-                        except FileNotFoundError:
-                            u=1
-                        else:
-                            test=binascii.hexlify(bytes(vert.read())).decode()
-                            if int(len(test)/2) == VertLen:
-                                vertFound=True
-                                for i in range(len(VertexBufferList)):
-                                    if VertexBufferList[i] == Bank:
-                                        VertexFileOffset=i
-                                        vertFound=True
-                                        break
-                if vertFound == True:
-                    break
-                for i in range(int(8)):
-                #    
-                    new=int(ast.literal_eval("0x"+DataHashes[1]))-i
-                    pkg = Hex_String(Package_ID(new))
-                    ent = Hex_String(Entry_ID(new))
-                    #print(pkg+"-"+ent)
-                    if vertFound == False:     #very poor way of finding buffers
-                        Bank=pkg+"-"+ent+".vert"
-                        #print(Bank)
-                        try:
-                            vert=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
-                        except FileNotFoundError:
-                            u=1
-                        else:
-                            test=binascii.hexlify(bytes(vert.read())).decode()
-                            if int(len(test)/2) == VertLen:
-                                vertFound=True
-                                for i in range(len(VertexBufferList)):
-                                    if VertexBufferList[i] == Bank:
-                                        VertexFileOffset=i
-                                        vertFound=True
-                                        break
-                    if vertFound == True:
-                        break
-            if indFound == False:
-                for i in range(int(8)):
-                #    
-                    new=int(ast.literal_eval("0x"+DataHashes[0]))+i
-                    pkg = Hex_String(Package_ID(new))
-                    ent = Hex_String(Entry_ID(new))
-                    #'print(pkg+"-"+ent)
-                    if indFound == False:     #very poor way of finding buffers
-                        Bank=pkg+"-"+ent+".index"
-                        #print(Bank)
-                        try:
-                            vert=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
-                        except FileNotFoundError:
-                            u=1
-                        else:
-                            test=binascii.hexlify(bytes(vert.read())).decode()
-                            if int(len(test)/2) == IndexLength:
-                                indFound=True
-                                for i in range(len(VertexBufferList)):
-                                    if IndexBufferList[i] == Bank:
-                                        IndexFileOffset=i
-                                        indFound=True
-                                        break
-                if indFound == True:
-                    break
-                for i in range(int(8)):
-                #    
-                    new=int(ast.literal_eval("0x"+DataHashes[0]))-i
-                    pkg = Hex_String(Package_ID(new))
-                    ent = Hex_String(Entry_ID(new))
-                    #'print(pkg+"-"+ent)
-                    if indFound == False:     #very poor way of finding buffers
-                        Bank=pkg+"-"+ent+".index"
-                        #print(Bank)
-                        try:
-                            index=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
-                        except FileNotFoundError:
-                            u=1
-                        else:
-                            test=binascii.hexlify(bytes(index.read())).decode()
-                            if int(len(test)/2) == IndexLength:
-                                indFound=True
-                                for i in range(len(IndexBufferList)):
-                                    if IndexBufferList[i] == Bank:
-                                        IndexFileOffset=i
-                                        indFound=True
-                                        break
-                    if indFound == True:
-                        break
+                Value=int(ast.literal_eval("0x"+DataHashes[3]))
+                Index=binary_search(BufferData, Value)
+                if Index != -1:
+                    VColorName=BufferData[Index][0]+".vert"
+                    VColorFound=True
+        
+
+            
             if (vertFound == True) and (indFound == True):
+                IndexHeader=int(ast.literal_eval("0x"+DataHashes[0]))
+                pkg = Hex_String(Package_ID(IndexHeader))
+                ent = Hex_String(Entry_ID(IndexHeader))
+                Bank=pkg+"-"+ent+".iheader"
+                U32Check=open(os.getcwd()+"/out/"+Bank,"rb")
+                IndexHeaderData=binascii.hexlify(bytes(U32Check.read())).decode()
                 verts=[]
                 #print("RUNNING")
                 norms=[]
-                Vert=open(os.getcwd()+"/out/"+VertexBufferList[VertexFileOffset],"rb")
+                Vert=open(os.getcwd()+"/out/"+VertexName,"rb")
                 #print(VertexBufferList[VertexFileOffset])
                 
                 for i in range(int(99999)):
@@ -4255,7 +4008,7 @@ class LoadZone:
                 Bank=pkg+"-"+ent+".index"
                 #ind=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
                 faces=[]
-                ind=open(os.getcwd()+"/out/"+IndexBufferList[IndexFileOffset],"rb")
+                ind=open(os.getcwd()+"/out/"+IndexName,"rb")
                 ind.seek(0x0)
                 Length = binascii.hexlify(bytes(ind.read())).decode()
                 ind.seek(0x0)
@@ -4266,7 +4019,7 @@ class LoadZone:
                 
                 if VColorFound == True:
                     VColData=[]
-                    VColor=open(os.getcwd()+"/out/"+VertexBufferList[VColorOffset],"rb")
+                    VColor=open(os.getcwd()+"/out/"+VColorName,"rb")
                     for i in range(int(999999)):
                         Data=binascii.hexlify(bytes(UV.read(4))).decode()
                         if Data == "":
@@ -4414,29 +4167,31 @@ class LoadZone:
                 filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
                 FbxCommon.SaveScene(memory_manager, scene, filename)
                 memory_manager.Destroy()
+                countMat=0
+                if len(MaterialData) > 0:
+                    MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
+                    #print(MaterialData)
+                    #print(MatRef)
+                    for i in range(count99):
+                        for Mat in MaterialData:
+                            if int(Mat[0]) == int(countMat):
+                                CheckName=Mat[1]
+                                for Texs in MatRef:
+                                    #print(Texs)
+                                    if CheckName == Texs[0]:
+                                        for Texture in Texs[1]:
+                                            if Texture not in TexturesToRip:
+                                                TexturesToRip.append(Texture)
+                                        Textures=",".join(Texs[1])
+                                        MatOut.write(Static+"_"+str(countMat)+" : "+Mat[1]+" : "+Textures+"\n")
+                                        break
+                        countMat+=1
+                    MatOut.close()
             else:
+                print(Static)
                 print("Fucked it")
                 
-            countMat=0
-            if len(MaterialData) > 0:
-                MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
-                #print(MaterialData)
-                #print(MatRef)
-                for i in range(count99):
-                    for Mat in MaterialData:
-                        if int(Mat[0]) == int(countMat):
-                            CheckName=Mat[1]
-                            for Texs in MatRef:
-                                #print(Texs)
-                                if CheckName == Texs[0]:
-                                    for Texture in Texs[1]:
-                                        if Texture not in TexturesToRip:
-                                            TexturesToRip.append(Texture)
-                                    Textures=",".join(Texs[1])
-                                    MatOut.write(Static+"_"+str(countMat)+" : "+Mat[1]+" : "+Textures+"\n")
-                                    break
-                    countMat+=1
-                MatOut.close()
+            
 
         RipTextures(TexturesToRip)
 def GetPackageName(ID):
@@ -4924,6 +4679,7 @@ def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns):
                     count+=1
     Popup()
 def PullMechanicStructs():
+    ExtractedHashes=[]
     DynNames=[]
     H64Sort=SortH64(ReadHash64())
     for file in os.listdir(os.getcwd()+"/out"):
@@ -4931,76 +4687,86 @@ def PullMechanicStructs():
             continue
         if file.split(".")[1] == "dt":
             Test=open(os.getcwd()+"/out/"+file,"rb")
-            Test.seek(0x60)
-            hcheck=binascii.hexlify(bytes(Test.read(8))).decode()
-            flipped=binascii.hexlify(bytes(hex_to_little_endian(hcheck))).decode('utf-8')
-            try:
-                num=ast.literal_eval("0x"+flipped)
-            except SyntaxError:
-                Test.close()
+            Test.seek(0x20)
+            count=binascii.hexlify(bytes(Test.read(4))).decode()
+            if count == "":
                 continue
-            Check=Hash64Search2(H64Sort,num)
-            
-            if Check != False:
-                flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
-                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
-                if Exists != True:
-                    if DynNames != []:
-                        index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
-                    else:
-                        index=-1
-                    if index == -1:
-                        PullDyn(str(flipped))
-                        DynNames.append(int(ast.literal_eval("0x"+flipped)))
-                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
-                file1=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
-                Test.seek(0x30)
-                rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                #print(PosX)
-                if PosX != "00000000":
-                    PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
-                else:
-                    PosX=0
-                if PosY != "00000000":
-                    PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
-                else:
-                    PosY=0
-                if PosZ != "00000000":
-                    PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
-                else:
-                    PosZ=0
-                if rotX != "00000000":
-                    rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
-                else:
-                    rotX=0
-                if rotY != "00000000":
-                    rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
-                else:
-                    rotY=0
-                if rotZ != "00000000":
-                    rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
-                else:
-                    rotZ=0
-                if rotW != "00000000":
-                    rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
-                else:
-                    rotW=0
-               
+            if len(list(count)) != 8:
+                continue
+            count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
+            StartingOffset=48
+            Test.seek(48)
+            for i in range(count):
+                Test.seek(48+(i*144)+48)
+                Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
+                try:
+                    num=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    Test.close()
+                    continue
+                Check=Hash64Search2(H64Sort,num)
                 
-                if ScaleX != "00000000":
-                    ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
-                else:
-                    ScaleX=1
-            
-                file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
-                file1.close()
+                if Check != False:
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    if Exists != True:
+                        if DynNames != []:
+                            index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
+                        else:
+                            index=-1
+                        if index == -1:
+                            PullDyn(str(flipped))
+                            DynNames.append(int(ast.literal_eval("0x"+flipped)))
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    file1=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
+                    Test.seek(48+(i*144))
+                    rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    #print(PosX)
+                    if PosX != "00000000":
+                        PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                    else:
+                        PosX=0
+                    if PosY != "00000000":
+                        PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                    else:
+                        PosY=0
+                    if PosZ != "00000000":
+                        PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                    else:
+                        PosZ=0
+                    if rotX != "00000000":
+                        rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
+                    else:
+                        rotX=0
+                    if rotY != "00000000":
+                        rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
+                    else:
+                        rotY=0
+                    if rotZ != "00000000":
+                        rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
+                    else:
+                        rotZ=0
+                    if rotW != "00000000":
+                        rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
+                    else:
+                        rotW=0
+                   
+                    
+                    if ScaleX != "00000000":
+                        ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                    else:
+                        ScaleX=1
+                
+                    file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
+                    file1.close()
             Test.close()
 def PullDyn(Hash):
     print("Start "+Hash)
@@ -5066,7 +4832,10 @@ def MapRipper(entry,top,skip):
             filelist.append(file)
     useful=["Map","0x808093ad","0x80806d44","0x80806c81","0x80809ed2","0x80806daa","0x80806d30","0x80808707","0x80809883","0x8080891e","0x80808701","0x808093b1","0x80806a0d","0x80808e8e","0x80806daa"]
     if skip == False:
+        VertexLogger=open(os.getcwd()+"/cache/ModelDataTable.txt","w")
+        VertexLogger.close()
         unpack_all(path,custom_direc,useful,filelist)
+        
     LoadNames(top,ActId,ActName)
 def QuitOut(top):
     top.destroy()

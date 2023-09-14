@@ -34,45 +34,51 @@ def euler_from_quaternion(x, y, z, w):
         return roll_x, pitch_y, yaw_z # in radians
 #installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
 Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_DIR"
-def InstanceDyn(Object,HasRoot):
-    #print(HasRoot)
-    try:
-        file=open(Filepath+"/Instances/"+(str(Object.name)[:8]).lower()+".inst","r")
-    except:
-        print("no file")
-    else:
-        
-        data=file.read().split("\n")#
-        file.close()
-        #print(data)
-        data.remove('')
-        #print(data)
-        #print(Object.name)               
-        #flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
-#print(flipped)
-        for instance in data:
-            instance=instance.split(",")
-            ob_copy = bpy.data.objects[Object.name].copy()
-            bpy.context.collection.objects.link(ob_copy) #makes the instances
-
-            location = [float(instance[4]), float(instance[5]), float(instance[6])]
-            #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
-            quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
-            x,y,z=euler_from_quaternion(float(instance[0]),float(instance[1]),float(instance[2]),float(instance[3]))
-            ob_copy.location = location
-            #ob_copy.rotation_mode = 'QUATERNION'
-            x=x+1.5708
-            if x > 1.57079632679:
-                x=1.57079632679-(x-1.57079632679)
-            elif x < 1.57079632679:
-                x=1.57079632679+(1.57079632679-x)
-            ob_copy.rotation_euler= (x,y*-1,z+3.1415)
-            if HasRoot == True:
-                ob_copy.delta_scale=[0.01]*3
-            #if 7<Scale<8:
+def InstanceDyn(ObjectData):
+    for Object in ObjectData:
+        #print(HasRoot)
+        try:
+            file=open(Filepath+"/Instances/"+(str(Object[0].name)[:8]).lower()+".inst","r")
+        except:
+            print("no file")
+        else:
             
-                #ob_copy.delta_scale=([Scale/10])*3
-            ob_copy.scale = [float(instance[7])]*3
+            data=file.read().split("\n")#
+            file.close()
+            #print(data)
+            data.remove('')
+            #print(data)
+            print(Object[0].name)#               
+            #flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
+    #print(flipped)
+            for instance in data:
+                instance=instance.split(",")
+                ob_copy = bpy.data.objects[Object[0].name].copy()
+                bpy.context.collection.objects.link(ob_copy) #makes the instances
+
+                location = [float(instance[4]), float(instance[5]), float(instance[6])]
+                #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
+                quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
+                x,y,z=euler_from_quaternion(float(instance[0]),float(instance[1]),float(instance[2]),float(instance[3]))
+                ob_copy.location = location
+                #ob_copy.rotation_mode = 'QUATERNION'
+                x=x+1.5708
+                if x > 1.57079632679:
+                    x=1.57079632679-(x-1.57079632679)
+                elif x < 1.57079632679:
+                    x=1.57079632679+(1.57079632679-x)
+                ob_copy.rotation_euler= (x,y*-1,z+3.1415)
+                if Object[1] == True:
+                    ob_copy.delta_scale=[0.01]*3
+                #if 7<Scale<8:
+                
+                    #ob_copy.delta_scale=([Scale/10])*3
+                ob_copy.scale = [float(instance[7])]*3
+    bpy.ops.object.select_all(action='DESELECT')
+    for Obj in bpy.data.objects:
+        if Obj.name[:4] == "root":
+            Obj.select_set(state=True)
+    bpy.ops.object.delete()
             #count=0
 def Material(Obj):
     try:
@@ -109,9 +115,9 @@ def Material(Obj):
                             continue
                         mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
                     Obj.data.materials.append(mat)
-                                                  
+ObjectData=[]                                                  
 for Fbx in os.listdir(Filepath+"/Dynamics"):
-    #break
+    
     
     split=Fbx.split(".")
     #if split[0] != "4c83e080":
@@ -155,6 +161,7 @@ for Fbx in os.listdir(Filepath+"/Dynamics"):
             bpy.context.view_layer.objects.active = OBJS
             bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
             Material(OBJS)
+            ObjectData.append([OBJS,HasRoot])
         #bpy.ops.object.join()
 
        
@@ -165,9 +172,6 @@ for Fbx in os.listdir(Filepath+"/Dynamics"):
                 
                 obj.location=[0,0,0]
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-                InstanceDyn(obj,HasRoot)
-        bpy.ops.object.select_all(action='DESELECT')
-        for Obj in bpy.data.objects:
-            if Obj.name[:4] == "root":
-                Obj.select_set(state=True)
-        bpy.ops.object.delete()
+                ObjectData.append([obj,HasRoot])
+InstanceDyn(ObjectData)
+        
