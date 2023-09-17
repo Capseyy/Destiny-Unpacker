@@ -1,6 +1,7 @@
 from dataclasses import dataclass, fields, field
 import os, sys, shutil
 sys.path.append(os.getcwd()+"/ThirdParty")
+sys.path.append(os.getcwd()+"/src")
 import numpy as np
 from typing import List
 import gf, subprocess
@@ -16,6 +17,7 @@ from ast import literal_eval
 from tkinter import *
 from tkinter import ttk
 import fbx, ExtractSingleEntry
+import Terrain
 from fbx import *
 from fbx import FbxManager
 from functools import partial
@@ -1017,6 +1019,8 @@ class Package:
                     fileFormat=".model"
                 elif entry.EntryA == "0x80806c81":
                     fileFormat=".terrain"
+                elif entry.EntryA == "0x80806c7d":
+                    fileFormat=".terrData"
                 elif entry.EntryA == "0x80809ed2":
                     fileFormat=".dyntable"
                 elif entry.EntryA == "0x80806d30":  #modelData0x80809ed2
@@ -2369,8 +2373,11 @@ def ClearMaps(top):
         os.remove(os.getcwd()+"/data/Entities/"+file)
     for file in os.listdir(os.getcwd()+"/data/DynMaterials"):
         os.remove(os.getcwd()+"/data/DynMaterials/"+file)
-    for file in os.listdir(os.getcwd()+"/data/Textures"):
-        os.remove(os.getcwd()+"/data/Textures/"+file)
+    #for file in os.listdir(os.getcwd()+"/data/Textures"):
+        #os.remove(os.getcwd()+"/data/Textures/"+file)
+    for file in os.listdir(os.getcwd()+"/data/Terrain"):
+        os.remove(os.getcwd()+"/data/Terrain/"+file)
+    
     
     Popup()
 def ClearTextures(top):
@@ -4102,7 +4109,7 @@ class LoadZone:
                         for Val in Face:
                             vertex_index = binary_search(usedVerts,int(Val))
                             my_mesh.AddPolygon(vertex_index)
-                            my_mesh.EndPolygon()
+                        my_mesh.EndPolygon()#################################IDK CHANGE IF BROke
                             
                     cubeLocation = (0, 0, 0)
                     cubeScale    = (Scale, Scale, Scale)
@@ -4556,6 +4563,7 @@ def MapExtractor(entry,LoadNames,Dyns):
     count3=0
     Dts=[]
     refs=[]
+    TerrainHashes=[]
     for SubLoad in SubLoads:
         num=ast.literal_eval(SubLoad)
         EntityDts=[]
@@ -4577,7 +4585,6 @@ def MapExtractor(entry,LoadNames,Dyns):
                         if Name not in Tables:
                             Tables.append(Name)
                     count=0
-                    
                     for Table in Tables:
                         for File in os.listdir(custom_direc):
                             if File != "audio":
@@ -4589,6 +4596,7 @@ def MapExtractor(entry,LoadNames,Dyns):
                                     H64=""
                                     StaticLz=""
                                     file=open(custom_direc+"/"+File,"rb")
+                                    #print(File)
                                     length=binascii.hexlify(bytes(file.read())).decode()
                                     file.close()
                                     if len(length) < 144:
@@ -4624,6 +4632,7 @@ def MapExtractor(entry,LoadNames,Dyns):
                                         Translations.append([fx,fy,fz,lzscale])
                                         File.read(4)
                                         Ref=binascii.hexlify(bytes(File.read(4))).decode()
+                                        #print(Ref)
                                         if Ref == "c96c8080":  #statics
                                             print("THISONE")
                                             File.read(16)
@@ -4654,6 +4663,20 @@ def MapExtractor(entry,LoadNames,Dyns):
                                             count5+=1
                                             LoadFiles.append(DirName2)
                                             refs.append(save)
+                                        elif Ref == "7d6c8080": #terrain
+                                            print("TerrainFound")
+                                            while True:
+                                                TerrainData=binascii.hexlify(bytes(File.read(32))).decode()
+                                                TerrainHashes.append(TerrainData[48:56])
+                                                print(TerrainHashes)
+                                                File.seek(File.tell()+4)
+                                                if binascii.hexlify(bytes(File.read(4))).decode() != "7d6c8080":
+                                                    break
+                                            
+
+
+
+
                                         
                                         
                                    
@@ -4664,10 +4687,12 @@ def MapExtractor(entry,LoadNames,Dyns):
     print(refs)                                   
     #print(LoadFiles)                                       
     #ans2=int(input("Enter which Load to extract from: "))
-    InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns)
-def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns):
+    #print(TerrainHashes)
+    InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns,TerrainHashes)
+def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes):
     lengths=[]
     count=0
+    RipTerrain(TerrainHashes)
     if Dyns == True:
         PullMechanicStructs()
     for Load in loadfile:
@@ -4678,6 +4703,8 @@ def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns):
                     lengths.append([File,str(len(Load.Statics))])
                     count+=1
     Popup()
+def RipTerrain(Hashes):
+    Terrain.ExtractTerrain(os.getcwd(),Hashes)
 def PullMechanicStructs():
     ExtractedHashes=[]
     DynNames=[]

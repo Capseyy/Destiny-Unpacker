@@ -1,42 +1,25 @@
 from dataclasses import dataclass, fields, field
 import numpy as np
 from typing import List
-import sys,os
-sys.path.append(os.getcwd()+"/ThirdParty")
 import gf
+import os
 from ctypes import cdll, c_char_p, create_string_buffer
 from Crypto.Cipher import AES
 import binascii
 import io
 import fnmatch
-import time,ast
+import time
 
-#path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
-path="E:\SteamLibrary\steamapps\common\Destiny2\packages"
-custom_direc = os.getcwd()+"/out/" #Where you want the bin files to go
-oodlepath = os.getcwd()+"/ThirdParty/oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
+path = "D:/oldd2/packages" #Path to your packages folder.
+custom_direc = "C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/MapExtracter/data" #Where you want the bin files to go
+oodlepath = "E:\oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
 
+filelist = []
+for file in os.listdir(path)[::-1]:
+    if fnmatch.fnmatch(file,'w64_hiveship_kingsfall*'):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
+        filelist.append(file)
+        #print(file) #for debugging
 
-def stripZeros(txt):
-    if txt == "0000":
-        return("0")
-    elif txt == "00000000":
-        return("0")
-    elif txt == "00":
-        return("0")
-    else:
-        temp=list(txt)
-        count=0
-        index=0
-        ##print(temp)
-        for char in temp:
-            if char == "0":
-                index+=1
-                
-            else:
-                break
-        ##print("".join(temp[index:]))
-        return str("".join(temp[index:]))
 
 def get_file_typename(file_type, file_subtype, ref_id, ref_pkg):
     if file_type == 8:
@@ -73,13 +56,13 @@ def decode_entry_a(entry_a_data):
 def decode_entry_b(entry_b_data):
     file_subtype = (entry_b_data >> 6) & 0x7
     file_type = (entry_b_data >> 9) & 0x7F
-    ##print(entry_b_data)
+    #print(entry_b_data)
     return np.uint8(file_type), np.uint8(file_subtype)
 
 
 def decode_entry_c(entry_c_data):
     starting_block = entry_c_data & 0x3FFF
-    ##print(starting_block)
+    #print(starting_block)
     starting_block_offset = ((entry_c_data >> 14) & 0x3FFF) << 4
     return starting_block, starting_block_offset
 
@@ -217,16 +200,8 @@ class Package:
         "0x60", "0x58", "0x7E", "0x63", "0xE6",
         "0x76", "0xE4", "0x08", "0x92", "0xB5",
     ]
-    AES_KEY_2 = [
-        "0x6A", "0x77", "0x78", "0x61", "0x67", "0x71", "0x67", "0x7F", "0x79", "0x7F", 
-        "0x39", "0x3D", "0x3E", "0x6F", "0x3A", "0x3E",
-    ]
-    #AES_KEY_2=[]
-    #for Val in AES_KEY_copy:
-    #    AES_KEY_2.append(str(Val))
-        
-    
-    def __init__(self, package_directory,EntryToGet):
+
+    def __init__(self, package_directory):
         self.package_directory = package_directory
         if '_en_' in self.package_directory:
             self.t_package_id = self.package_directory[-13:-9]
@@ -240,16 +215,12 @@ class Package:
         self.nonce = None
         self.aes_key_0 = binascii.unhexlify(''.join([x[2:] for x in self.AES_KEY_0]))
         self.aes_key_1 = binascii.unhexlify(''.join([x[2:] for x in self.AES_KEY_1]))
-        self.aes_key_2 = binascii.unhexlify(''.join([x[2:] for x in self.AES_KEY_2]))
-        self.EntryToGet=EntryToGet
-        #print(self.EntryToGet)
 
-
-    def extract_package(self, custom_direc,Entry, extract=True, largest_patch=True):
+    def extract_package(self, custom_direc, extract=True, largest_patch=True):
         self.get_all_patch_ids()
         if largest_patch:
             self.set_largest_patch_directory()
-        #print(f"Extracting files for {self.package_directory}")
+        print(f"Extracting files for {self.package_directory}")
 
         self.max_pkg_bin = open(self.package_directory, 'rb').read()
         self.package_header = self.get_header()
@@ -284,7 +255,7 @@ class Package:
         # The header data is 0x16F bytes long, so we need to x2 as python reads each nibble not each byte
         header = self.max_pkg_bin[:header_length]
         pkg_header = PkgHeader(header)
-        ##print(pkg_header)
+        #print(pkg_header)
         return pkg_header
 
     def get_entry_table(self):
@@ -300,26 +271,23 @@ class Package:
         entry_table = SPkgEntryTable()
         entries_to_decode = []
         entry_table_start = self.package_header.EntryTableOffset
-        #print(entry_table_start)
         entry_table_data = self.max_pkg_bin[entry_table_start:entry_table_start+self.package_header.EntryTableLength]
         #table=open("entrytable.bin","wb")
         #table.write(entry_table_data)
         #time.sleep(60)
-        ##print(self.package_header.EntryTableSize)
+        #print(self.package_header.EntryTableSize)
         #for i in range(0, self.package_header.EntryTableSize * 16, 16):
-        #    #print(entry_table_data,)
+        #    print(entry_table_data,)
         for i in range(0, self.package_header.EntryTableSize * 16, 16):
-            ##print(i/16)
             entry = SPkgEntry(gf.get_int32(entry_table_data, i),
                               gf.get_int32(entry_table_data, i+4),
                               gf.get_int32(entry_table_data, i+8),
                               gf.get_int32(entry_table_data, i+12))
-            ##print(entry)
+            #print(entry)
             entries_to_decode.append(entry)
-        ##print(len(entries_to_decode))
+        #print(len(entries_to_decode))
         #time.sleep(10)
         entry_table.Entries = self.decode_entries(entries_to_decode)
-        ##print(len(entries_to_decode))
         return entry_table
 
     def decode_entries(self, entries_to_decode):
@@ -329,35 +297,29 @@ class Package:
         :param entry_table: the entry table struct to decode
         :return: array of decoded entries as struct SPkgEntryDecoded()
         """
-        ##print(entries_to_decode)
         entries = []
         count = 0
-        #print(self.EntryToGet)
+        useful=[]
         for entry in entries_to_decode:
-           
-            # #print("\n\n")
-            #useful=["0x808045eb","0x808045f0","0x808045f7","0x808097b8","0x80809345","0x80809ec5","0x8080986a","0x808090d5","0x80808e8b","0x80808c0d","0x808099f1","0x80805a09","0x80809fb8","0x80800065","0x80809b06","0x80800000","0x80808e8e","0x808045f0","0x80808ec7"]
+            # print("\n\n")
+            #useful=["0x808099ef","0x808045eb","0x80808c0d","0x808099f1","0x80805a09","0x80809fb8","0x80800065","0x80809b06","0x8080000"]
             ref_id, ref_pkg_id, ref_unk_id = decode_entry_a(entry.EntryA)
-            if count != int(self.EntryToGet):
-                count+=1
-                continue
-            #print("ran")
-            #if hex(entry.EntryA) in useful:
-            file_type, file_subtype = decode_entry_b(entry.EntryB)
-            starting_block, starting_block_offset = decode_entry_c(entry.EntryC)
-            file_size, unknown = decode_entry_d(entry.EntryC, entry.EntryD)
-            file_name = f"{self.package_header.PackageIDH}-{gf.fill_hex_with_zeros(hex(count)[2:], 4)}"
-            file_typename = get_file_typename(file_type, file_subtype, ref_id, ref_pkg_id)
+            if hex(entry.EntryA) not in useful:
+                file_type, file_subtype = decode_entry_b(entry.EntryB)
+                starting_block, starting_block_offset = decode_entry_c(entry.EntryC)
+                file_size, unknown = decode_entry_d(entry.EntryC, entry.EntryD)
+                file_name = f"{self.package_header.PackageIDH}-{gf.fill_hex_with_zeros(hex(count)[2:], 4)}"
+                file_typename = get_file_typename(file_type, file_subtype, ref_id, ref_pkg_id)
 
-            decoded_entry = SPkgEntryDecoded(np.uint16(count), file_name, file_typename,
-                                             ref_id, ref_pkg_id, ref_unk_id, file_type, file_subtype, starting_block,
-                                             starting_block_offset, file_size, unknown, hex(entry.EntryA))
-            entries.append(decoded_entry)
-            ##print("Here")
+                decoded_entry = SPkgEntryDecoded(np.uint16(count), file_name, file_typename,
+                                                 ref_id, ref_pkg_id, ref_unk_id, file_type, file_subtype, starting_block,
+                                                 starting_block_offset, file_size, unknown, hex(entry.EntryA))
+                entries.append(decoded_entry)
+            #print("Here")
             #if len(entries) > 50:
-             #   #print(entries)
+             #   print(entries)
               #  time.sleep(60)
-            count += 1
+                count += 1
             
             #(count)
         return entries
@@ -397,7 +359,7 @@ class Package:
             all_pkg_bin.append(bin_data)
 
         self.set_nonce()
-        ##print(all_pkg_bin)
+        #print(all_pkg_bin)
         self.output_files(all_pkg_bin, custom_direc)
 
     def decrypt_block(self, block, block_bin):
@@ -405,10 +367,9 @@ class Package:
             key = self.aes_key_1
         else:
             key = self.aes_key_0
-        #key = self.aes_key_2
         cipher = AES.new(key, AES.MODE_GCM, nonce=self.nonce)
         plaintext = cipher.decrypt(block_bin)
-        ##print(str(plaintext).split("\\x"))
+        #print(str(plaintext).split("\\x"))
         #time.sleep(10)
         return plaintext
 
@@ -437,77 +398,98 @@ class Package:
     def output_files(self, all_pkg_bin, custom_direc):
         
         for entry in self.entry_table.Entries[::-1]:
-            ##print(entry)
+            #print(entry)
             current_block_id = entry.StartingBlock
             block_offset = entry.StartingBlockOffset
             block_count = int(np.floor((block_offset + entry.FileSize - 1) / self.BLOCK_SIZE))
-            #print(str(block_offset)+" - "+str(block_count))
             last_block_id = current_block_id + block_count
             file_buffer = b''  # string of length entry.Size
             while current_block_id <= last_block_id:
                 current_block = self.block_table.Entries[current_block_id]
                 if current_block.PatchID not in self.all_patch_ids:
-                    #print(f"Missing PatchID {current_block.PatchID}")
+                    print(f"Missing PatchID {current_block.PatchID}")
                     return
                 current_pkg_data = all_pkg_bin[self.all_patch_ids.index(current_block.PatchID)]
                 current_block_bin = current_pkg_data[current_block.Offset:current_block.Offset + current_block.Size]
                 # We only decrypt/decompress if need to
                 if current_block.Flags & 0x2:
-                    # #print('Going to decrypt')
+                    # print('Going to decrypt')
                     current_block_bin = self.decrypt_block(current_block, current_block_bin)
                 if current_block.Flags & 0x1:
-                    # #print(f'Decompressing block {current_block.ID}')
+                    # print(f'Decompressing block {current_block.ID}')
                     current_block_bin = self.decompress_block(current_block_bin)
                 if current_block_id == entry.StartingBlock:
                     file_buffer = current_block_bin[block_offset:]
                 else:
                     file_buffer += current_block_bin
-                ##print(file_buffer)
+                #print(file_buffer)
                 current_block_id += 1
             fileFormat=""
-            ##print(entry.EntryA)
+            #print(entry.EntryA)
+            #print(entry.FileName)
             #time.sleep(5)
             
-            
+            if entry.EntryA == "0x808099ef":
+                fileFormat=".ref"
+            elif entry.EntryA == "0x808045eb":
+                fileFormat=".mus"
+            elif entry.EntryA == "0x80808c0d":
+                fileFormat=".snd"
+            elif entry.EntryA == "0x808099f1":
+                fileFormat=".str"
+            elif entry.EntryA == "0x80805a09":
+                fileFormat=".sri"
+            elif entry.EntryA == "0x80800065":
+                fileFormat=".txt"
+            #elif entry.EntryA == "0x80809fb8":
+               # fileFormat=".new"
+            #elif entry.EntryA == "0x80809b06":
+                #fileFormat=".mech"
+            #elif entry.EntryA == "0x8080000":
+                #fileFormat=".mech"
+            else:
+                fileFormat=".bin"
             fileFormat=".bin"
-            #fileFormat=".bin"
-            #if entry.FileName.upper() == "03C3-16EC":
-                ##print(entry.EntryA)
-                ##print(f'{custom_direc}{self.package_directory.split("/w64")[-1][1:-6]}/{entry.FileName.upper()}'+fileFormat)
+            #print(entry.EntryA)
+            #print(entry.FileName.upper())
+            #print(f'{custom_direc}/dump/{entry.FileName.upper()}'+fileFormat)
             if fileFormat == ".bin":
-                #try:
-                #    os.makedirs(custom_direc + self.package_directory.split('/w64')[-1][1:-6])
-                #except FileExistsError:
-                #    pass
-                #file = io.FileIO(f'{custom_direc}/{entry.FileName.upper()}'+fileFormat, 'wb')
-                # #print(entry.FileSize)
-                global DataToWrite
-                DataToWrite=file_buffer[:entry.FileSize]
-                #if entry.FileSize != 0:
-                #    writer = io.BufferedWriter(file, buffer_size=entry.FileSize)
-                #    writer.write(file_buffer[:entry.FileSize])
-                #    writer.flush()
-                #else:
-                #    with open(f'{custom_direc}/{entry.FileName.upper()}'+fileFormat, 'wb') as f:
-                #        f.write(file_buffer[:entry.FileSize])
-                
-            ##print(f"Wrote to {entry.FileName} successfully")
+                try:
+                    os.makedirs(custom_direc + self.package_directory.split('/w64')[-1][1:-6])
+                except FileExistsError:
+                    pass
+
+                file = io.FileIO(f'{custom_direc}/{entry.FileName.upper()}'+fileFormat, 'wb')
+                #print(entry.FileSize)
+                if entry.FileSize != 0:
+                    writer = io.BufferedWriter(file, buffer_size=entry.FileSize)
+                    writer.write(file_buffer[:entry.FileSize])
+                    writer.flush()
+                else:
+                    with open(f'{custom_direc}/{entry.FileName.upper()}'+fileFormat, 'wb') as f:
+                        f.write(file_buffer[:entry.FileSize])
+            #print(f"Wrote to {entry.FileName} successfully")
 
 
-def unpack_entry(path, custom_direc,package,entry):
+def unpack_all(path, custom_direc):
+    all_packages = filelist
     i=0
-    
-    ##print(all_packages)
+    for thing in range(len(all_packages)):
+        #print(i)
+        if "video" in all_packages[i].split("_"):
+            all_packages.remove(all_packages[i]) #videos break???
+        else:
+            i+=1
+    #print(all_packages)
     single_pkgs = dict()
-    #entry="0bc8"
-    entrytoget=ast.literal_eval("0x"+stripZeros(entry))
-    single_pkgs[package[:-6]] = package
-    #print(single_pkgs)
-    ##print(single_pkgs.items())
+    for pkg in all_packages:
+        single_pkgs[pkg[:-6]] = pkg
+    #print(single_pkgs.items())
     for pkg, pkg_full in single_pkgs.items():
-        pkg = Package(f'{path}/{pkg_full}',entrytoget)
-        pkg.extract_package(custom_direc,entrytoget,extract=True)
-    Data=binascii.hexlify(DataToWrite).decode()
-    return Data
+        pkg = Package(f'{path}/{pkg_full}')
+        pkg.extract_package(extract=True, custom_direc=custom_direc)
+    print("done")
 
-#unpack_entry(path,custom_direc,1,"a")
+
+if __name__ == '__main__':
+    unpack_all(path, custom_direc)
