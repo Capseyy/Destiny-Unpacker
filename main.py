@@ -17,7 +17,7 @@ from ast import literal_eval
 from tkinter import *
 from tkinter import ttk
 import fbx, ExtractSingleEntry
-import Terrain
+import Terrain, Investment
 from fbx import *
 from fbx import FbxManager
 from functools import partial
@@ -1059,6 +1059,30 @@ class Package:
                     if entry.SubType == 6:
                         fileFormat=".iheader"
                         #refs.write(entry.FileName+" : "+entry.EntryA+"\n")
+            elif "Invest" in self.useful:
+                fileFormat=".bin"
+                if entry.EntryA == "0x808076aa":#0x8080549F
+                    fileFormat=".perk"
+                elif entry.EntryA == "0x80805a01": 
+                    fileFormat=".imgmap"
+                elif entry.EntryA == "0x8080798c": 
+                    fileFormat=".test"
+                elif entry.EntryA == "0x80807997":  #main points to new
+                    fileFormat=".indexer"
+                elif entry.EntryA == "0x80805a09":  #main points to new
+                    fileFormat=".smap"
+                elif entry.EntryA == "0x80805499":  #main points to new
+                    fileFormat=".main2"
+                #elif entry.EntryA == "0x808076aa":  #main points to new
+                    #fileFormat=".perkind2"
+                elif entry.EntryA == "0x8080542d":  #main points to new
+                    fileFormat=".perkind"
+                elif entry.EntryA == "0x808077cd":  #main points to new
+                    fileFormat=".plug"#0x808077CD
+                elif entry.EntryA == "0x8080718d":  #main points to new
+                    fileFormat=".ActIndex"
+                elif entry.EntryA == "0x80805887":  #main points to new
+                    fileFormat=".record"
             if "0x80800000" in self.useful:
                 if entry.EntryA == "0x80800000":
                     fileFormat=".script"
@@ -1068,7 +1092,7 @@ class Package:
                     fileFormat=".act"
                 elif entry.EntryA == "0x80808e8b":  #0x28 leads to modelocclusionbounds                         #LHash->Dt->
                     fileFormat=".dest"
-            if (fileFormat != ".bin") or ("All" in self.useful):
+            if (fileFormat != ".bin") or ("All" in self.useful) or ("Invest" in self.useful):
                 #try:
                 #    os.makedirs(custom_direc + self.package_directory.split('/w64')[-1][1:-6])
                 #except FileExistsError:
@@ -1155,7 +1179,7 @@ def DataView(top,name):
     top.mainloop()
 def OutputAct(name):
     file = open(os.getcwd()+"/cache/directive.txt","r").read()
-    file2 = open(os.getcwd()+"/Activity/"+name+".txt","w")
+    file2 = open(os.getcwd()+"/ExtractedFiles/Activity/"+name+".txt","w")
     file2.write(file)
     file2.close()
     
@@ -1198,7 +1222,7 @@ def CutsceneRip(box):
     temp=currentPath.split("\\")
     newPath="/".join(temp)
     ans=subprocess.call(cmd, shell=True)
-    path = newPath+"/Cutscenes/"+str(pkgID)
+    path = newPath+"/ExtractedFiles/Cutscenes/"+str(pkgID)
     # Check whether the specified path exists or not
     isExist = os.path.exists(path)
     if not isExist:
@@ -1207,10 +1231,10 @@ def CutsceneRip(box):
        os.makedirs(path)
        print("The new directory is created!")
     for File in os.listdir(currentPath+"/ThirdParty/output/"+str(pkgID)):
-        shutil.move(newPath+"/ThirdParty/output/"+str(pkgID)+"/"+File,newPath+"/Cutscenes/"+str(pkgID)+"/"+File)
+        shutil.move(newPath+"/ThirdParty/output/"+str(pkgID)+"/"+File,newPath+"/ExtractedFiles/Cutscenes/"+str(pkgID)+"/"+File)
     os.chdir(currentPath+"/ThirdParty")
-    for file in os.listdir(currentPath+"/Cutscenes/"+pkgID+"/"):
-        path2file=(newPath+"/Cutscenes/"+pkgID+"/"+file)
+    for file in os.listdir(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"):
+        path2file=(newPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+file)
         binFile=open(path2file,"rb")
         data=str(binFile.read(3))
         binFile.close()
@@ -1229,23 +1253,23 @@ def CutsceneRip(box):
         else:
             os.remove(path2file)
     #input()
-    directory=os.listdir(currentPath+"/Cutscenes/"+pkgID+"/")
+    directory=os.listdir(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/")
     for file in directory:
-        path2file=(currentPath+"/Cutscenes/"+pkgID+"/"+file)    
+        path2file=(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+file)    
         cmd=("UsmToolkit.exe extract "+path2file)
         #print(cmd)
         ans=subprocess.call(cmd, shell=True)
         #print("TOOLKIT USED")
         count=0
-        for subfile in os.listdir(currentPath+"/Cutscenes/"+pkgID+"/"):
+        for subfile in os.listdir(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"):
             if subfile.split(".")[1] == "adx":
                 print(subfile)
                 count+=1
                 
                 if count > 2:
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
                 else:
-                    cmd="vgmstream -o "+currentPath+"/Cutscenes/"+pkgID+"/"+subfile.split(".")[0]+".wav "+currentPath+"/Cutscenes/"+pkgID+"/"+subfile
+                    cmd="vgmstream -o "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile.split(".")[0]+".wav "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile
                     print(cmd)
                     ans=subprocess.call(cmd, shell=True)
         
@@ -1255,11 +1279,11 @@ def CutsceneRip(box):
 
         
         tracks=[]
-        for subfile in os.listdir(currentPath+"/Cutscenes/"+pkgID+"/"):
+        for subfile in os.listdir(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"):
             if subfile.split(".")[1] == "wav":
                 
                 #convert to mp3
-                cmd="ffmpeg -i "+currentPath+"/Cutscenes/"+pkgID+"/"+subfile+" -vn -ar 44100 -ac 2 -b:a 192k "+currentPath+"/Cutscenes/"+pkgID+"/"+subfile.split(".")[0]+".mp3"
+                cmd="ffmpeg -i "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile+" -vn -ar 44100 -ac 2 -b:a 192k "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile.split(".")[0]+".mp3"
                 print(cmd)
                 ans=subprocess.call(cmd, shell=True,cwd=currentPath+"/ThirdParty")
                 tracks.append(subfile.split(".")[0]+".mp3")
@@ -1270,32 +1294,32 @@ def CutsceneRip(box):
         #first combine
         if len(tracks) != 2:
             print("Files were not deleted or found placeholder cutscene")
-            for subfile in os.listdir(currentPath+"/Cutscenes/"+pkgID+"/"):
+            for subfile in os.listdir(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"):
                 if subfile.split(".")[1] == "mp3":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
                 elif subfile.split(".")[1] == "m2v":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
                 elif subfile.split(".")[1] == "wav":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
             
         else:
-            cmd="ffmpeg -i "+currentPath+"/Cutscenes/"+pkgID+"/"+m2vFile+" -i "+currentPath+"/Cutscenes/"+pkgID+"/"+tracks[0]+" -c copy "+currentPath+"/Cutscenes/"+pkgID+"/tempoutput.mp4"
+            cmd="ffmpeg -i "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+m2vFile+" -i "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+tracks[0]+" -c copy "+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/tempoutput.mp4"
             print(cmd)
             ans=subprocess.call(cmd, shell=True,cwd=currentPath+"/ThirdParty")
             "ffmpeg -i video.mkv -i audio.mp3 -map 0 -map 1:a -c:v copy -shortest output.mkv"
-            cmd='ffmpeg -i '+currentPath+'/Cutscenes/'+pkgID+'/tempoutput.mp4 -i '+currentPath+'/Cutscenes/'+pkgID+'/'+tracks[1]+' -filter_complex "[0:a][1:a]amerge=inputs=2[a]" -map 0:v -map "[a]" -c:v copy -ac 2 -shortest '+currentPath+"/Cutscenes/"+pkgID+"/"+m2vFile.split(".")[0]+".mp4"
+            cmd='ffmpeg -i '+currentPath+'/ExtractedFiles/Cutscenes/'+pkgID+'/tempoutput.mp4 -i '+currentPath+'/ExtractedFiles/Cutscenes/'+pkgID+'/'+tracks[1]+' -filter_complex "[0:a][1:a]amerge=inputs=2[a]" -map 0:v -map "[a]" -c:v copy -ac 2 -shortest '+currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+m2vFile.split(".")[0]+".mp4"
             ans=subprocess.call(cmd, shell=True,cwd=currentPath+"/ThirdParty")
             #cleanup
-            for subfile in os.listdir(currentPath+"/Cutscenes/"+pkgID+"/"):
+            for subfile in os.listdir(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"):
                 if subfile.split(".")[1] == "mp3":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
                 elif subfile.split(".")[1] == "m2v":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
                 elif subfile.split(".")[1] == "wav":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
                 elif subfile.split(".")[1] == "adx":
-                    os.remove(currentPath+"/Cutscenes/"+pkgID+"/"+subfile)
-            os.remove(currentPath+"/Cutscenes/"+pkgID+"/tempoutput.mp4")
+                    os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/"+subfile)
+            os.remove(currentPath+"/ExtractedFiles/Cutscenes/"+pkgID+"/tempoutput.mp4")
             os.remove(path2file)
         #input()
     os.chdir(currentPath)
@@ -2381,11 +2405,11 @@ def ClearMaps(top):
     
     Popup()
 def ClearTextures(top):
-    for file in os.listdir(os.getcwd()+"/Textures"):
+    for file in os.listdir(os.getcwd()+"/ExtractedFiles/Textures"):
         if file != "cubemaps":
-            os.remove(os.getcwd()+"/Textures/"+file)
-    for file in os.listdir(os.getcwd()+"/Textures/Cubemaps"):
-        os.remove(os.getcwd()+"/Textures/Cubemaps/"+file)
+            os.remove(os.getcwd()+"/ExtractedFiles/Textures/"+file)
+    for file in os.listdir(os.getcwd()+"/ExtractedFiles/Textures/Cubemaps"):
+        os.remove(os.getcwd()+"/ExtractedFiles/Textures/Cubemaps/"+file)
     Popup()
 def ClearAudio(top):
     for File in os.listdir(os.getcwd()+"/out/audio"):
@@ -2614,13 +2638,13 @@ def DevRipper(entry,Answer):
             Offset=len(Data)
             Run=False
             First=True
-            outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","w")
+            outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","w")
             outfile.close()
             for Hash in temp:
                 dat=StringHash(Hash,newStrData,"")
                 if dat != False:
                     if First == True:
-                        outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                        outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
                         outfile.write("Strings\n")
                         outfile.write(dat+"\n")
                         First=False
@@ -2629,7 +2653,7 @@ def DevRipper(entry,Answer):
             if First == False:
                 outfile.close()
             if DataBlocks != []:
-                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
                 outfile.write("Block1  "+str(len(DataBlocks))+"\n")
                 for Block in DataBlocks:
                     #CurrentRef=[]
@@ -2674,7 +2698,7 @@ def DevRipper(entry,Answer):
             
             
             if DataBlocks2 != []:
-                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
                 outfile.write("Block2  "+str(len(DataBlocks2))+"\n")
                 for Block in DataBlocks2:
                     flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
@@ -2701,7 +2725,7 @@ def DevRipper(entry,Answer):
           
             if DataBlocks3 != []:
                
-                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
                 outfile.write("Block3  "+str(len(DataBlocks3))+"\n")
                 for Block in DataBlocks3:
                     flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
@@ -2729,7 +2753,7 @@ def DevRipper(entry,Answer):
             if DataBlocks4 != []:
                 
            
-                outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
                 outfile.write("Block4  "+str(len(DataBlocks4))+"\n")
                 #print(DataBlocks4)
                 for Block in DataBlocks4:
@@ -2780,7 +2804,7 @@ def DevRipper(entry,Answer):
                         outfile.write("\n"+CurrentRef+"\n\n")
                     
                 outfile.close()
-            outfile=open(os.getcwd()+"/Scripts/"+File.split(".")[0]+".txt","a")
+            outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
                 
             if DataBlocks5 != []:
                 
@@ -4292,8 +4316,7 @@ def RipAllTextures(entry):
     currentPath=os.getcwd()
     filelist=[]
     pkgID=entry.get().split("_")[len(entry.get().split("_"))-1]
-    
-    cmd= 'D2TextureRipper.exe -p "'+path+'" -o '+os.getcwd()+'/Textures -i '+pkgID
+    cmd= 'D2TextureRipper.exe -p "'+path+'" -o '+os.getcwd()+'/ExtractedFiles/Textures -i '+pkgID
     os.chdir(os.getcwd()+"/ThirdParty")
     ans=subprocess.call(cmd, shell=True)
     os.chdir(currentPath)
@@ -4902,9 +4925,45 @@ def MapWindow(top):
     ClearMap.place(x=1000, y=430)
     top.mainloop()
 def ClearScripts(top):
-    for file in os.listdir(os.getcwd()+"/Scripts"):
-        os.remove(os.getcwd()+"/Scripts/"+file)
+    for file in os.listdir(os.getcwd()+"/ExtractedFiles/Scripts"):
+        os.remove(os.getcwd()+"/ExtractedFiles/Scripts/"+file)
     Popup()
+def ExtractWeps():
+    filelist=[]
+    useful=["Invest","0x8080549f","0x8080799d","0x808077cd","0x8080798c","0x80805a09","0x8080542d","0x808076aa","0x80805499","0x8080549f","0x808076aa","0x80807997","0x80805a01","0x80805887","0x8080718d"]
+    for file in os.listdir(path)[::-1]:
+        if fnmatch.fnmatch(file,'w64_invest*'):   #CHANGE HERE
+            filelist.append(file)
+    if len(os.listdir(os.getcwd()+"/out")) < 30000:
+        unpack_all(path,custom_direc,useful,filelist)
+    unpack_all(path,custom_direc,useful,filelist)
+    Investment.ExtractWeaponRolls(os.getcwd())
+    Popup()
+def ExtractTriumphs():
+    filelist=[]
+    useful=["Invest","0x8080549f","0x8080799d","0x808077cd","0x8080798c","0x80805a09","0x8080542d","0x808076aa","0x80805499","0x8080549f","0x808076aa","0x80807997","0x80805a01","0x80805887","0x8080718d"]
+    for file in os.listdir(path)[::-1]:
+        if fnmatch.fnmatch(file,'w64_invest*'):   #CHANGE HERE
+            filelist.append(file)
+    if len(os.listdir(os.getcwd()+"/out")) < 30000:
+        unpack_all(path,custom_direc,useful,filelist)
+    Investment.RipAll(os.getcwd())
+    Popup()
+def InvestmentMenu(top):
+    for widget in top.winfo_children():
+        widget.destroy()
+    bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
+    label1 = Label(top, image = bg)
+    label1.pack()
+    Rolls = Button(top, text="Weapon Rolls", height=1, width=15,command=partial(ExtractWeps))
+    Rolls.place(x=500, y=125)
+    Triumphs = Button(top, text="Triumphs", height=1, width=15,command=partial(ExtractTriumphs))
+    Triumphs.place(x=500, y=175)
+    ClearOut = Button(top, text="Clear Out", height=1, width=15,command=partial(ClearDir,top))
+    ClearOut.place(x=1000, y=510)
+    Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
+    Back.place(x=10, y=10)
+    top.mainloop()
 def MainWindow(top):
     for widget in top.winfo_children():
         widget.destroy()
@@ -4921,14 +4980,14 @@ def MainWindow(top):
     Activity.place(x=500, y=175)
     Map = Button(top, text="Map Extractor", height=1, width=15,command=partial(MapWindow,top))
     Map.place(x=500, y=225)
-    #Map["state"] = DISABLED
     Texture = Button(top, text="Texture Ripper", height=1, width=15,command=partial(TextureWindow,top))
     Texture.place(x=500, y=275)
-    #Texture["state"] = DISABLED
     Cutscene = Button(top, text="Cutscene Extractor", height=1, width=15,command=partial(CutsceneView,top))
     Cutscene.place(x=500, y=325)
     Dev = Button(top, text="Script Extractor", height=1, width=15,command=partial(DevMenu))
     Dev.place(x=500, y=375)
+    Invest= Button(top, text="Investment", height=1, width=15,command=partial(InvestmentMenu,top))
+    Invest.place(x=500, y=425)
     Clear = Button(top, text="Clear Audio", height=1, width=15,command=partial(ClearAudio,top))
     Clear.place(x=1000, y=550)
     ClearOut = Button(top, text="Clear Out", height=1, width=15,command=partial(ClearDir,top))
@@ -4957,11 +5016,11 @@ if __name__ == '__main__':
     turn_on = Button(top, text="Set D2 Location", height=1, width=12,command=partial(setD2Location, entry1,top))
     turn_on.place(x=500, y=125)
     try:
-        os.makedirs(os.getcwd()+"/Cutscenes")
+        os.makedirs(os.getcwd()+"/ExtractedFiles/Cutscenes")
     except FileExistsError:
         print("Drive Exists")
     try:
-        os.makedirs(os.getcwd()+"/Activity")
+        os.makedirs(os.getcwd()+"/ExtractedFiles/Activity")
     except FileExistsError:
         print("Drive Exists")
     try:
@@ -4973,11 +5032,11 @@ if __name__ == '__main__':
     except FileExistsError:
         print("Drive Exists")
     try:
-        os.makedirs(os.getcwd()+"/Textures")
+        os.makedirs(os.getcwd()+"/ExtractedFiles/Textures")
     except FileExistsError:
         print("Drive Exists")
     try:
-        os.makedirs(os.getcwd()+"/Textures/cubemaps")
+        os.makedirs(os.getcwd()+"/ExtractedFiles/Textures/cubemaps")
     except FileExistsError:
         print("Drive Exists")
     try:
@@ -5005,7 +5064,11 @@ if __name__ == '__main__':
     except FileExistsError:
         print("Drive Exists")
     try:
-        os.makedirs(os.getcwd()+"/Scripts")
+        os.makedirs(os.getcwd()+"/ExtractedFiles/Scripts")
+    except FileExistsError:
+        print("Drive Exists")
+    try:
+        os.makedirs(os.getcwd()+"/ExtractedFiles/Investment")
     except FileExistsError:
         print("Drive Exists")
     Hash64(path)
