@@ -21,6 +21,7 @@ import Terrain, Investment
 from fbx import *
 from fbx import FbxManager
 from functools import partial
+import multiprocessing as mp
 global custom_direc,useful ,path,Hash64Data
 path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
 #path="C:\Program Files (x86)\Steam\steamapps\common\Destiny2\packages"
@@ -74,6 +75,7 @@ def Package_ID(Hash):
         return ID & 0x3FF
     else:
         raise Exception("Unknown package encoding configuration.")
+    
 def Entry_ID(Hash):
     return Hash & 0x1FFF
 def Hex_String(Num):
@@ -832,7 +834,7 @@ class Package:
         entries = []
         count = 0
         for entry in entries_to_decode:
-            # print("\n\n")
+            #print("decoding")
             ref_id, ref_pkg_id, ref_unk_id = decode_entry_a(entry.EntryA)
             if (hex(entry.EntryA) in self.useful) or "All" in self.useful or (self.useful == ["Cube"]) or (self.useful == ["Norm"]) or ("Map" in self.useful):
                 file_type, file_subtype = decode_entry_b(entry.EntryB)
@@ -851,7 +853,7 @@ class Package:
                 file_size, unknown = decode_entry_d(entry.EntryC, entry.EntryD)
                 file_name = f"{self.package_header.PackageIDH}-{gf.fill_hex_with_zeros(hex(count)[2:], 4)}"
                 file_typename = get_file_typename(file_type, file_subtype, ref_id, ref_pkg_id)
-
+                #print("good file")
                 decoded_entry = SPkgEntryDecoded(np.uint16(count), file_name, file_typename,
                                                  ref_id, ref_pkg_id, ref_unk_id, file_type, file_subtype, starting_block,
                                                  starting_block_offset, file_size, unknown, hex(entry.EntryA))
@@ -1125,7 +1127,22 @@ def check_input(event):
         combo_box['values'] = data
 
 
-
+def unpack_pkg(path, pkg_full, custom_direc,useful):
+    if "audio" in pkg_full.split("_"):
+        pkg = Package(f'{path}/{pkg_full}',useful)
+        if useful == ["0x808099ef","0x808099f1"]:
+            pkg.extract_package(extract=True, custom_direc=custom_direc)
+        else:
+            pkg.extract_package(extract=True, custom_direc=custom_direc+"/audio")
+    elif "dialog" in pkg_full.split("_"):
+        pkg = Package(f'{path}/{pkg_full}',useful)
+        if useful == ["0x808099ef","0x808099f1"]:
+            pkg.extract_package(extract=True, custom_direc=custom_direc)
+        else:
+            pkg.extract_package(extract=True, custom_direc=custom_direc+"/audio")
+    else:
+        pkg = Package(f'{path}/{pkg_full}',useful)
+        pkg.extract_package(extract=True, custom_direc=custom_direc)
 def unpack_all(path, custom_direc, useful,filelist):
     all_packages = filelist
     i=0
@@ -1136,26 +1153,15 @@ def unpack_all(path, custom_direc, useful,filelist):
         else:
             i+=1
     #print(all_packages)
+    t_pool = mp.Pool(mp.cpu_count()) # pool will automatically take all threads. adjust accordingly.
     single_pkgs = dict()
     for pkg in all_packages:
         single_pkgs[pkg[:-6]] = pkg
-    #print(single_pkgs.items())
-    for pkg, pkg_full in single_pkgs.items():
-        if "audio" in pkg.split("_"):
-            pkg = Package(f'{path}/{pkg_full}',useful)
-            if useful == ["0x808099ef","0x808099f1"]:
-                pkg.extract_package(extract=True, custom_direc=custom_direc)
-            else:
-                pkg.extract_package(extract=True, custom_direc=custom_direc+"/audio")
-        elif "dialog" in pkg.split("_"):
-            pkg = Package(f'{path}/{pkg_full}',useful)
-            if useful == ["0x808099ef","0x808099f1"]:
-                pkg.extract_package(extract=True, custom_direc=custom_direc)
-            else:
-                pkg.extract_package(extract=True, custom_direc=custom_direc+"/audio")
-        else:
-            pkg = Package(f'{path}/{pkg_full}',useful)
-            pkg.extract_package(extract=True, custom_direc=custom_direc)
+    _args = [(path, pkg_f, custom_direc,useful) for pkg_f in single_pkgs.values()]
+    t_pool.starmap(
+        unpack_pkg, 
+        _args)
+        
     print("done")
 def setD2Location(loc,top):
     path=loc.get()
@@ -2178,16 +2184,23 @@ class DDS:
         "SAMPLER_FEEDBACK_MIN_MIP_OPAQUE",
         "SAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE",
         "FORCE_UINT"]
-        dxgiFormat = DXGI_FORMAT[self.Norm]
-        if str(self.Norm) == "28":
-            dxgiFormat=dxgiFormat+"_SRGB"
-        os.chdir(self.CWD+"/ThirdParty")   
-        cmd='texconv.exe "'+self.CWD+"\\"+self.FileName.split(".")[0]+'.dds" -y -nologo -srgb -ft PNG -f '+dxgiFormat+' -o '+self.SaveLoc
-        #print(cmd)
-        subprocess.call(cmd, shell=True)
-        os.chdir(self.CWD)
-        #os.remove(self.FileName.split(".")[0]+".bmp")
-        os.remove(self.FileName.split(".")[0]+".dds")
+        try:
+            dxgiFormat = DXGI_FORMAT[self.Norm]
+        except IndexError:
+            u=1
+        else:
+            if str(self.Norm) == "28":
+                dxgiFormat=dxgiFormat+"_SRGB"
+            os.chdir(self.CWD+"/ThirdParty")   
+            cmd='texconv.exe "'+self.CWD+"\\"+self.FileName.split(".")[0]+'.dds" -y -nologo -srgb -ft PNG -f '+dxgiFormat+' -o '+self.SaveLoc
+            #print(cmd)
+            subprocess.call(cmd, shell=True)
+            os.chdir(self.CWD)
+            #os.remove(self.FileName.split(".")[0]+".bmp")
+            try:
+                os.remove(self.FileName.split(".")[0]+".dds")
+            except FileNotFoundError:
+                u=1
     def Output(self):
         File=open(self.FileName.split(".")[0]+".dds","wb")
         thingsToAdd=[self.MagicNumber,self.dwSize,self.dwFlags,self.dwHeight,self.dwWidth,self.dwPitchOrLinearSize,self.dwDepth,self.dwMipMapCount,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwPFSize,self.dwPFFlags,self.dwPFFourCC,self.dwPFRGBBitCount,self.dwPFRBitMask,self.dwPFGBitMask,self.dwPFBBitMask,self.dwPFABitMask,self.dwCaps,self.dwCaps2,self.dwCaps3,self.dwCaps4,self.dwReserved2]
@@ -3560,7 +3573,7 @@ class LoadZone:
     def PullDyn(self,Hash):
         os.chdir(self.CWD+"/ThirdParty")
         
-        cmd='MDE -p "'+path+'" -o "'+self.CWD+'/data/Dynamics" -i '+Hash
+        cmd='DestinyDynamicExtractor -p "'+path+'" -o "'+self.CWD+'/data/Dynamics" -i '+Hash
         #print(cmd)
         ans=subprocess.call(cmd, shell=True)
         #for File in os.listdir(currentPath+"/ThirdParty/output/"+str(pkgID)):
@@ -3760,471 +3773,492 @@ class LoadZone:
         return BufferData
     def RipOwnStatics(self):
         BufferData=self.GetBufferInfo()
-        TexturesToRip=[]
-        outcount=0
-        #print(len(self.Statics))
-        for Static in self.Statics:
-            #if Static != "802cba80":
-                #continue
-            #print(outcount)
-            start=binascii.hexlify(bytes(hex_to_little_endian(Static))).decode('utf-8')
+        t_pool = mp.Pool(mp.cpu_count()) # pool will automatically take all threads. adjust accordingly.
+        #single_pkgs = dict()
+        Objects=[]
+        for Object in self.Statics:
+            Objects.append(Object)
+        _args = [(Static,BufferData,self.H64Sort) for Static in Objects]
+        t_pool.starmap(
+            RipOwnStatic, 
+            _args)
+        #RipTextures(TexturesToRip)
+            
+def RipOwnStatic(Static,BufferData,H64Sort):
+    TexturesToRip=[]
+    outcount=0
+    #print(len(self.Statics))
+    #for Static in self.Statics:
+    #if Static != "802cba80":
+        #continue
+    #print(outcount)
+    start=binascii.hexlify(bytes(hex_to_little_endian(Static))).decode('utf-8')
 
-            new=ast.literal_eval("0x"+start)
-            pkg = Hex_String(Package_ID(new))
-            ent = Hex_String(Entry_ID(new))
-            Bank=pkg+"-"+ent+".model"
-            file=open(os.getcwd()+"/out/"+Bank,"rb")
-            mainData=binascii.hexlify(bytes(file.read())).decode()
-            file.seek(0x8)
-            s = binascii.hexlify(bytes(file.read(4))).decode()
-            file.seek(0x50)
-            x=binascii.hexlify(bytes(file.read(4))).decode()
-            xScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))[0]  #vert
-            y=binascii.hexlify(bytes(file.read(4))).decode()
-            yScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))[0]
-            z=binascii.hexlify(bytes(file.read(4))).decode()
-            zScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))[0]
-            MainData=[mainData[i:i+8] for i in range(0, len(mainData), 8)]
-            Materials=[]
-            FoundMat=False
-            flipped=binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')
-            new=ast.literal_eval("0x"+flipped)
-            SubFileU32=new
-            pkg = Hex_String(Package_ID(new))
-            ent = Hex_String(Entry_ID(new))
-            Bank=pkg+"-"+ent+".sub" #subfile
-            sub=open(os.getcwd()+"/out/"+Bank,"rb")
-            SubData=binascii.hexlify(bytes(sub.read())).decode()
-            sub.seek(0x4C)
-            Scale=binascii.hexlify(bytes(sub.read(4))).decode()
-            Scale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Scale))).decode('utf-8'))))[0]
-            sub.seek(0x50)
-            sub.seek(0x10)
-            MatTable=binascii.hexlify(bytes(sub.read(4))).decode()
-            MaterialData=[]
+    new=ast.literal_eval("0x"+start)
+    pkg = Hex_String(Package_ID(new))
+    ent = Hex_String(Entry_ID(new))
+    Bank=pkg+"-"+ent+".model"
+    file=open(os.getcwd()+"/out/"+Bank,"rb")
+    mainData=binascii.hexlify(bytes(file.read())).decode()
+    file.seek(0x8)
+    s = binascii.hexlify(bytes(file.read(4))).decode()
+    file.seek(0x50)
+    x=binascii.hexlify(bytes(file.read(4))).decode()
+    xScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))[0]  #vert
+    y=binascii.hexlify(bytes(file.read(4))).decode()
+    yScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))[0]
+    z=binascii.hexlify(bytes(file.read(4))).decode()
+    zScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))[0]
+    MainData=[mainData[i:i+8] for i in range(0, len(mainData), 8)]
+    Materials=[]
+    FoundMat=False
+    flipped=binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')
+    new=ast.literal_eval("0x"+flipped)
+    SubFileU32=new
+    pkg = Hex_String(Package_ID(new))
+    ent = Hex_String(Entry_ID(new))
+    Bank=pkg+"-"+ent+".sub" #subfile
+    sub=open(os.getcwd()+"/out/"+Bank,"rb")
+    SubData=binascii.hexlify(bytes(sub.read())).decode()
+    sub.seek(0x4C)
+    Scale=binascii.hexlify(bytes(sub.read(4))).decode()
+    Scale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Scale))).decode('utf-8'))))[0]
+    sub.seek(0x50)
+    sub.seek(0x10)
+    MatTable=binascii.hexlify(bytes(sub.read(4))).decode()
+    MaterialData=[]
+    for Hash in MainData:
+        if Hash == "00000000":
+            continue
+        if FoundMat == True:
+            Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+            if (Data[3] == "80") or (Data[3] == "81"):
+                Materials.append(Hash)
+        if Hash == "14008080":
+            FoundMat=True
+    #print(Materials)
+    if MatTable != "00000000":
+        MatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatTable))).decode('utf-8')))
+        sub.seek(16+MatOffset)
+        MatCount=binascii.hexlify(bytes(sub.read(4))).decode()
+        MatCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatCount))).decode('utf-8')))
+        sub.seek(16+MatOffset+16)
+        for i in range(MatCount):
+            MatDat=binascii.hexlify(bytes(sub.read(6))).decode()
+            MaterialData.append([ast.literal_eval("0x"+stripZeros(MatDat[:2])),Materials[i]])
+    #print(MaterialData)
+            
+            
+
+    DataHashes=[]
+    SubData=[SubData[i:i+8] for i in range(0, len(SubData), 8)]
+    count=0
+    for Hash in SubData:
+        if Hash == "366d8080":
+            SubData=SubData[count:]
+        count+=1
+    for Hash in SubData:
+        temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+        if (temp[3] == "80") or (temp[3] == "81"):
+            if temp[2] != "80":
+            #isHash
+                flipped=binascii.hexlify(bytes(hex_to_little_endian("".join(temp)))).decode('utf-8')
+                DataHashes.append(flipped)  #index at 0 vert at 1
+    #print("MADE IT")
+    
+    if len(DataHashes) > 2:
+        #print("Finding UV")
+        sub.seek(0x48)
+        uvXScale=binascii.hexlify(bytes(sub.read(4))).decode()
+        uvXScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvXScale))).decode('utf-8')))[0]
+        sub.seek(0x50)
+        uvYScale=binascii.hexlify(bytes(sub.read(4))).decode()
+        uvYScale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYScale))).decode('utf-8'))))[0]
+        uvXOff=binascii.hexlify(bytes(sub.read(4))).decode()
+        if uvXOff == "00000000":
+            uxXOff=0
+        else:
+            uvXOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvXOff))).decode('utf-8'))))[0]
+        uvYOff=binascii.hexlify(bytes(sub.read(4))).decode()
+        if uvYOff == "00000000":
+            uvYOff=0
+        else:
+            uvYOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYOff))).decode('utf-8'))))[0]
+        FindUV=True
+        FirstVert=False
+    tally=0
+    if len(DataHashes) >= 2:
+        indFound=False
+        vertFound=False
+        UVFound=False
+        VColorFound=False
+        Value=int(ast.literal_eval("0x"+DataHashes[0]))
+        Index=binary_search(BufferData, Value)
+        if Index != -1:
+            IndexName=BufferData[Index][0]+".index"
+            indFound=True
+        Value=int(ast.literal_eval("0x"+DataHashes[1]))
+        Index=binary_search(BufferData, Value)
+        if Index != -1:
+            VertexName=BufferData[Index][0]+".vert"
+            vertFound=True
+        if len(DataHashes) > 2:
+            Value=int(ast.literal_eval("0x"+DataHashes[2]))
+            Index=binary_search(BufferData, Value)
+            if Index != -1:
+                UVName=BufferData[Index][0]+".vert"
+                UVFound=True
+        if len(DataHashes) > 3:
+            Value=int(ast.literal_eval("0x"+DataHashes[3]))
+            Index=binary_search(BufferData, Value)
+            if Index != -1:
+                VColorName=BufferData[Index][0]+".vert"
+                VColorFound=True
+
+
+        
+        if (vertFound == True) and (indFound == True):
+            IndexHeader=int(ast.literal_eval("0x"+DataHashes[0]))
+            pkg = Hex_String(Package_ID(IndexHeader))
+            ent = Hex_String(Entry_ID(IndexHeader))
+            Bank=pkg+"-"+ent+".iheader"
+            U32Check=open(os.getcwd()+"/out/"+Bank,"rb")
+            IndexHeaderData=binascii.hexlify(bytes(U32Check.read())).decode()
+            verts=[]
+            #print("RUNNING")
+            norms=[]
+            Vert=open(os.getcwd()+"/out/"+VertexName,"rb")
+            #print(VertexBufferList[VertexFileOffset])
+            
+            for i in range(int(99999)):
+                s = binascii.hexlify(bytes(Vert.read(16))).decode()
+                if s == "":
+                    break
+                #print(s)
+                Data=[s[i:i+4] for i in range(0, len(s), 4)]
+                if len(Data) < 8:
+                    continue
+                x= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8'),16)/32767)*(Scale)
+                y= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8'),16)/32767)*(Scale)
+                z= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8'),16)/32767)*(Scale)
+                xNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8'),16)/32767)*(Scale*10)
+                yNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[4]))).decode('utf-8'),16)/32767)*(Scale*10)
+                zNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[5]))).decode('utf-8'),16)/32767)*(Scale*10)
+                wNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[6]))).decode('utf-8'),16)/32767)*(Scale*10)
+                verts.append([x,y,z])
+                norms.append([xNorm,yNorm,zNorm,wNorm])
+            #print(verts)
+            if UVFound == True:
+                UV=open(os.getcwd()+"/out/"+UVName,"rb")
+                Data=binascii.hexlify(bytes(UV.read())).decode()
+                Length=len(Data)/8
+                UV.seek(0)
+                UVData=[]
+                for i in range(int(999999)):
+                    Data=binascii.hexlify(bytes(UV.read(4))).decode()
+                    if Data == "":
+                        break
+                    Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
+                    U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),16)/32767) * float(uvYScale)) + float(uvXOff)
+                    V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),16)/32767) * float(uvYScale)*-1) - (float(uvYOff-1))
+                    #print(U,V)
+                    UVData.append([U,V])
+                
             for Hash in MainData:
                 if Hash == "00000000":
                     continue
                 if FoundMat == True:
                     Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
                     if (Data[3] == "80") or (Data[3] == "81"):
-                        Materials.append(Hash)
+                        if Hash not in Materials:
+                            Materials.append(Hash)
                 if Hash == "14008080":
                     FoundMat=True
-            #print(Materials)
-            if MatTable != "00000000":
-                MatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatTable))).decode('utf-8')))
-                sub.seek(16+MatOffset)
-                MatCount=binascii.hexlify(bytes(sub.read(4))).decode()
-                MatCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatCount))).decode('utf-8')))
-                sub.seek(16+MatOffset+16)
-                for i in range(MatCount):
-                    MatDat=binascii.hexlify(bytes(sub.read(6))).decode()
-                    MaterialData.append([ast.literal_eval("0x"+stripZeros(MatDat[:2])),Materials[i]])
-            #print(MaterialData)
-                    
-                    
-
-            DataHashes=[]
-            SubData=[SubData[i:i+8] for i in range(0, len(SubData), 8)]
-            count=0
-            for Hash in SubData:
-                if Hash == "366d8080":
-                    SubData=SubData[count:]
-                count+=1
-            for Hash in SubData:
-                temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
-                if (temp[3] == "80") or (temp[3] == "81"):
-                    if temp[2] != "80":
-                    #isHash
-                        flipped=binascii.hexlify(bytes(hex_to_little_endian("".join(temp)))).decode('utf-8')
-                        DataHashes.append(flipped)  #index at 0 vert at 1
-            #print("MADE IT")
-            if len(DataHashes) < 2:
-                #print("Not enough data")
-                continue
-            if len(DataHashes) > 2:
-                #print("Finding UV")
-                sub.seek(0x48)
-                uvXScale=binascii.hexlify(bytes(sub.read(4))).decode()
-                uvXScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvXScale))).decode('utf-8')))[0]
-                sub.seek(0x50)
-                uvYScale=binascii.hexlify(bytes(sub.read(4))).decode()
-                uvYScale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYScale))).decode('utf-8'))))[0]
-                uvXOff=binascii.hexlify(bytes(sub.read(4))).decode()
-                if uvXOff == "00000000":
-                    uxXOff=0
-                else:
-                    uvXOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvXOff))).decode('utf-8'))))[0]
-                uvYOff=binascii.hexlify(bytes(sub.read(4))).decode()
-                if uvYOff == "00000000":
-                    uvYOff=0
-                else:
-                    uvYOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYOff))).decode('utf-8'))))[0]
-                FindUV=True
-                FirstVert=False
-            tally=0
-            indFound=False
-            vertFound=False
-            UVFound=False
-            VColorFound=False
-            Value=int(ast.literal_eval("0x"+DataHashes[0]))
-            Index=binary_search(BufferData, Value)
-            if Index != -1:
-                IndexName=BufferData[Index][0]+".index"
-                indFound=True
-            Value=int(ast.literal_eval("0x"+DataHashes[1]))
-            Index=binary_search(BufferData, Value)
-            if Index != -1:
-                VertexName=BufferData[Index][0]+".vert"
-                vertFound=True
-            if len(DataHashes) > 2:
-                Value=int(ast.literal_eval("0x"+DataHashes[2]))
-                Index=binary_search(BufferData, Value)
-                if Index != -1:
-                    UVName=BufferData[Index][0]+".vert"
-                    UVFound=True
-            if len(DataHashes) > 3:
-                Value=int(ast.literal_eval("0x"+DataHashes[3]))
-                Index=binary_search(BufferData, Value)
-                if Index != -1:
-                    VColorName=BufferData[Index][0]+".vert"
-                    VColorFound=True
-        
-
-            
-            if (vertFound == True) and (indFound == True):
-                IndexHeader=int(ast.literal_eval("0x"+DataHashes[0]))
-                pkg = Hex_String(Package_ID(IndexHeader))
-                ent = Hex_String(Entry_ID(IndexHeader))
-                Bank=pkg+"-"+ent+".iheader"
-                U32Check=open(os.getcwd()+"/out/"+Bank,"rb")
-                IndexHeaderData=binascii.hexlify(bytes(U32Check.read())).decode()
-                verts=[]
-                #print("RUNNING")
-                norms=[]
-                Vert=open(os.getcwd()+"/out/"+VertexName,"rb")
-                #print(VertexBufferList[VertexFileOffset])
-                
-                for i in range(int(99999)):
-                    s = binascii.hexlify(bytes(Vert.read(16))).decode()
-                    if s == "":
-                        break
-                    #print(s)
-                    Data=[s[i:i+4] for i in range(0, len(s), 4)]
-                    if len(Data) < 8:
-                        continue
-                    x= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8'),16)/32767)*(Scale)
-                    y= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8'),16)/32767)*(Scale)
-                    z= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8'),16)/32767)*(Scale)
-                    xNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8'),16)/32767)*(Scale*10)
-                    yNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[4]))).decode('utf-8'),16)/32767)*(Scale*10)
-                    zNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[5]))).decode('utf-8'),16)/32767)*(Scale*10)
-                    wNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[6]))).decode('utf-8'),16)/32767)*(Scale*10)
-                    verts.append([x,y,z])
-                    norms.append([xNorm,yNorm,zNorm,wNorm])
-                #print(verts)
-                if UVFound == True:
-                    UV=open(os.getcwd()+"/out/"+UVName,"rb")
-                    Data=binascii.hexlify(bytes(UV.read())).decode()
-                    Length=len(Data)/8
-                    UV.seek(0)
-                    UVData=[]
-                    for i in range(int(999999)):
-                        Data=binascii.hexlify(bytes(UV.read(4))).decode()
-                        if Data == "":
-                            break
-                        Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
-                        U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),16)/32767) * float(uvYScale)) + float(uvXOff)
-                        V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),16)/32767) * float(uvYScale)*-1) - (float(uvYOff-1))
-                        #print(U,V)
-                        UVData.append([U,V])
-                    
-                for Hash in MainData:
-                    if Hash == "00000000":
-                        continue
-                    if FoundMat == True:
-                        Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
-                        if (Data[3] == "80") or (Data[3] == "81"):
-                            if Hash not in Materials:
-                                Materials.append(Hash)
-                    if Hash == "14008080":
-                        FoundMat=True
-                #ParseMaterials
-                MatRef=[]
-                for Material in Materials:
-                    Mats=[]
-                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Material))).decode('utf-8')
-                    new=ast.literal_eval("0x"+flipped)
-                    pkg = Hex_String(Package_ID(new))
-                    #print(result)
-                    ent = Hex_String(Entry_ID(new))
-                    MatBank=pkg+"-"+ent+".mat"
-                    #print(MatBank)
+            #ParseMaterials
+            MatRef=[]
+            for Material in Materials:
+                Mats=[]
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Material))).decode('utf-8')
+                new=ast.literal_eval("0x"+flipped)
+                pkg = Hex_String(Package_ID(new))
+                #print(result)
+                ent = Hex_String(Entry_ID(new))
+                MatBank=pkg+"-"+ent+".mat"
+                #print(MatBank)
+                try:
+                    MatFile=open(os.getcwd()+"/out/"+MatBank,"rb")
+                except FileNotFoundError:
+                    continue
+                MatFile.seek(0x3E0)
+                Num=binascii.hexlify(bytes(MatFile.read(4))).decode()
+                Num=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Num))).decode('utf-8'))
+                if Num == "":
+                    continue
+                Num=ast.literal_eval("0x"+Num)
+                MatFile.seek(0x3F0)
+                for i in range(Num):
+                    Mat=binascii.hexlify(bytes(MatFile.read(0x18))).decode()
+                    temp=[Mat[i:i+8] for i in range(0, len(Mat), 8)]
+                    #print(temp)
                     try:
-                        MatFile=open(os.getcwd()+"/out/"+MatBank,"rb")
-                    except FileNotFoundError:
+                        temp[4]
+                    except IndexError:
                         continue
-                    MatFile.seek(0x3E0)
-                    Num=binascii.hexlify(bytes(MatFile.read(4))).decode()
-                    Num=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Num))).decode('utf-8'))
-                    if Num == "":
-                        continue
-                    Num=ast.literal_eval("0x"+Num)
-                    MatFile.seek(0x3F0)
-                    for i in range(Num):
-                        Mat=binascii.hexlify(bytes(MatFile.read(0x18))).decode()
-                        temp=[Mat[i:i+8] for i in range(0, len(Mat), 8)]
-                        #print(temp)
-                        try:
-                            temp[4]
-                        except IndexError:
-                            continue
-                        hashCheck=[temp[4][i:i+2] for i in range(0, len(temp[4]), 2)]
-                        if (hashCheck == "80") or (hashCheck == "81"):
-                            flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')
-                            new=ast.literal_eval="0x"+flipped
+                    hashCheck=[temp[4][i:i+2] for i in range(0, len(temp[4]), 2)]
+                    if (hashCheck == "80") or (hashCheck == "81"):
+                        flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')
+                        new=ast.literal_eval="0x"+flipped
+                        pkg = Hex_String(Package_ID(new))
+                        #print(result)
+                        ent = Hex_String(Entry_ID(new))
+                        MatToAppend=pkg+"-"+ent
+                        if MatToAppend not in Mats:
+                            Mats.append(MatToAppend)
+                    else:
+                        h64=str(temp[4])+str(temp[5])
+                        flipped=binascii.hexlify(bytes(hex_to_little_endian(h64))).decode('utf-8')
+                        new=ast.literal_eval("0x"+flipped)
+                        MatToAppend=Hash64Search(H64Sort,new)
+                        if MatToAppend != False:
+                            new=ast.literal_eval(MatToAppend)
                             pkg = Hex_String(Package_ID(new))
                             #print(result)
                             ent = Hex_String(Entry_ID(new))
                             MatToAppend=pkg+"-"+ent
                             if MatToAppend not in Mats:
                                 Mats.append(MatToAppend)
+                        
+                if Mats != []:
+                    MatRef.append([Material,Mats])
+            Parts=True
+            if Parts == True:
+                sub.seek(0x20)
+                Offset=binascii.hexlify(bytes(sub.read(4))).decode()
+                if Offset != "00000000":
+                    Offset=binascii.hexlify(bytes(hex_to_little_endian(Offset))).decode('utf-8')
+                    Offset=ast.literal_eval("0x"+stripZeros(Offset))
+                    sub.seek(32+Offset)
+                    Length=binascii.hexlify(bytes(sub.read(4))).decode()
+                    Length=binascii.hexlify(bytes(hex_to_little_endian(Length))).decode('utf-8')
+                    Length=ast.literal_eval("0x"+stripZeros(Length))
+                    sub.seek(48+Offset)
+                    PartData=[]
+                    PartLengths=[]
+                    for i in range(Length):
+                        PartDat=binascii.hexlify(bytes(sub.read(12))).decode()
+                        #if PartDat[21] == "1":
+                        PartData.append(PartDat)
+                        #print(PartDat)
+                        temp=[PartDat[i:i+8] for i in range(0, len(PartDat), 8)]
+                        if temp[0] != "00000000":
+                            
+                            PartLengths.append([ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8'))),PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
                         else:
-                            h64=str(temp[4])+str(temp[5])
-                            flipped=binascii.hexlify(bytes(hex_to_little_endian(h64))).decode('utf-8')
-                            new=ast.literal_eval("0x"+flipped)
-                            MatToAppend=Hash64Search(self.H64Sort,new)
-                            if MatToAppend != False:
-                                new=ast.literal_eval(MatToAppend)
-                                pkg = Hex_String(Package_ID(new))
-                                #print(result)
-                                ent = Hex_String(Entry_ID(new))
-                                MatToAppend=pkg+"-"+ent
-                                if MatToAppend not in Mats:
-                                    Mats.append(MatToAppend)
-                            
-                    if Mats != []:
-                        MatRef.append([Material,Mats])
-                Parts=True
-                if Parts == True:
-                    sub.seek(0x20)
-                    Offset=binascii.hexlify(bytes(sub.read(4))).decode()
-                    if Offset != "00000000":
-                        Offset=binascii.hexlify(bytes(hex_to_little_endian(Offset))).decode('utf-8')
-                        Offset=ast.literal_eval("0x"+stripZeros(Offset))
-                        sub.seek(32+Offset)
-                        Length=binascii.hexlify(bytes(sub.read(4))).decode()
-                        Length=binascii.hexlify(bytes(hex_to_little_endian(Length))).decode('utf-8')
-                        Length=ast.literal_eval("0x"+stripZeros(Length))
-                        sub.seek(48+Offset)
-                        PartData=[]
-                        PartLengths=[]
-                        for i in range(Length):
-                            PartDat=binascii.hexlify(bytes(sub.read(12))).decode()
-                            #if PartDat[21] == "1":
-                            PartData.append(PartDat)
-                            #print(PartDat)
-                            temp=[PartDat[i:i+8] for i in range(0, len(PartDat), 8)]
-                            if temp[0] != "00000000":
-                                
-                                PartLengths.append([ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8'))),PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
-                            else:
-                                PartLengths.append([0,PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
-                new=ast.literal_eval("0x"+DataHashes[0])
-                new=new-1
-                pkg = Hex_String(Package_ID(new))
-                #print(result)
-                ent = Hex_String(Entry_ID(new))
-                Bank=pkg+"-"+ent+".index"
-                #ind=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
-                faces=[]
-                ind=open(os.getcwd()+"/out/"+IndexName,"rb")
-                ind.seek(0x0)
-                Length = binascii.hexlify(bytes(ind.read())).decode()
-                ind.seek(0x0)
-                #print(IndexBufferList[IndexFileOffset])
-                #print(VertexBufferList[VertexFileOffset])
+                            PartLengths.append([0,PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
+            new=ast.literal_eval("0x"+DataHashes[0])
+            new=new-1
+            pkg = Hex_String(Package_ID(new))
+            #print(result)
+            ent = Hex_String(Entry_ID(new))
+            Bank=pkg+"-"+ent+".index"
+            #ind=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
+            faces=[]
+            ind=open(os.getcwd()+"/out/"+IndexName,"rb")
+            ind.seek(0x0)
+            Length = binascii.hexlify(bytes(ind.read())).decode()
+            ind.seek(0x0)
+            #print(IndexBufferList[IndexFileOffset])
+            #print(VertexBufferList[VertexFileOffset])
 
-                #print(faces[len(faces)-1]) 
-                
-                if VColorFound == True:
-                    VColData=[]
-                    VColor=open(os.getcwd()+"/out/"+VColorName,"rb")
-                    for i in range(int(999999)):
-                        Data=binascii.hexlify(bytes(UV.read(4))).decode()
-                        if Data == "":
-                            break
-                        Uvs=[Data[i:i+2] for i in range(0, len(Data), 2)]
-                        x=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),8)
-                        y=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),8)
-                        z=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[2]))).decode('utf-8'),8)
-                        w=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[3]))).decode('utf-8'),8)
-                        #print(U,V)
-                        VColData.append([x,y,z,w])
-                memory_manager = fbx.FbxManager.Create()
-                scene = fbx.FbxScene.Create(memory_manager, '')
-                count99=0
-                MaxDetail=ast.literal_eval("0x"+PartLengths[0][1])
-                for Part in PartLengths:
-                    #print(Part)
-                    Detail=ast.literal_eval("0x"+Part[1])
-                    if Detail != MaxDetail:
-                        #print("broke")
+            #print(faces[len(faces)-1]) 
+            
+            if VColorFound == True:
+                VColData=[]
+                VColor=open(os.getcwd()+"/out/"+VColorName,"rb")
+                for i in range(int(999999)):
+                    Data=binascii.hexlify(bytes(UV.read(4))).decode()
+                    if Data == "":
                         break
-                    my_mesh = fbx.FbxMesh.Create(scene, Static+"_"+str(count99))
-                    count=0
+                    Uvs=[Data[i:i+2] for i in range(0, len(Data), 2)]
+                    x=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),8)
+                    y=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),8)
+                    z=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[2]))).decode('utf-8'),8)
+                    w=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[3]))).decode('utf-8'),8)
+                    #print(U,V)
+                    VColData.append([x,y,z,w])
+            memory_manager = fbx.FbxManager.Create()
+            scene = fbx.FbxScene.Create(memory_manager, '')
+            count99=0
+            MaxDetail=ast.literal_eval("0x"+PartLengths[0][1])
+            for Part in PartLengths:
+                #print(Part)
+                Detail=ast.literal_eval("0x"+Part[1])
+                if Detail != MaxDetail:
+                    #print("broke")
+                    break
+                my_mesh = fbx.FbxMesh.Create(scene, Static+"_"+str(count99))
+                count=0
+                
+                Length = binascii.hexlify(bytes(ind.read())).decode()
+                ind.seek(int(Part[0]*2))
+                faces=[]
+                #print(IndexHeaderData)
+                if IndexHeaderData[3] == "1":
+                    ReadLen=4
+                else:
+                    ReadLen=2
+                #print(ReadLen)
+                for i in range(round(Part[2]/3)):
+                    x = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
+                    if x == "":
+                        break
+                    x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))
+                    y = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
+                    if y == "":
+                        break
+                    y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))
+                    z = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
+                    if z == "":
+                        break
+                    z=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))
                     
-                    Length = binascii.hexlify(bytes(ind.read())).decode()
-                    ind.seek(int(Part[0]*2))
-                    faces=[]
-                    #print(IndexHeaderData)
-                    if IndexHeaderData[3] == "1":
-                        ReadLen=4
-                    else:
-                        ReadLen=2
-                    #print(ReadLen)
-                    for i in range(round(Part[2]/3)):
-                        x = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                        if x == "":
-                            break
-                        x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))
-                        y = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                        if y == "":
-                            break
-                        y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))
-                        z = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                        if z == "":
-                            break
-                        z=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))
-                        
-                        faces.append([x,y,z])
-                    #print(faces)
-                    #print(verts)
-                    #print(len(verts))
-                    usedVerts=[]
-                    tempCheck=[]
-                    count5=0
-                    #print(verts)
-                    for Face in faces:
-                        for Val in Face:
-                            try:
-                                verts[int(Val)]
-                            except IndexError:
-                                continue
-                            if int(Val) not in tempCheck:
-                                usedVerts.append([verts[int(Val)],int(Val)])
-                                tempCheck.append(int(Val))
-                    for Face in usedVerts:
-                        Face.append(count5)
-                        count5+=1
-                            
-                            
-                    count=0
-        
-                    usedVerts.sort(key=lambda x: x[1])
-                    my_mesh.InitControlPoints(len(usedVerts))
-                    for Set in usedVerts:
-                        v = fbx.FbxVector4(Set[0][0]+xScale, Set[0][1]+yScale, Set[0][2]+zScale)
-                        my_mesh.SetControlPointAt( v, count )
-                        count+=1
-                    for Face in faces:
-                        my_mesh.BeginPolygon()
-                        for Val in Face:
-                            vertex_index = binary_search(usedVerts,int(Val))
-                            my_mesh.AddPolygon(vertex_index)
-                        my_mesh.EndPolygon()#################################IDK CHANGE IF BROke
-                            
-                    cubeLocation = (0, 0, 0)
-                    cubeScale    = (Scale, Scale, Scale)
-
-                    newNode = addNode(scene, Static+"_"+str(count99), location = cubeLocation)
-                    rootNode = scene.GetRootNode()
-                    #rootNode.LclTranslation.set(fbx.FbxDouble3(xScale, yScale, zScale))
-                    rootNode.AddChild( newNode )
-
-                    newNode.SetNodeAttribute( my_mesh )
-                    newNode.ScalingActive.Set(1)
-                    px = fbx.FbxDouble3(1, 1, 1)
-                    if UVFound == True:
-                        
-                        layer = my_mesh.GetLayer(0)
-                        uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
-                        uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
-                        uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
-                        for Vert in usedVerts:
-                            Pos=Vert[1]
-                            try:
-                                UVData[Pos]
-                            except IndexError:
-                                continue
-                            uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Pos][0]),float(UVData[Pos][1])))
-            #for UV in UVData:
-                        count=0
+                    faces.append([x,y,z])
+                #print(faces)
+                #print(verts)
+                #print(len(verts))
+                usedVerts=[]
+                tempCheck=[]
+                count5=0
+                #print(verts)
+                for Face in faces:
+                    for Val in Face:
                         try:
-                            layer.SetUVs(uvLayer)
-                        except AttributeError:
-                            u=1
-                    normLayer = fbx.FbxLayerElementNormal.Create(my_mesh, Static)
-                    normLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
-                    normLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
-                    colorLayer=fbx.FbxLayerElementVertexColor.Create(my_mesh, Static)
-                    colorLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
-                    colorLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
-                    if VColorFound == True:
-                        for Vert in usedVerts:
-                            try:
-                                Pos=Vert[1]
-                            except IndexError:
-                                continue
-                            try:
-                                VColData[Pos]
-                            except IndexError:
-                                continue
-                            colorLayer.GetDirectArray().Add(fbx.FbxVector4(VColData[Pos][0],VColData[Pos][1],VColData[Pos][2],VColData[Pos][3]))
+                            verts[int(Val)]
+                        except IndexError:
+                            continue
+                        if int(Val) not in tempCheck:
+                            usedVerts.append([verts[int(Val)],int(Val)])
+                            tempCheck.append(int(Val))
+                for Face in usedVerts:
+                    Face.append(count5)
+                    count5+=1
                         
+                        
+                count=0
+
+                usedVerts.sort(key=lambda x: x[1])
+                my_mesh.InitControlPoints(len(usedVerts))
+                for Set in usedVerts:
+                    v = fbx.FbxVector4(Set[0][0]+xScale, Set[0][1]+yScale, Set[0][2]+zScale)
+                    my_mesh.SetControlPointAt( v, count )
+                    count+=1
+                for Face in faces:
+                    my_mesh.BeginPolygon()
+                    for Val in Face:
+                        vertex_index = binary_search(usedVerts,int(Val))
+                        my_mesh.AddPolygon(vertex_index)
+                    my_mesh.EndPolygon()#################################IDK CHANGE IF BROke
+                        
+                cubeLocation = (0, 0, 0)
+                cubeScale    = (Scale, Scale, Scale)
+
+                newNode = addNode(scene, Static+"_"+str(count99), location = cubeLocation)
+                rootNode = scene.GetRootNode()
+                #rootNode.LclTranslation.set(fbx.FbxDouble3(xScale, yScale, zScale))
+                rootNode.AddChild( newNode )
+
+                newNode.SetNodeAttribute( my_mesh )
+                newNode.ScalingActive.Set(1)
+                px = fbx.FbxDouble3(1, 1, 1)
+                if UVFound == True:
                     
-                    # Create the materials.
-                    # Each polygon face will be assigned a unique material.
-                    count=0
-                    lLayer = my_mesh.GetLayer(0)
-                   
+                    layer = my_mesh.GetLayer(0)
+                    uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
+                    uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                    uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
                     for Vert in usedVerts:
                         Pos=Vert[1]
-                        normLayer.GetDirectArray().Add(fbx.FbxVector4(norms[Pos][0],norms[Pos][1],norms[Pos][2],norms[Pos][3]))
-                        
-                    count99+=1
+                        try:
+                            UVData[Pos]
+                        except IndexError:
+                            continue
+                        uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Pos][0]),float(UVData[Pos][1])))
+        #for UV in UVData:
+                    count=0
+                    try:
+                        layer.SetUVs(uvLayer)
+                    except AttributeError:
+                        u=1
+                normLayer = fbx.FbxLayerElementNormal.Create(my_mesh, Static)
+                normLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                normLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                colorLayer=fbx.FbxLayerElementVertexColor.Create(my_mesh, Static)
+                colorLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                colorLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                if VColorFound == True:
+                    for Vert in usedVerts:
+                        try:
+                            Pos=Vert[1]
+                        except IndexError:
+                            continue
+                        try:
+                            VColData[Pos]
+                        except IndexError:
+                            continue
+                        colorLayer.GetDirectArray().Add(fbx.FbxVector4(VColData[Pos][0],VColData[Pos][1],VColData[Pos][2],VColData[Pos][3]))
+                    
                 
-                filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
-                FbxCommon.SaveScene(memory_manager, scene, filename)
-                memory_manager.Destroy()
-                countMat=0
-                if len(MaterialData) > 0:
-                    MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
-                    #print(MaterialData)
-                    #print(MatRef)
-                    for i in range(count99):
-                        for Mat in MaterialData:
-                            if int(Mat[0]) == int(countMat):
-                                CheckName=Mat[1]
-                                for Texs in MatRef:
-                                    #print(Texs)
-                                    if CheckName == Texs[0]:
-                                        for Texture in Texs[1]:
-                                            if Texture not in TexturesToRip:
-                                                TexturesToRip.append(Texture)
-                                        Textures=",".join(Texs[1])
-                                        MatOut.write(Static+"_"+str(countMat)+" : "+Mat[1]+" : "+Textures+"\n")
-                                        break
-                        countMat+=1
-                    MatOut.close()
-            else:
-                print(Static)
-                print("Fucked it")
+                # Create the materials.
+                # Each polygon face will be assigned a unique material.
+                count=0
+                lLayer = my_mesh.GetLayer(0)
                 
+                for Vert in usedVerts:
+                    Pos=Vert[1]
+                    normLayer.GetDirectArray().Add(fbx.FbxVector4(norms[Pos][0],norms[Pos][1],norms[Pos][2],norms[Pos][3]))
+                    
+                count99+=1
             
+            filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
+            FbxCommon.SaveScene(memory_manager, scene, filename)
+            memory_manager.Destroy()
+            countMat=0
+            if len(MaterialData) > 0:
+                MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
+                #print(MaterialData)
+                #print(MatRef)
+                for i in range(count99):
+                    for Mat in MaterialData:
+                        if int(Mat[0]) == int(countMat):
+                            CheckName=Mat[1]
+                            for Texs in MatRef:
+                                #print(Texs)
+                                if CheckName == Texs[0]:
+                                    for Texture in Texs[1]:
+                                        if Texture not in TexturesToRip:
+                                            TexturesToRip.append(Texture)
+                                    Textures=",".join(Texs[1])
+                                    MatOut.write(Static+"_"+str(countMat)+" : "+Mat[1]+" : "+Textures+"\n")
+                                    break
+                    countMat+=1
+                MatOut.close()
+        else:
+            print(Static)
+            print("Fucked it")
 
-        RipTextures(TexturesToRip)
+def GeneratePackageCache():
+    PackageCache=[]
+    for File in os.listdir(path):
+        temp=File.split("_")
+        try:
+            ID=ast.literal_eval("0x"+stripZeros(temp[len(temp)-2]))
+        except SyntaxError:
+            continue
+        if [File,ID] not in PackageCache:
+            PackageCache.append([File,ID])
+    return PackageCache
+            
+        
 def GetPackageName(ID):
     for File in os.listdir(path):
         temp=File.split("_")
@@ -4232,21 +4266,20 @@ def GetPackageName(ID):
             break
     return File
     
-def RipTextures(TexturesToRip):
-    Existing=os.listdir(os.getcwd()+"/data/Textures")
-    #print(Existing)
-    for Texture in TexturesToRip:
-        DatName=Texture+".png"
-        if DatName not in Existing:
-            Package=GetPackageName(Texture.split("-")[0])
-            Header=ExtractSingleEntry.unpack_entry(path,custom_direc,Package,Texture.split("-")[1])
-            Hash=Header[120:]
-            Hash=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8'))
-            pkg = Hex_String(Package_ID(int(Hash)))
-            ent = Hex_String(Entry_ID(int(Hash)))
-            Package2=GetPackageName(pkg)
-            Main=ExtractSingleEntry.unpack_entry(path,custom_direc,Package2,ent)
-            Tex=DDS(Texture,"Norm",Header,Main,os.getcwd()+"/data/Textures")
+def RipTexture(Texture,PackageCache):
+    Existing=os.path.isfile(os.getcwd()+"/data/Textures/"+Texture+".png")
+    if Existing != True:
+        ID=ast.literal_eval("0x"+Texture.split("-")[0])
+        Index=binary_search(PackageCache,ID)
+        Package=PackageCache[Index][0]
+        Header=ExtractSingleEntry.unpack_entry(path,custom_direc,Package,Texture.split("-")[1])
+        Hash=Header[120:]
+        Hash=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8'))
+        pkg = Hex_String(Package_ID(int(Hash)))
+        ent = Hex_String(Entry_ID(int(Hash)))
+        Package2=GetPackageName(pkg)
+        Main=ExtractSingleEntry.unpack_entry(path,custom_direc,Package2,ent)
+        Tex=DDS(Texture,"Norm",Header,Main,os.getcwd()+"/data/Textures")
         
 
 def SortH64(Hash64Data):
@@ -4712,12 +4745,95 @@ def MapExtractor(entry,LoadNames,Dyns):
     #ans2=int(input("Enter which Load to extract from: "))
     #print(TerrainHashes)
     InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns,TerrainHashes)
+def GetTextures(PackageCache):
+    TexturesToRip=[]
+    for file in os.listdir(os.getcwd()+"/data/Materials"):
+        MatFile=open(os.getcwd()+"/data/Materials/"+file,"r")
+        data=MatFile.read().split("\n")
+        MatFile.close()
+        data.remove("")
+        for Line in data:
+            temp=(Line.split(" : "))[2].split(",")
+            for Texture in temp:
+                if Texture not in TexturesToRip:
+                    TexturesToRip.append(Texture)
+    print(TexturesToRip)
+    t_pool = mp.Pool(mp.cpu_count())
+    _args = [(Texture,PackageCache) for Texture in TexturesToRip]
+    t_pool.starmap(
+        RipTexture, 
+        _args)
+    for File in os.listdir(os.getcwd()):
+        temp=File.split(".")
+        try:
+            temp[1]
+        except IndexError:
+            continue
+        else:
+            if temp[1] == "dds":
+                os.remove(os.getcwd()+"/"+File)
+def GetDynTextures(PackageCache):
+    TexturesToRip=[]
+    for file in os.listdir(os.getcwd()+"/data/DynMaterials"):
+        MatFile=open(os.getcwd()+"/data/DynMaterials/"+file,"r")
+        data=MatFile.read().split("\n")
+        MatFile.close()
+        data.remove("")
+        for Line in data:
+            try:
+                Line.split(": ")[1]
+            except IndexError:
+                continue
+            temp=(Line.split(": "))[1].split(", ")
+            for Texture in temp:
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Texture))).decode('utf-8')
+                Val=ast.literal_eval("0x"+flipped)
+                PkgID=Hex_String(Package_ID(Val))
+                EntryID=Hex_String(Entry_ID(Val))
+                DirName=PkgID+"-"+EntryID
+                if DirName not in TexturesToRip:
+                    TexturesToRip.append(DirName)
+    #print(TexturesToRip)
+    t_pool = mp.Pool(mp.cpu_count())
+    _args = [(Texture,PackageCache) for Texture in TexturesToRip]
+    t_pool.starmap(
+        RipTexture, 
+        _args)
+    for File in os.listdir(os.getcwd()):
+        temp=File.split(".")
+        try:
+            temp[1]
+        except IndexError:
+            continue
+        else:
+            if temp[1] == "dds":
+                os.remove(os.getcwd()+"/"+File)
+    
+
 def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes):
     lengths=[]
+    PackageCache=GeneratePackageCache()
+    PackageCache.sort(key=lambda x: x[1])
     count=0
-    RipTerrain(TerrainHashes)
+    t_pool = mp.Pool(mp.cpu_count())
+    _args = [(Hash,True) for Hash in TerrainHashes]
+    t_pool.starmap(
+        RipTerrain, 
+        _args)
+    #RipTerrain(TerrainHashes)
     if Dyns == True:
-        PullMechanicStructs()
+        H64Sort=SortH64(ReadHash64())
+        DataTables=[]
+        for File in os.listdir(os.getcwd()+"/out"):
+            if File == "audio":
+                continue
+            if File.split(".")[1] == "dt":
+                DataTables.append(File)
+        _args = [(Name,H64Sort) for Name in DataTables]
+        t_pool.starmap(
+            PullMechanicStructs, 
+            _args)
+        GetDynTextures(PackageCache)
     for Load in loadfile:
         for File in os.listdir(custom_direc):
             if File != "audio":
@@ -4725,106 +4841,102 @@ def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes):
                     Load=LoadZone(Load,InstCount[count],Ref[count])
                     lengths.append([File,str(len(Load.Statics))])
                     count+=1
+    GetTextures(PackageCache)
+    
     Popup()
-def RipTerrain(Hashes):
+def RipTerrain(Hashes,Pool):
+    #print(Hashes)
     Terrain.ExtractTerrain(os.getcwd(),Hashes)
-def PullMechanicStructs():
+def PullMechanicStructs(file,H64Sort):
     ExtractedHashes=[]
     DynNames=[]
-    H64Sort=SortH64(ReadHash64())
-    for file in os.listdir(os.getcwd()+"/out"):
-        if file == "audio":
-            continue
-        if file.split(".")[1] == "dt":
-            Test=open(os.getcwd()+"/out/"+file,"rb")
-            Test.seek(0x20)
-            count=binascii.hexlify(bytes(Test.read(4))).decode()
-            if count == "":
+    Test=open(os.getcwd()+"/out/"+file,"rb")
+    Test.seek(0x20)
+    count=binascii.hexlify(bytes(Test.read(4))).decode()
+    
+    if len(list(count)) == 8:
+        count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
+        StartingOffset=48
+        Test.seek(48)
+        for i in range(count):
+            Test.seek(48+(i*144)+48)
+            Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
+            flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
+            try:
+                num=ast.literal_eval("0x"+flipped)
+            except SyntaxError:
+                Test.close()
                 continue
-            if len(list(count)) != 8:
-                continue
-            count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
-            StartingOffset=48
-            Test.seek(48)
-            for i in range(count):
-                Test.seek(48+(i*144)+48)
-                Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
-                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
-                try:
-                    num=ast.literal_eval("0x"+flipped)
-                except SyntaxError:
-                    Test.close()
-                    continue
-                Check=Hash64Search2(H64Sort,num)
+            Check=Hash64Search2(H64Sort,num)
+            
+            if Check != False:
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
+                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                if Exists != True:
+                    if DynNames != []:
+                        index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
+                    else:
+                        index=-1
+                    if index == -1:
+                        PullDyn(str(flipped))
+                        DynNames.append(int(ast.literal_eval("0x"+flipped)))
+                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                file1=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
+                Test.seek(48+(i*144))
+                rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                #print(PosX)
+                if PosX != "00000000":
+                    PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                else:
+                    PosX=0
+                if PosY != "00000000":
+                    PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                else:
+                    PosY=0
+                if PosZ != "00000000":
+                    PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                else:
+                    PosZ=0
+                if rotX != "00000000":
+                    rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
+                else:
+                    rotX=0
+                if rotY != "00000000":
+                    rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
+                else:
+                    rotY=0
+                if rotZ != "00000000":
+                    rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
+                else:
+                    rotZ=0
+                if rotW != "00000000":
+                    rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
+                else:
+                    rotW=0
                 
-                if Check != False:
-                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
-                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
-                    if Exists != True:
-                        if DynNames != []:
-                            index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
-                        else:
-                            index=-1
-                        if index == -1:
-                            PullDyn(str(flipped))
-                            DynNames.append(int(ast.literal_eval("0x"+flipped)))
-                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
-                    file1=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
-                    Test.seek(48+(i*144))
-                    rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                    #print(PosX)
-                    if PosX != "00000000":
-                        PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
-                    else:
-                        PosX=0
-                    if PosY != "00000000":
-                        PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
-                    else:
-                        PosY=0
-                    if PosZ != "00000000":
-                        PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
-                    else:
-                        PosZ=0
-                    if rotX != "00000000":
-                        rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
-                    else:
-                        rotX=0
-                    if rotY != "00000000":
-                        rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
-                    else:
-                        rotY=0
-                    if rotZ != "00000000":
-                        rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
-                    else:
-                        rotZ=0
-                    if rotW != "00000000":
-                        rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
-                    else:
-                        rotW=0
-                   
-                    
-                    if ScaleX != "00000000":
-                        ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
-                    else:
-                        ScaleX=1
                 
-                    file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
-                    file1.close()
-            Test.close()
+                if ScaleX != "00000000":
+                    ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                else:
+                    ScaleX=1
+            
+                file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
+                file1.close()
+    Test.close()
 def PullDyn(Hash):
     print("Start "+Hash)
     CWD=os.getcwd()
     os.chdir(CWD+"/ThirdParty")
     if os.path.isfile(CWD+'/data/Dynamics/'+Hash+'.fbx') != True:
         
-        cmd='MDE -p "'+path+'" -o "'+CWD+'/data/Dynamics" -i '+Hash+' -t'
+        cmd='DestinyDynamicExtractor -p "'+path+'" -o "'+CWD+'/data/Dynamics" -i '+Hash+' -t'
         #print(cmd)
         ans=subprocess.call(cmd, shell=True)
         try:
@@ -4836,11 +4948,28 @@ def PullDyn(Hash):
                 print(File)
                 if File.split(".")[1] == "png":
                    
-                    shutil.move(CWD+"/data/Dynamics/"+Hash+"/Textures/"+File,CWD+"/data/Textures/"+File)
+                    try:
+                        shutil.move(CWD+"/data/Dynamics/"+Hash+"/Textures/"+File,CWD+"/data/Textures/"+File)
+                    except FileNotFoundError:
+                        u=1
+                    except FileExistsError:
+                        u=1
+                    except PermissionError:
+                        u=1
                     #print("ran")
                 elif File.split(".")[1] == "txt":
-                    shutil.move(CWD+"/data/Dynamics/"+Hash+"/Textures/"+File,CWD+"/data/DynMaterials/"+Hash+".txt")
-            os.rmdir(CWD+"/data/Dynamics/"+Hash+"/Textures")
+                    try:
+                        shutil.move(CWD+"/data/Dynamics/"+Hash+"/Textures/"+File,CWD+"/data/DynMaterials/"+Hash+".txt")
+                    except FileNotFoundError:
+                        u=1
+                    except FileExistsError:
+                        u=1
+                    except PermissionError:
+                        u=1
+            try:
+                os.rmdir(CWD+"/data/Dynamics/"+Hash+"/Textures")
+            except OSError:
+                u=1
                 
         try:
             os.listdir(CWD+"/data/Dynamics/"+Hash+"/unk_textures")
@@ -4848,8 +4977,14 @@ def PullDyn(Hash):
             u=1
         else:
             for File in os.listdir(CWD+"/data/Dynamics/"+Hash+"/unk_textures"):
-                os.remove(CWD+"/data/Dynamics/"+Hash+"/unk_textures/"+File)
-            os.rmdir(CWD+"/data/Dynamics/"+Hash+"/unk_textures")
+                try:
+                    os.remove(CWD+"/data/Dynamics/"+Hash+"/unk_textures/"+File)
+                except PermissionError:
+                    continue
+            try:
+                os.rmdir(CWD+"/data/Dynamics/"+Hash+"/unk_textures")
+            except OSError:
+                u=1
                 
                         
         try:
@@ -4857,7 +4992,10 @@ def PullDyn(Hash):
         except FileNotFoundError:
             u=1
         else:
-            os.rmdir(CWD+"/data/Dynamics/"+Hash)
+            try:
+                os.rmdir(CWD+"/data/Dynamics/"+Hash)
+            except OSError:
+                u=1
     print("End "+Hash)
     os.chdir(CWD)
 def MapRipper(entry,top,skip):
@@ -4878,7 +5016,7 @@ def MapRipper(entry,top,skip):
             print("found")
             break
     for file in os.listdir(path)[::-1]:
-        if fnmatch.fnmatch(file,package+"*"):
+        if fnmatch.fnmatch(file,package+"_*"):
             filelist.append(file)
     useful=["Map","0x808093ad","0x80806d44","0x80806c81","0x80809ed2","0x80806daa","0x80806d30","0x80808707","0x80809883","0x8080891e","0x80808701","0x808093b1","0x80806a0d","0x80808e8e","0x80806daa"]
     if skip == False:

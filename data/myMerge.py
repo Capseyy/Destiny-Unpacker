@@ -82,7 +82,10 @@ def assign_materials():
         
 def assemble_map():
     print(f"Starting import on {Type}: {Name}")
-    
+    TerrainNames=[]
+    for File in os.listdir(Filepath+"/Terrain"):
+        TerrainNames.append(File.split(".")[0])
+        
     #make a collection with the name of the imported fbx for the objects
     bpy.data.collections.new(str(Name))
     bpy.context.scene.collection.children.link(bpy.data.collections[str(Name)])
@@ -118,6 +121,8 @@ def assemble_map():
         print("Instancing...")
         
         for Object in bpy.data.objects:
+            if str(Object.name)[:8].lower() in TerrainNames:
+                continue
             try:
                 file=open(Filepath+"/Instances/"+(str(Object.name)[:8]).lower()+".inst","r")
             except:
@@ -249,8 +254,8 @@ def GenerateMaterials():
             mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
         
 for Fbx in os.listdir(Filepath+"/Statics"):
-    #if Fbx != "8321ba80.fbx":
-        #continue
+    #if bx != "8321ba80.fbx":
+    #continue
     split=Fbx.split(".")
     if split[1] == "fbx":
         path=Filepath+"/Statics/"+Fbx
@@ -290,116 +295,77 @@ for Fbx in os.listdir(Filepath+"/Statics"):
         #bpy.ops.object.join()
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
 
-def InstanceDyn(Object,HasRoot):
-    #print(HasRoot)
-    try:
-        file=open(Filepath+"/Instances/"+(str(Object.name)[:8]).lower()+".inst","r")
-    except:
-        print("no file")
-    else:
-        
-        data=file.read().split("\n")
-        file.close()
-        #print(data)
-        data.remove('')
-        #print(data)
-        #print(Object.name)               
-        flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
-#print(flipped)
-        for instance in data:
-            instance=instance.split(",")
-            ob_copy = bpy.data.objects[Object.name].copy()
-            bpy.context.collection.objects.link(ob_copy) #makes the instances
-
-            location = [float(instance[4]), float(instance[5]), float(instance[6])]
-            #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
-            quat = mathutils.Quaternion([float(instance[3]), float(instance[0]), float(instance[1]), float(instance[2])])
-            
-            ob_copy.location = location
-            ob_copy.rotation_mode = 'QUATERNION'
-            #ob_copy.rotation_quaternion = quat
-            if HasRoot == True:
-                ob_copy.delta_scale=[0.01]*3
-            #if 7<Scale<8:
-            
-                #ob_copy.delta_scale=([Scale/10])*3
-            ob_copy.scale = [float(instance[7])]*3
 
 GenerateMaterials()
 
         
 assemble_map()
-for Fbx in os.listdir(Filepath+"/Dynamics"):
-    break
+for Fbx in os.listdir(Filepath+"/Terrain"):
+    #if Fbx != "8321ba80.fbx":
+    #continue
     split=Fbx.split(".")
     if split[1] == "fbx":
-        path=Filepath+"/Dynamics/"+Fbx
+        path=Filepath+"/Terrain/"+Fbx
         print("ran")
         bpy.ops.object.select_all(action='DESELECT')
         thing=(0,0,0)
         bpy.context.scene.cursor.rotation_euler = (0, 0, 0)
-
-        bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
-        
-        HasRoot=False
-        #bpy.ops.object.select_all(action='DESELECT')
-        #bpy.ops.object.select_all(action='DESELECT')
-        Keep=[]
-        for Obj in bpy.context.selected_objects:
-            if Obj.name[:4] == "root":
-                Obj.parent = None
-                bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-                HasRoot=True
-        
-        #bpy.ops.object.select_all(action='DESELECT')
+        bpy.data.collections.new(str(split[0]).upper())
+        bpy.context.scene.collection.children.link(bpy.data.collections[str(split[0]).upper()])
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
+        #bpy.ops.import_scene.fbx(filepath=path)
+        bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)        #for Obj in bpy.data.objects:
+           # Obj.parent = None
+        #    split=Obj.name.split("_")
+        #    if split[1] == "0":
+        #        bpy.data.objects.remove(Obj)
         #for Obj in bpy.data.objects:
-        #    Obj.parent = None
-        #    if Obj.name[:8] == split[0]:
-        #        Obj.select_set(state=True)
-       
-        modelExists=True
-        if modelExists == True:
-            
-            for obj in bpy.context.selected_objects:
-                
-                obj.location=[0,0,0]
-                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-                InstanceDyn(obj,HasRoot)
-                
-for Fbx in os.listdir(Filepath+"/Entities"):
-    break
-    split=Fbx.split(".")
-    if split[1] == "fbx":
-        path=Filepath+"/Entities/"+Fbx
-        print("ran")
+        
         bpy.ops.object.select_all(action='DESELECT')
-        thing=(0,0,0)
-        bpy.context.scene.cursor.rotation_euler = (0, 0, 0)
-
-        bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
-        
-        HasRoot=False
-        #bpy.ops.object.select_all(action='DESELECT')
-        #bpy.ops.object.select_all(action='DESELECT')
-        Keep=[]
-        for Obj in bpy.context.selected_objects:
-            if Obj.name[:4] == "root":
-                Obj.parent = None
-                bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-                HasRoot=True
-        
-        #bpy.ops.object.select_all(action='DESELECT')
-        for Obj in bpy.data.objects:
-            Obj.parent = None
-            if Obj.name[:8] == split[0]:
-                Obj.select_set(state=True)
-       
-        modelExists=True
-        if modelExists == True:
+        newobjects = bpy.data.collections[str(split[0]).upper()].objects
+        #newobjects = bpy.data.collections[str(Name)].objects
+        #for obj in newobjects:
+         #   Material(obj)
+        #    #deselect all objects
+        #    bpy.ops.object.select_all(action='DESELECT')
+        #    tmp.append(obj.name[:8])
+            #print(obj.name[:8])
             
-            for obj in bpy.context.selected_objects:
-                
-                obj.location=[0,0,0]
-                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-                InstanceEnt(obj,HasRoot)
-                
+        count=0
+        MSH_OBJS = [m for m in bpy.data.collections[str(split[0]).upper()].objects if m.type == 'MESH']
+        bpy.ops.outliner.orphans_purge()
+        #mesh = bpy.context.object.data
+        #bpy.ops.mesh.faces_shade_flat()   
+        for OBJS in MSH_OBJS:
+            #Select all mesh objects
+            OBJS.select_set(state=True)
+            bpy.context.view_layer.objects.active = OBJS
+            #py.ops.OBJS.faces_shade_flat()
+            #BJS.faces_shade_flat()
+        #bpy.ops.object.join()
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+        try:
+            file=open(Filepath+"/Instances/"+(str(split[0])).lower()+".inst","r")
+        except:
+            print("no file")
+        else:              
+            data=file.read().split("\n")         
+            file.close()
+            #print(data)
+            #data.remove('')
+            #print(data)
+            #print(Object.name)               
+            #flipped=binascii.hexlify(bytes(hex_to_little_endian(Object.name[:8]))).decode('utf-8')
+            instance=data[0].split(",")
+            location = [float(instance[4]), float(instance[5]), float(instance[6])]
+            #Reminder that blender uses WXYZ, the order in the confing file is XYZW, so W is always first
+            quat = mathutils.Quaternion([1, 0, 0, 0])            
+            for Obj in MSH_OBJS:
+                #for poly in Obj.data:
+                bpy.ops.object.shade_flat()
+                Obj.location = location
+                Obj.rotation_mode = 'QUATERNION'
+                Obj.rotation_quaternion = quat
+                Obj.scale = [1]*3
+
+        

@@ -221,10 +221,7 @@ class Package:
         "0x6A", "0x77", "0x78", "0x61", "0x67", "0x71", "0x67", "0x7F", "0x79", "0x7F", 
         "0x39", "0x3D", "0x3E", "0x6F", "0x3A", "0x3E",
     ]
-    #AES_KEY_2=[]
-    #for Val in AES_KEY_copy:
-    #    AES_KEY_2.append(str(Val))
-        
+   
     
     def __init__(self, package_directory,EntryToGet):
         self.package_directory = package_directory
@@ -308,14 +305,15 @@ class Package:
         ##print(self.package_header.EntryTableSize)
         #for i in range(0, self.package_header.EntryTableSize * 16, 16):
         #    #print(entry_table_data,)
-        for i in range(0, self.package_header.EntryTableSize * 16, 16):
+        
             ##print(i/16)
-            entry = SPkgEntry(gf.get_int32(entry_table_data, i),
-                              gf.get_int32(entry_table_data, i+4),
-                              gf.get_int32(entry_table_data, i+8),
-                              gf.get_int32(entry_table_data, i+12))
-            ##print(entry)
-            entries_to_decode.append(entry)
+        i=self.EntryToGet*16
+        entry = SPkgEntry(gf.get_int32(entry_table_data, i),
+                            gf.get_int32(entry_table_data, i+4),
+                            gf.get_int32(entry_table_data, i+8),
+                            gf.get_int32(entry_table_data, i+12))
+        ##print(entry)
+        entries_to_decode.append(entry)
         ##print(len(entries_to_decode))
         #time.sleep(10)
         entry_table.Entries = self.decode_entries(entries_to_decode)
@@ -338,18 +336,16 @@ class Package:
             # #print("\n\n")
             #useful=["0x808045eb","0x808045f0","0x808045f7","0x808097b8","0x80809345","0x80809ec5","0x8080986a","0x808090d5","0x80808e8b","0x80808c0d","0x808099f1","0x80805a09","0x80809fb8","0x80800065","0x80809b06","0x80800000","0x80808e8e","0x808045f0","0x80808ec7"]
             ref_id, ref_pkg_id, ref_unk_id = decode_entry_a(entry.EntryA)
-            if count != int(self.EntryToGet):
-                count+=1
-                continue
+            
             #print("ran")
             #if hex(entry.EntryA) in useful:
             file_type, file_subtype = decode_entry_b(entry.EntryB)
             starting_block, starting_block_offset = decode_entry_c(entry.EntryC)
             file_size, unknown = decode_entry_d(entry.EntryC, entry.EntryD)
-            file_name = f"{self.package_header.PackageIDH}-{gf.fill_hex_with_zeros(hex(count)[2:], 4)}"
+            file_name = f"{self.package_header.PackageIDH}-{gf.fill_hex_with_zeros(hex(self.EntryToGet)[2:], 4)}"
             file_typename = get_file_typename(file_type, file_subtype, ref_id, ref_pkg_id)
 
-            decoded_entry = SPkgEntryDecoded(np.uint16(count), file_name, file_typename,
+            decoded_entry = SPkgEntryDecoded(np.uint16(self.EntryToGet), file_name, file_typename,
                                              ref_id, ref_pkg_id, ref_unk_id, file_type, file_subtype, starting_block,
                                              starting_block_offset, file_size, unknown, hex(entry.EntryA))
             entries.append(decoded_entry)
@@ -428,6 +424,7 @@ class Package:
 
 
         self.nonce = binascii.unhexlify(''.join([gf.fill_hex_with_zeros(hex(x)[2:], 2) for x in nonce]))
+        #print(self.nonce)
 
     def decompress_block(self, block_bin):
         decompressor = OodleDecompressor(oodlepath)
@@ -465,7 +462,7 @@ class Package:
                 ##print(file_buffer)
                 current_block_id += 1
             fileFormat=""
-            ##print(entry.EntryA)
+            #print(entry.EntryA)
             #time.sleep(5)
             
             
@@ -479,7 +476,7 @@ class Package:
                 #    os.makedirs(custom_direc + self.package_directory.split('/w64')[-1][1:-6])
                 #except FileExistsError:
                 #    pass
-                #file = io.FileIO(f'{custom_direc}/{entry.FileName.upper()}'+fileFormat, 'wb')
+                file = io.FileIO(f'{custom_direc}/{entry.FileName.upper()}'+fileFormat, 'wb')
                 # #print(entry.FileSize)
                 global DataToWrite
                 DataToWrite=file_buffer[:entry.FileSize]
@@ -510,4 +507,4 @@ def unpack_entry(path, custom_direc,package,entry):
     Data=binascii.hexlify(DataToWrite).decode()
     return Data
 
-#unpack_entry(path,custom_direc,1,"a")
+#unpack_entry(path,custom_direc,"w64_moon_crotas_end_0402_1.pkg","05e5")
