@@ -8,3 +8,6 @@
 /cache
 test.py
 __pycache__
+/data/DynInstances
+/ExtractedFiles/Scripts
+/data/Terrain

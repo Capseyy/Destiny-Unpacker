@@ -22,6 +22,7 @@ from fbx import *
 from fbx import FbxManager
 from functools import partial
 import multiprocessing as mp
+import Combatants
 global custom_direc,useful ,path,Hash64Data
 path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
 #path="C:\Program Files (x86)\Steam\steamapps\common\Destiny2\packages"
@@ -88,9 +89,11 @@ def Hex_String(Num):
     ])
 
 class File:
-    def __init__(self,Name,FileType,StrData,ActName):
+    def __init__(self,Name,FileType,StrData,ActName,PackageCache):
         self.Name=Name
         self.FileType=FileType
+        self.PackageCache=PackageCache
+        self.DirectiveSave=None
         #self.Tags=[]
         self.Data=[]
         self.StrData=StrData
@@ -98,7 +101,7 @@ class File:
         self.Strings=[]
         self.ReadFile()
         #self.FindTags()
-        #self.ReadFile64()
+        self.H64Sort=SortH64(ReadHash64())
         self.FindHashes()
         self.ActName=ActName
         self.QueHashes=[]
@@ -142,8 +145,6 @@ class File:
                 output.write("Dialogue Table \n")
                 #output.write(DirName+".tab \n")
                 output.write(DirName+".tab \n")
-                    
-                print("try")
                 with open(custom_direc+"/audio/"+DirName+".tab", 'rb') as f:
                     s = binascii.hexlify(bytes(f.read())).decode()
                     Data=[s[i:i+8] for i in range(0, len(s), 8)]
@@ -284,6 +285,7 @@ class File:
                 PkgID=Hex_String(Package_ID(new))
                 EntryID=Hex_String(Entry_ID(new))
                 DirName=PkgID.upper()+"-"+EntryID.upper()
+                self.StringContainer=DirName
         if StringContainer == "0000000000000000":
             DirName=""
         print(DirName)
@@ -340,7 +342,213 @@ class File:
         output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("\n\n\n\n")
         output.close()
+    def Encounters(self):
+        output=open(os.getcwd()+"/cache/directive.txt","a")
+        output.write("Encounter Overview\n")
+        File=open(custom_direc+"/"+self.Name,"rb")
+        File.seek(0x48)
+        EncounterOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(File.read(4))).decode()))).decode('utf-8')))
+        File.seek(0x40)
+        EncounterCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(File.read(4))).decode()))).decode('utf-8')))
+        for i in range(EncounterCount):
+            File.seek(0x48+EncounterOffset+16+(i*0x68))
+            EncounterData=binascii.hexlify(bytes(File.read(0x68))).decode()
+            EncounterData=[EncounterData[i:i+8] for i in range(0, len(EncounterData), 8)]
+            LoadName=EncounterData[2]
+            DirectiveID=EncounterData[10]
+            BubbleName=StringHash(LoadName,self.StrData,self.StringContainer)
+            if BubbleName == False:
+                BubbleName=LoadName
+            DataOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EncounterData[20]))).decode('utf-8')))
+            File.seek(0x48+EncounterOffset+16+(i*0x68)+0x50+DataOffset+0x10)
+            PhaseData=binascii.hexlify(bytes(File.read(0x18))).decode()
+            PhaseData=[PhaseData[i:i+8] for i in range(0, len(PhaseData), 8)]
+            PhaseName1=PhaseData[3]
+            PhaseName2=PhaseData[4]
+            EntityFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(PhaseData[5]))).decode('utf-8')))
+            EntityFileData=GetFileData(PhaseData[5],self.PackageCache)
+            EntityFileData=GetFileData(EntityFileData[48:56],self.PackageCache)
+            EntityResources=EntityFileData[128:]
+            EntityResources=[EntityResources[i:i+8] for i in range(0, len(EntityResources), 8)]
+            for Resource in EntityResources:
+                EntityFileData=GetFileData(Resource,self.PackageCache)
+                count=0
+                if EntityFileData[64:72] != "ffffffff":
+                    count=0
+                    tempdata=GetFileData(EntityFileData[64:72],self.PackageCache)
+                    tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+                    for Hash in tempdata:
+                        if "65008080" == Hash:
+                            PhaseDevName="".join(tempdata[count+3:])
+                            PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                            output.write("\n"+PhaseDevName+"\n")
+                        count+=1
+                    if tempdata[32] != "ffffffff":
+                        count=0
+                        tempdata=GetFileData(tempdata[32],self.PackageCache)
+                        tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+                        for Hash in tempdata:
+                            if "65008080" == Hash:
+                                PhaseDevName="".join(tempdata[count+3:])
+                                PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                                output.write("\n"+PhaseDevName+"\n")
+                            count+=1
+
+                    
+                    #test="".join(EntityFileData)
+            #EntityFileData=[EntityFileData[i:i+8] for i in range(0, len(EntityFileData), 8)]
+            #PhaseVariableData=GetFileData(EntityFileData[32],self.PackageCache)
+            #PhaseVariableData=[PhaseVariableData[i:i+8] for i in range(0, len(PhaseVariableData), 8)]
+            PhaseDevName="Unknown"
+            PhaseVariableNames="Unknown"
+            count=0
+            #for Hash in PhaseVariableData:
+            #    if "65008080" == Hash:
+            #        PhaseVariableNames="".join(PhaseVariableData[count+3:])
+            #        PhaseVariableNames=binascii.unhexlify(PhaseVariableNames).decode()
+            #    count+=1
+            #test="".join(PhaseVariableNames)
+            #count=0
+            #for Hash in EntityFileData:
+            #    if "65008080" == Hash:
+            #        PhaseDevName="".join(EntityFileData[count+3:])
+            #        PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+            #    count+=1
+            #test="".join(EntityFileData)
+            PkgID=Hex_String(Package_ID(EntityFile))
+            EntryID=Hex_String(Entry_ID(EntityFile))
+            EntityFile=PkgID+"-"+EntryID
+            output.write("Bubble Name: "+BubbleName+"\nPhaseName1 : "+PhaseName1+"\nPhaseName2 : "+PhaseName2+"\nEntity File : "+EntityFile+"\n"+PhaseDevName+"\n"+PhaseVariableNames+"\n")
+            for Val in self.DirectiveSave:
+                if Val[2] == DirectiveID:
+                    output.write(Val[0]+"\n"+Val[1]+"\n")
+            output.write("\n\n")
+        output.write("\n\n\n")
+        output.close()
+        File.close()
+        output=open(os.getcwd()+"/cache/directive.txt","a")
+        output.write("Encounter Detailed\n")
+        
+        
+        File=open(custom_direc+"/"+self.Name,"rb")
+        for Pointer in range(9999):
+            File.seek(0x10*Pointer)
+            Line=binascii.hexlify(bytes(File.read(0x10))).decode()
+            Line=[Line[i:i+8] for i in range(0, len(Line), 8)]
+            if len(Line) < 4:
+                break
+            if "65008080" in Line:
+                break
+            if Line[2] == "48898080":
+                Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Line[0]))).decode('utf-8')))
+                for Entry in range(Count):
+                    output.write("\n\n\nNext Encounter") 
+                    Details=binascii.hexlify(bytes(File.read(0x18))).decode()
+                    Details=[Details[i:i+8] for i in range(0, len(Details), 8)]
+                    EntityFile=Details[5]
+                    LoadName=Details[2]
+                    
+                    #BubbleName=False
+                    BubbleName=StringHash(LoadName,self.StrData,self.StringContainer)
+                    if BubbleName != False:
+                        #BubbleName=LoadName
+                        output.write("\nBubble Name : "+BubbleName)
+                    PhaseName=Details[4]
+                    output.write("\nPhase Name : "+PhaseName+"\n")
+                    EntityFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Details[5]))).decode('utf-8')))
+                    PkgID=Hex_String(Package_ID(EntityFile))
+                    EntryID=Hex_String(Entry_ID(EntityFile))
+                    EntityFile=PkgID+"-"+EntryID
+                    output.write("\nEntity File : "+EntityFile+"\n") 
+                    EntityFileData=GetFileData(Details[5],self.PackageCache)
+                    EntityFileData=GetFileData(EntityFileData[48:56],self.PackageCache)
+                    EntityResources=EntityFileData[128:]
+                    EntityResources=[EntityResources[i:i+8] for i in range(0, len(EntityResources), 8)]
+                    First=True
+                    for Resource in EntityResources:
+                        EntityIDMapper=open(os.getcwd()+"/data/EntityIDMapper.txt","a")
+                        ObjectName="unknown"
+                        EntityFileData=GetFileData(Resource,self.PackageCache)
+                        count=0
+                        if EntityFileData[64:72] != "ffffffff":
+                            count=0
+                            tempdata=GetFileData(EntityFileData[64:72],self.PackageCache)
+                            UIDSearch=[tempdata[i:i+32] for i in range(0, len(tempdata), 32)]
+                            tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+                            EntityFileSave=tempdata
+                            for Hash in tempdata:
+                                if "65008080" == Hash:
+                                    PhaseDevName="".join(tempdata[count+3:])
+                                    PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                                    output.write("\n"+Resource+"\n"+PhaseDevName+"\n")
+                                count+=1
+                            if tempdata[32] != "ffffffff":
+                                count=0
+                                tempdata=GetFileData(tempdata[32],self.PackageCache)
+                                tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+                                for Hash in tempdata:
+                                    if "65008080" == Hash:
+                                        PhaseDevName="".join(tempdata[count+3:])
+                                        Fixer=[PhaseDevName[i:i+2] for i in range(0, len(PhaseDevName), 2)]
+                                        tempHolder=[]
+                                        EntityNames=[]
+                                        for Val in Fixer:
+                                            if Val == "00":
+                                                String=binascii.unhexlify("".join(tempHolder)).decode()
+                                                #print(String)
+                                                EntityNames.append(String)
+                                                tempHolder=[]
+                                                continue
+                                            tempHolder.append(Val)
+                                        PhaseDevName="".join(tempHolder)
+                                        PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                                        ObjectName=PhaseDevName
+                                        output.write("\n"+Resource+"\n")
+                                        for Name in EntityNames:
+                                            output.write(" "+Name)
+                                        output.write("\n")
+                                    count+=1
+                            UIDCount=0
+                            for Line in UIDSearch:
+                                split=[Line[i:i+8] for i in range(0, len(Line), 8)]
+                                try:
+                                    split[2]
+                                except IndexError:
+                                    break
+                                if split[2] == "05998080":
+                                    Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(split[0]))).decode('utf-8')))
+                                    for j in range(Count):
+                                        UIDData=[UIDSearch[UIDCount+1+j][i:i+16] for i in range(0, len(UIDSearch[UIDCount+1+j]), 16)]
+                                        try:
+                                            EntityNames[j]
+                                        except IndexError:
+                                            EntityIDMapper.write(UIDData[1]+ " : unk\n")
+                                        else:
+                                            EntityIDMapper.write(UIDData[1]+ " : "+EntityNames[j]+"\n")
+                                    break
+                                UIDCount+=1
+                            for Hash in EntityFileSave:
+                                #print(Hash)
+                                if Hash[6:] == "80" or Hash[6:] == "81":
+                                    EntryA=GetFileReference(Hash,self.PackageCache)
+                                    #print(Hash)
+                                    #print(EntryA)
+                                    if str(EntryA) == "0x80809883":
+                                        print(Resource)
+                                        DTFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')))
+                                        PkgID=Hex_String(Package_ID(DTFile))
+                                        EntryID=Hex_String(Entry_ID(DTFile))
+                                        DTFile=PkgID+"-"+EntryID+".dt"
+                                        PullMechanicStructs(DTFile,self.H64Sort,ObjectName)
+                        EntityIDMapper.close()                
+              
+        output.close()
+        GetDynTextures(self.PackageCache)
+
+
             
+
+
     def BnkSearch(self):
         flipped=binascii.hexlify(bytes(hex_to_little_endian(self.AudioDir))).decode('utf-8')
         dec = "0x"+flipped
@@ -397,18 +605,26 @@ class File:
 
     def PrintDirect(self):
         Direct=open(custom_direc+"/"+self.StrDirectory,"rb")
-        Data=binascii.hexlify(bytes(Direct.read())).decode()
+        Direct.seek(0x20)
+        Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Direct.read(4))).decode()))).decode('utf-8')))
+        Directive=[]
+        for i in range(Count):
+            Direct.seek(0x30+(i*0x80))
+            DirectData=binascii.hexlify(bytes(Direct.read(0x80))).decode()
+            DirectData=[DirectData[i:i+8] for i in range(0, len(DirectData), 8)]
+            MainString=StringHash(DirectData[8],self.StrData,"")
+            SubString=StringHash(DirectData[14],self.StrData,"")
+            if SubString == False:
+                SubString=""
+            if MainString == False:
+                MainString=""
+            Directive.append([MainString,SubString,DirectData[0]])
         Direct.close()
+        self.DirectiveSave=Directive
         output=open(os.getcwd()+"/cache/directive.txt","a")
         output.write("\nDIRECTIVE: \n")
-        self.Direct=[Data[i:i+8] for i in range(0, len(Data), 8)]
-        for Hash in self.Direct:
-            if "0000" not in Hash:
-                dat=StringHash(Hash,self.StrData,"")
-                if dat != False:
-                    if [dat,Hash] not in self.Strings:
-                        self.Strings.append([dat,Hash])
-                        output.write(dat+"\n")
+        for Entry in Directive:
+            output.write(Entry[2]+"\n"+Entry[0]+"\n"+Entry[1]+"\n\n")
         output.close()
     def PrintMus(self):
         count=0
@@ -573,7 +789,36 @@ def calculate_pkg_id(entry_a_data):
     else:
         return ref_pkg_id | 0x100 << ref_digits
 
+def GetFileData(Hash,PackageCache):
+    flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+    new=int(ast.literal_eval("0x"+flipped))
+    #print(Val)
+    pkg=Hex_String(Package_ID(new))
+    #print(pkg)
+    temp=ast.literal_eval("0x"+stripZeros(pkg))
+    #print(temp)
+    Index=binary_search(PackageCache,int(temp))
+    Package=PackageCache[Index][0]
+    ent=Hex_String(Entry_ID(new))
+    Data=ExtractSingleEntry.unpack_entry(path,custom_direc,Package,ent)
+    #print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
+    #print(Data)
+    return Data
 
+def GetFileReference(Hash,PackageCache):
+    flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+    new=int(ast.literal_eval("0x"+flipped))
+    #print(Val)
+    pkg=Hex_String(Package_ID(new))
+    #print(pkg)
+    temp=ast.literal_eval("0x"+stripZeros(pkg))
+    #print(temp)
+    Index=binary_search(PackageCache,int(temp))
+    Package=PackageCache[Index][0]
+    ent=Hex_String(Entry_ID(new))
+    Data=ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent)
+    #print(Data)
+    return Data
 # All of these decoding functions use the information from formats.c on how to decode each entry
 def decode_entry_a(entry_a_data):
     ref_id = entry_a_data & 0x1FFF
@@ -993,6 +1238,15 @@ class Package:
                 fileFormat=".str"
             elif entry.EntryA == "0x808099ef":
                 fileFormat=".ref"
+            elif entry.EntryA == "0x80808930":
+                fileFormat=".bag"
+            elif entry.EntryA == "0x80809883":   #A map data table, containing data entries  85988080 table for Entities and Statics 0x90 per  DynStaMapPointers
+                    fileFormat=".dt"
+            elif entry.EntryA == "0x8080906b":
+                    fileFormat=".entitynames"
+            elif entry.EntryA == "0x80809b06":
+                    fileFormat=".entityscript"
+            
             
             else:
                 fileFormat=".bin"
@@ -1043,6 +1297,10 @@ class Package:
                     fileFormat=".act"
                 elif entry.EntryA == "0x80806daa":
                     fileFormat = ".mat"
+                elif entry.EntryA == "0x8080906b":
+                    fileFormat=".entitynames"
+                elif entry.EntryA == "0x80809b06":
+                    fileFormat=".entityscript"
                 else:
                     fileFormat=".bin"
                 if entry.Type == 40:
@@ -1166,7 +1424,22 @@ def unpack_all(path, custom_direc, useful,filelist):
 def setD2Location(loc,top):
     path=loc.get()
     MainWindow(top)
-
+def DataView2(top,name):
+    for widget in top.winfo_children():
+        widget.destroy()
+    bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
+    label1 = Label(top, image = bg)
+    
+    Back = Button(top, text="Back", height=1, width=15,command=partial(ActivityMenu,top))
+    Back.place(x=10, y=10)
+    Output = Button(top, text="Export Data", height=1, width=15,command=partial(OutputAct2, name))
+    Output.place(x=1050, y=430)
+    file = open(os.getcwd()+"/cache/directive.txt","r").read()
+    T = Text(top, height = 500, width = 110)
+    T.insert(END,file)
+    T.pack()
+    label1.place(x=0,y=0)
+    top.mainloop()
 def DataView(top,name):
     for widget in top.winfo_children():
         widget.destroy()
@@ -1186,6 +1459,11 @@ def DataView(top,name):
 def OutputAct(name):
     file = open(os.getcwd()+"/cache/directive.txt","r").read()
     file2 = open(os.getcwd()+"/ExtractedFiles/Activity/"+name+".txt","w")
+    file2.write(file)
+    file2.close()
+def OutputAct2(name):
+    file = open(os.getcwd()+"/cache/directive.txt","r").read()
+    file2 = open(os.getcwd()+"/ExtractedFiles/Encounters/"+name+".txt","w")
     file2.write(file)
     file2.close()
     
@@ -1340,7 +1618,7 @@ def GenerateActivityNames():
             if "sandbox" not in file.split("_"):
                 if "audio" not in file.split("_"):
                     filelist.append(file)
-    unpack_all(path,custom_direc,useful,filelist)
+    #unpack_all(path,custom_direc,useful,filelist)
     for File in os.listdir(os.getcwd()+"/out"):
         if File == "audio":
             continue
@@ -1403,8 +1681,8 @@ def GenerateActivityNames():
                     Start2=Pointers[count+1][0] - CurrentOffset
                     name=Strings[int(Start):int(Start2)]
                 fixed=name.split("\x00")[0]
-                if "ambient" not in fixed.split("_"):
-                    FilesNames.append(Pointer[1]+" : "+fixed)
+                #if "ambient" not in fixed.split("_"):
+                FilesNames.append(Pointer[1]+" : "+fixed)
                 count+=1
                 #print(name)
             #print(FilesNames)
@@ -1414,33 +1692,45 @@ def GenerateActivityNames():
             Data=binascii.hexlify(bytes(file.read(8))).decode()
             Hash=binascii.hexlify(bytes(hex_to_little_endian(Data))).decode('utf-8')
             for FileName in FilesNames:
+                print([FileName,Hash])
                 ActNames.append([FileName,Hash])
     theFile=open(os.getcwd()+"/cache/ActivityHashes.txt","w")
     stuff=[]
-    for File in os.listdir(os.getcwd()+"/out"):
-        if File == "audio":
-            continue
-        if File.split(".")[1] == "act":
-            file=open(os.getcwd()+"/out/"+File,"rb")
-            Data=binascii.hexlify(file.read()).decode('utf-8')
-            DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
-            for Act in ActNames:
-                if Act[0].split(" : ")[0] in Data:
-                    pkgId= File.split("-")[0]
-                    for file in os.listdir(path):
-                        temp=file.split("_")
-                        if pkgId.lower() in file.split("_"):
-                            PackageName="_".join(temp[:len(temp)-2])
-                            stuffToAdd=Act[0]+" : "+PackageName+" : "+Act[1]
-                            if stuffToAdd not in stuff:
-                                stuff.append(stuffToAdd)
+    for Act in ActNames:
+        PkgName=Act[0].split(" : ")[1]
+        PkgName=PkgName.split(".")[0]
+        for file in os.listdir(path):
+            temp=file.split("_")
+            Name="_".join(temp[1:(len(temp)-2)])
+            if PkgName == Name:
+                PackageLongName="w64_"+Name
+                stuffToAdd=Act[0]+" : "+PackageLongName+" : "+Act[1]
+                if stuffToAdd not in stuff:
+                    stuff.append(stuffToAdd)
+    #for File in os.listdir(os.getcwd()+"/out"):
+    #    if File == "audio":
+    #        continue
+    #    if File.split(".")[1] == "act":
+    #        file=open(os.getcwd()+"/out/"+File,"rb")
+    #        Data=binascii.hexlify(file.read()).decode('utf-8')
+    #        DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
+    #        for Act in ActNames:
+    #            if Act[0].split(" : ")[0] in Data:
+    #                pkgId= File.split("-")[0]
+    #                for file in os.listdir(path):
+    #                    temp=file.split("_")
+    #                    if pkgId.lower() in file.split("_"):
+    #                        PackageName="_".join(temp[:len(temp)-2])
+    #                        stuffToAdd=Act[0]+" : "+PackageName+" : "+Act[1]
+    #                        if stuffToAdd not in stuff:
+    #                            stuff.append(stuffToAdd)
     for Thing in stuff:
         theFile.write(str(Thing)+"\n")
     theFile.close()
                     
-    for file in os.listdir(os.getcwd()+"/out"):
-        if file != "audio":
-            os.remove(os.getcwd()+"/out/"+file)        
+    #for file in os.listdir(os.getcwd()+"/out"):
+    #    if file != "audio":
+    #        os.remove(os.getcwd()+"/out/"+file)        
 def ActivityRipper(entry):
     print("Starting ACT")
     package=""
@@ -1520,6 +1810,7 @@ def ActivityRipper(entry):
         #print(newStrData)
     newStrData.sort(key=lambda x: x[1])
     StrData=newStrData
+    PackageCache=GeneratePackageCache()
     for FileName in os.listdir(custom_direc):
         if FileName != "audio":
             if FileName.split(".")[1] == "act":
@@ -1529,7 +1820,7 @@ def ActivityRipper(entry):
                 DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
                 if ActName == "All":
                     print("Extracting")
-                    file=File(FileName,FileName.split(".")[1],StrData,ActName)
+                    file=File(FileName,FileName.split(".")[1],StrData,ActName,PackageCache)
                     Files.append(file)
                     print(FileName)
                     file.FindHashes()
@@ -1544,7 +1835,7 @@ def ActivityRipper(entry):
                 else:
                     if ActId in DataSplit:
                         print("Extracting")
-                        file=File(FileName,FileName.split(".")[1],StrData,ActName)
+                        file=File(FileName,FileName.split(".")[1],StrData,ActName,PackageCache)
                         Files.append(file)
                         print(FileName)
                         file.FindHashes()
@@ -1555,6 +1846,7 @@ def ActivityRipper(entry):
                         print("Got Strings")
                         file.GetMusAndDir()
                         print("Get Mus and Dir")
+                        file.Encounters()
                         file.GetDialogue()
     print("done")
     #for file in os.listdir(custom_direc):
@@ -1630,25 +1922,326 @@ def StringHash(Hash,StrData,Ref):
     Found=False
     ans=binary_search(StrData,int(dec))
     #print(ans)
+    Looping=False
     if str(ans) != "-1":
         Found=True
+    TrueFound=False
     if Found == True:
         if Ref != "":
-            while True:
-                try:
-                    StrData[ans][0]
-                except IndexError:
-                    ans=ans-1
-                    break
-                if StrData[ans][0] != Ref:
-                    #print(StrData[ans]
-                    ans=ans+1
-                else:
-                    break
-        return StrData[ans][2]
+            if StrData[ans][0] != Ref:
+                Looping=True
+                while True:
+                    try:
+                        StrData[ans-1]
+                    except IndexError:
+                        break
+                    if StrData[ans-1][1] != dec:
+                        break
+                    ans-=1
+                while True:
+                    try:
+                        StrData[ans+1][1]
+                    except IndexError:
+                        break
+                    if StrData[ans+1][1] != dec:
+                        break
+                    if StrData[ans+1][0] != Ref:
+                        ans+=1
+                    else:
+                        TrueFound=True
+                        break
+                    
+        if Looping == True:
+            if TrueFound == True:
+
+                return StrData[ans][2]
+            else:
+                return False
+        else:
+            return StrData[ans][2]
     else:
         return False
+def EncounterMenu(top,entry):
+    print("Starting Enc")
+    package=""
+    H64Sort=SortH64(ReadHash64())
+    ActId=""
+    ActName=entry.get()
+    File2=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
+    data=File2.read()
+    File2.close()
+    Activities=data.split("\n")
+    if ActName != "All":
+        for Act in Activities:
+            temp=Act.split(" : ")
+            if entry.get() in temp:
+                package=temp[2]
+                ActId=temp[0]
+                StringContainer=temp[3]
+                print("found")
+                break
+    output=open(os.getcwd()+"/cache/directive.txt","w")   #Comment out to not clear on reset
+    filelist=[]
+    filelist2=[]
+    for file in os.listdir(path)[::-1]:
+        if fnmatch.fnmatch(file,package+"_0*"):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
+            filelist.append(file)
+    useful=["0x80808e8e","0x80809883","0x8080906b","0x80809b06"]
+    unpack_all(path,custom_direc,useful,filelist)
+    file2=open(os.getcwd()+"/cache/output.txt","r")
+    data=file2.read()
+    file2.close()
+    StrData=data.split("\n")
+    #print(StrData)
+    #file.close()
+    newStrData=[]
+    for String in StrData:
+        try:
+            String.split(" // ")[1]
+        except IndexError:
+            continue
+        try:
+            int(String.split(" // ")[1])
+        except ValueError:
+            continue
             
+        try:
+            newStrData.append([(String.split(" // ")[0]),int(String.split(" // ")[1]),String.split(" // ")[2]])
+        except IndexError:
+            #print(String)
+            continue
+        
+        #print(newStrData)
+    newStrData.sort(key=lambda x: x[1])
+    StrData=newStrData
+    PackageCache=GeneratePackageCache()
+    ActFile=False
+    for File in os.listdir(custom_direc):
+        if File != "audio":
+            if File.split(".")[1] == "act":
+                file=open(custom_direc+"/"+File,"rb")
+                Data=binascii.hexlify(bytes(file.read())).decode()
+                file.close()
+                DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
+                if ActId in DataSplit:
+                    ActFile=File
+                    break
+    if ActFile != False:
+        EncounterList=[]
+        #print(ActFile)
+        File=open(custom_direc+"/"+ActFile,"rb")
+        StringContainer=ast.literal_eval("0x"+stripZeros(StringContainer))
+        ContainerHash=Hash64Search(H64Sort,StringContainer)
+        ContainerHash=ast.literal_eval(ContainerHash)
+        PkgID=Hex_String(Package_ID(ContainerHash))
+        EntryID=Hex_String(Entry_ID(ContainerHash))
+        StringContainer=PkgID+"-"+EntryID
+        #print(StringContainer)
+        for Pointer in range(9999):
+            File.seek(0x10*Pointer)
+            Line=binascii.hexlify(bytes(File.read(0x10))).decode()
+            Line=[Line[i:i+8] for i in range(0, len(Line), 8)]
+            if len(Line) < 4:
+                break
+            if "65008080" in Line:
+                break
+            if Line[2] == "48898080":
+                Start=File.tell()
+                Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Line[0]))).decode('utf-8')))
+                for i in range(Count):
+                    ActDat=binascii.hexlify(bytes(File.read(24))).decode()
+                    ActDatSplit=[ActDat[i:i+8] for i in range(0, len(ActDat), 8)]
+                    print(ActDatSplit)
+                    dat=StringHash(ActDatSplit[2],StrData,StringContainer.upper())
+                    EncounterInfo=[dat,ActDatSplit[3],ActDatSplit[5],str(Start+(i*18))]
+                    EncounterList.append(EncounterInfo)
+    EncounterCount=0
+    print()
+    for Encounter in EncounterList:
+        EntityFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Encounter[2]))).decode('utf-8')))
+        PkgID=Hex_String(Package_ID(EntityFile))
+        EntryID=Hex_String(Entry_ID(EntityFile))
+        EntityFile=PkgID+"-"+EntryID
+        EntityFileData=GetFileData(Encounter[2],PackageCache)
+        EntityFileData=GetFileData(EntityFileData[48:56],PackageCache)
+        EntityResources=EntityFileData[128:]
+        EntityResources=[EntityResources[i:i+8] for i in range(0, len(EntityResources), 8)]
+        EntityFileData=GetFileData(EntityResources[0],PackageCache)
+        if EntityFileData[64:72] != "ffffffff":
+            tempdata=GetFileData(EntityFileData[64:72],PackageCache)
+            tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+            EntityFileSave=tempdata
+            count=0
+            PhaseDevName=False
+            for Hash in tempdata:
+                if "65008080" == Hash:
+                    PhaseDevName="".join(tempdata[count+3:])
+                    #PhaseDevName=[PhaseDevName[i:i+2] for i in range(0, len(PhaseDevName), 2)]
+                    temp=PhaseDevName.split("00")
+                    PhaseDevName="".join(temp)
+                    PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                    PhaseDevName=PhaseDevName.split("\\")
+
+                    break
+                count+=1
+            if PhaseDevName != False:
+                EncounterList[EncounterCount].insert(0,PhaseDevName[len(PhaseDevName)-1])
+
+        EncounterCount+=1
+    global lst, combo_box
+    for widget in top.winfo_children():
+        widget.destroy()
+    File.close()
+    lst=[]
+    for Enc in EncounterList:
+        print(Enc)
+        Enc[1]=str(Enc[1])
+        temp=",".join(Enc)
+        lst.append(temp)
+    bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
+    label1 = Label(top, image = bg)
+    label1.pack()
+    combo_box = ttk.Combobox(top,height=20, width=50)
+    combo_box['values'] = lst
+    combo_box.bind('<KeyRelease>', check_input)
+    combo_box.place(x=500, y=125)
+    Phase = Button(top, text="Extract Encounter", height=1, width=15,command=partial(ExtractSingleEncounter,combo_box,PackageCache,H64Sort,top))
+    Phase.place(x=500, y=225)
+    Comb = Button(top, text="Extract Combatant Table", height=1, width=15,command=partial(CombatantRipper,combo_box,PackageCache,H64Sort,top,StrData))
+    Comb.place(x=600, y=225)
+    Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
+    Back.place(x=10, y=10)
+    filelist = []
+    top.mainloop()
+def ExtractSingleEncounter(entry,PackageCache,H64Sort,top):
+    output=open(os.getcwd()+"/cache/directive.txt","w")
+    Data=entry.get()
+    Data=Data.split(",")
+    print(Data)
+    EntityFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8')))
+    PkgID=Hex_String(Package_ID(EntityFile))
+    EntryID=Hex_String(Entry_ID(EntityFile))
+    EntityFile=PkgID+"-"+EntryID
+    output.write("\nEntity File : "+EntityFile+"\n") 
+    EntityFileData=GetFileData(Data[3],PackageCache)
+    print(EntityFileData[48:56])
+    EntityFileData=GetFileData(EntityFileData[48:56],PackageCache)
+    EntityResources=EntityFileData[128:]
+    EntityResources=[EntityResources[i:i+8] for i in range(0, len(EntityResources), 8)]
+    First=True
+    for Resource in EntityResources:
+        EntityIDMapper=open(os.getcwd()+"/data/EntityIDMapper.txt","a")
+        ObjectName="unknown"
+        EntityFileData=GetFileData(Resource,PackageCache)
+        count=0
+        if EntityFileData[64:72] != "ffffffff":
+            count=0
+            tempdata=GetFileData(EntityFileData[64:72],PackageCache)
+            UIDSearch=[tempdata[i:i+32] for i in range(0, len(tempdata), 32)]
+            tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+            EntityFileSave=tempdata
+            for Hash in tempdata:
+                if "65008080" == Hash:
+                    PhaseDevName="".join(tempdata[count+3:])
+                    PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                    output.write("\n"+Resource+"\n"+PhaseDevName+"\n")
+                count+=1
+            if tempdata[32] != "ffffffff":
+                count=0
+                tempdata=GetFileData(tempdata[32],PackageCache)
+                tempdata=[tempdata[i:i+8] for i in range(0, len(tempdata), 8)]
+                for Hash in tempdata:
+                    if "65008080" == Hash:
+                        PhaseDevName="".join(tempdata[count+3:])
+                        Fixer=[PhaseDevName[i:i+2] for i in range(0, len(PhaseDevName), 2)]
+                        tempHolder=[]
+                        EntityNames=[]
+                        for Val in Fixer:
+                            if Val == "00":
+                                String=binascii.unhexlify("".join(tempHolder)).decode()
+                                #print(String)
+                                EntityNames.append(String)
+                                tempHolder=[]
+                                continue
+                            tempHolder.append(Val)
+                        PhaseDevName="".join(tempHolder)
+                        PhaseDevName=binascii.unhexlify(PhaseDevName).decode()
+                        ObjectName=PhaseDevName
+                        output.write("\n"+Resource+"\n")
+                        for Name in EntityNames:
+                            output.write(" "+Name)
+                        output.write("\n")
+                    count+=1
+            UIDCount=0
+            for Line in UIDSearch:
+                split=[Line[i:i+8] for i in range(0, len(Line), 8)]
+                try:
+                    split[2]
+                except IndexError:
+                    break
+                if split[2] == "05998080":
+                    Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(split[0]))).decode('utf-8')))
+                    for j in range(Count):
+                        UIDData=[UIDSearch[UIDCount+1+j][i:i+16] for i in range(0, len(UIDSearch[UIDCount+1+j]), 16)]
+                        try:
+                            EntityNames[j]
+                        except IndexError:
+                            EntityIDMapper.write(UIDData[1]+ " : unk\n")
+                        else:
+                            EntityIDMapper.write(UIDData[1]+ " : "+EntityNames[j]+"\n")
+                    break
+                UIDCount+=1
+            for Hash in EntityFileSave:
+                #print(Hash)
+                if Hash[6:] == "80" or Hash[6:] == "81":
+                    EntryA=GetFileReference(Hash,PackageCache)
+                    #print(Hash)
+                    #print(EntryA)
+                    if str(EntryA) == "0x80809883":
+                        print(Resource)
+                        DTFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')))
+                        PkgID=Hex_String(Package_ID(DTFile))
+                        EntryID=Hex_String(Entry_ID(DTFile))
+                        DTFile=PkgID+"-"+EntryID+".dt"
+                        PullMechanicStructs(DTFile,H64Sort,ObjectName)
+        EntityIDMapper.close()                
+              
+    output.close() 
+    outname=Data[0].split(".")[0]
+    OutputAct2(outname) 
+    GetDynTextures(PackageCache)
+    Popup()
+    
+    #DataView2(top,outname)
+def CombatantRipper(entry,PackageCache,H64Sort,top,StrData):
+    #temp=entry.get()
+    Entities=Combatants.ParseEntityFile(entry,PackageCache,H64Sort,top)
+    for Entity in Entities:
+        print(Entity)
+        PackageInt=ast.literal_eval(Entity[0])
+        pkg = Hex_String(Package_ID(PackageInt))
+        ent = Hex_String(Entry_ID(PackageInt))
+        file=pkg+"-"+ent+".bin"
+        ID=ast.literal_eval("0x"+pkg)
+        Index=binary_search(PackageCache,ID)
+        Package=PackageCache[Index][0]
+        ExtractSingleEntry.unpack_entry_ext(path, custom_direc,Package,ent)
+        print(StringHash(Entity[1],StrData,""))
+        print(file)
+        print(GetHP(file))
+        PullCombatantStructs(file,H64Sort,"combat",Entity[2])
+        #Entity=binascii.hexlify(bytes(hex_to_little_endian(Entity[2:]))).decode('utf-8')
+        #PullDyn(Entity)
+def GetHP(file):
+    file=open(os.getcwd()+"/out/"+file,"rb")
+    file.seek(0x20)
+    Count=int.from_bytes(file.read(4),"little")
+    file.seek(0x30+(Count*0x90)+0x80)
+    Hp=binascii.hexlify(bytes(file.read(4))).decode()
+    Hp=binascii.hexlify(bytes(hex_to_little_endian(Hp))).decode('utf-8')
+        
+    Health=struct.unpack('!f', bytes.fromhex(Hp))[0]
+    return Health
 def ActivityMenu(top):
     global lst, combo_box
     lst=["All"]
@@ -1675,6 +2268,8 @@ def ActivityMenu(top):
     combo_box.place(x=500, y=125)
     Activity = Button(top, text="Extract Activity Data", height=1, width=15,command=partial(ActivityRipper,combo_box))
     Activity.place(x=500, y=175)
+    Phase = Button(top, text="Extract Encounters", height=1, width=15,command=partial(EncounterMenu,top,combo_box))
+    Phase.place(x=500, y=225)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
     filelist = []
@@ -1695,213 +2290,75 @@ def Strings(ans):
     unpack_all(path,custom_direc,useful,filelist)
     strPath=custom_direc
     print("Outputting...")
-    output=open(os.getcwd()+"/cache/output.txt","w")
-    output.close()
     allRefs=[]
     Files=os.listdir(strPath)
     #print(Files)
+    Illegal=["03AC","03DA","03DB"]
     for File in  Files:
         #print(File)
         if File != "audio":
+            if File.split("-")[0] in Illegal:
+                continue
             if File.split(".")[1] == "ref":
                 allRefs.append(File)
+    out=open(os.getcwd()+"/cache/output.txt","w")
+    out.close()
     for Ref in allRefs:
-        #print(Ref)
+        output=open(os.getcwd()+"/cache/output.txt","a")
+        print(Ref)
+        StringContainer=Ref.split(".")[0]
+        StringHashes=[]
         file=open((strPath+"/"+Ref),"rb")
-        FileName=Ref.split(".")[0]
-        length=len(binascii.hexlify(bytes(file.read())))
-        file.close()
-        RefHeader=[]
-        RefLocations=[]
-        RefUnknown=[] #B89F8080
-        RefHashes=[]
-        file=open((strPath+"/"+Ref),"rb")
-        iterations=(length//8)
-        for i in range(6):
-            RefHeader.append(binascii.hexlify(bytes(file.read(4))).decode('utf-8'))
-        count=0
-        for i in range(iterations-6):
-            data=binascii.hexlify(bytes(file.read(4)))
-            #print(data.decode('utf-8'))
-            if data.decode() == "b89f8080":
-                count += 1
-                break
-            RefLocations.append(data.decode('utf-8'))
-            count += 1
-        for i in range(4):
-            data=binascii.hexlify(bytes(file.read(4)))
-            RefUnknown.append(data.decode('utf-8'))
-        for i in range((iterations-6)-(count)-4):
-            data=binascii.hexlify(bytes(file.read(4)))
-            RefHashes.append(data.decode('utf-8'))
-        #print(RefHeader)
-        #print(RefLocations)
-        #print(RefUnknown)
-        #print(RefHashes)
-        
-        file.close()
-        #output=open("outputold.txt","a")
-        stringBnk=[]
-        for i in range(len(RefHashes)):
-            RefHashes[i]=binascii.hexlify(bytes(hex_to_little_endian(RefHashes[i]))).decode('utf-8')
-            #print(int(flippedHash,16))
-            
-            #print(flippedLoc)
-            #BnkLoc=flippedLoc.split("80a0")[1]
-            #print(data)
-            #print(BnkLoc)
-            
-        #print(stringBnk)
-        flippedLoc=binascii.hexlify(bytes(hex_to_little_endian(RefLocations[0]))).decode('utf-8')
-        Hash1=int("0x"+flippedLoc,base=16)
-        #BnkLoc=flippedLoc.split("80a0")[1]
-        #stringBnk.append(Ref.split("-")[0]+"-"+BnkLoc+".str")
-        BnkHeader=[]
-        BnkLengths=[]
-        BnkStrings=[]
-        BnkGap=[]
-        #print(Hash)
-        
-        #RefHashes=[]
-        #print(stringBnk[0])
-        # Example usage
-        #print(int(Hash))
-        pkg = Hex_String(Package_ID(int(Hash1)))
-        #print(result)
-        ent = Hex_String(Entry_ID(int(Hash1)))
+        file.seek(0x10)
+        HashOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(4))).decode()))).decode('utf-8')))
+        file.seek(0x10+HashOffset)
+        HashCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(4))).decode()))).decode('utf-8')))
+        file.seek(0x10+HashOffset+16)
+        for i in range(HashCount):
+            StringHashes.append(ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(4))).decode()))).decode('utf-8'))))
+        file.seek(0x18)
+        StringBankHash=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(4))).decode()))).decode('utf-8')))
+        pkg = Hex_String(Package_ID(StringBankHash))
+        ent = Hex_String(Entry_ID(StringBankHash))
         Bank=pkg+"-"+ent+".str"
-        #print(Bank)
         try:
             Bnk=open(strPath+"/"+Bank,"rb")
         except FileNotFoundError:
             continue
-        #print(Bank)
-        #################
-        data=binascii.hexlify(bytes(Bnk.read())).decode("utf-8")
-        Data=[data[i:i+32] for i in range(0, len(data), 32)]
-        count=0
-        Blocks=False
-        for Line in Data:
-            temp=[Line[i:i+8] for i in range(0, len(Line), 8)]
-            if "f5998080" in temp:
-                count+=1
-              
-                BlockLengthsOffset=(16*count)
-                flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')
-                BlockLengthsCount=ast.literal_eval("0x"+stripZeros(flipped))
-                Blocks=True
-                break
-
-            count+=1
-        if Blocks == False:
-            continue
-        Bnk.seek(BlockLengthsOffset)
-        BlockCounts=[]
-        for i in range(BlockLengthsCount):
-            data=binascii.hexlify(bytes(Bnk.read(16))).decode("utf-8")
-            temp=[data[i:i+4] for i in range(0, len(data), 4)]
-            Offset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
-            Counts=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')))
-            BlockCounts.append(int(Counts))
-        Bnk.seek(0)
-        #print("opened bnk")
-        #print(BlockCounts)
-        ##############################
-        tooSmall=0
-        while True:
-            data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
-            if data == "f7998080":
-                break
-            BnkHeader.append(data)
-            tooSmall+=1
-            if tooSmall == 30:
-                break
-            #print("stuck")
+        Bnk.seek(0x40)
+        MetadataOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Bnk.read(4))).decode()))).decode('utf-8')))
+        Bnk.seek(0x40+MetadataOffset)
+        MetadataCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Bnk.read(4))).decode()))).decode('utf-8')))
+        for i in range(MetadataCount):
+            Bnk.seek(0x50+MetadataOffset+(i*16))
+            data=binascii.hexlify(bytes(Bnk.read(16))).decode()
             #print(data)
-        #print(BnkHeader)
-        if tooSmall == 30:
-            continue
-        Bnk.seek(0)
-        data=binascii.hexlify(bytes(Bnk.read())).decode("utf-8")
-        Data=[data[i:i+32] for i in range(0, len(data), 32)]
-        count=0
-        Entires=False
-        for Line in Data:
-            temp=[Line[i:i+8] for i in range(0, len(Line), 8)]
-            if "f7998080" in temp:
-                count+=1
-                EntryCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
-                EntryStartingOffset=count*16
-                Entries=True
-                break
-            count+=1
-        Bnk.seek(EntryStartingOffset)
-        StringData=[]#Start Offset,Length
-        CurrentOffset=EntryStartingOffset
-        j=0
-        num=0
-        if Entries == False:
-            continue
-        for i in range(int(EntryCount)):
-            if j == BlockCounts[num]:
-                num+=1
-                j=0
-            EntryData=binascii.hexlify(bytes(Bnk.read(32))).decode("utf-8")
-            Data=[EntryData[i:i+4] for i in range(0, len(EntryData), 4)]
-            StringOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(str(Data[4])+str(Data[5])))).decode('utf-8')))
-            StrLength=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[10]))).decode('utf-8')))
-            StringData.append([int(StringOffset)+CurrentOffset+8,int(StrLength),RefHashes[num],CurrentOffset])
-            CurrentOffset+=32
-            j+=1
-            
-            
-            
-            
-        #print(StringData)
-            
-            
-        
-        #print("notstuck")
-        #for i in range(4):
-        data=binascii.hexlify(bytes(Bnk.read(4))).decode("utf-8")
-        BnkGap.append(data)
-        #onto Str
-        #print(BnkLengths)
-        
-        HashVal=0
-        count=0
-        #print(str(len(RefHashes))+" ----- "+str(len(BlockCounts)))
-        for String in StringData:
-            #print(String)
-            out=open(os.getcwd()+"/cache/output.txt","a")
-            Bnk.seek(String[0])
-            text=Bnk.read(String[1]).decode()
-            Hash=int(String[2],16)
-            
-            
-                
-            textout=str(FileName)+" // "+str(Hash)+" // "+text+"\n"
-            #print(textout)
-            try:
-                out.write(textout)
-            except UnicodeEncodeError:
-                out.write(str(FileName)+" // "+str(Hash)+" // ?\n")
-            
-                
-            out.close()
-            
-            #print("written")
-            count+=1
-                
-                    
-                
-           
-            
-        Bnk.close()
+            temp=[data[i:i+8] for i in range(0, len(data), 8)]
+            StringOffset=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8'),32)
+            StringCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[2]))).decode('utf-8')))
+            HeaderStart=0x50+MetadataOffset+(i*16)+StringOffset
+            for j in range(StringCount):
+                Bnk.seek(HeaderStart+(j*32))
+                StringHeader=binascii.hexlify(bytes(Bnk.read(32))).decode()
+                #print(StringHeader)
+                StringHeader=[StringHeader[i:i+8] for i in range(0, len(StringHeader), 8)]
+                RawOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(StringHeader[2]))).decode('utf-8')))
+                Length=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(StringHeader[5][:4]))).decode('utf-8')))
+                Bnk.seek(HeaderStart+(j*32)+RawOffset+8)
+                StringData=Bnk.read(Length)
+                #print(StringData)
+                StringData=StringData.decode()
+                textout=str(StringContainer)+" // "+str(StringHashes[i])+" // "+StringData+"\n"
+                try:
+                    output.write(textout)
+                except UnicodeEncodeError:
+                    output.write(str(StringContainer)+" // "+str(StringHashes[i])+" // ?\n")
+
+        output.close()
         #break
-    for file in os.listdir(custom_direc):
-        if file != "audio":
-            os.remove(custom_direc+"/"+file)
+    #for file in os.listdir(custom_direc):
+    #    if file != "audio":
+    #        os.remove(custom_direc+"/"+file)
             
     Popup()
 
@@ -2038,11 +2495,12 @@ class DDS:
                 self.dxtmiscFlag = c_uint32(0)
                 self.dxtArraySize = c_uint32(1)
         else:
-            self.dxtdwPFFlags = c_uint32(0x1 + 0x40)  # contains alpha data + contains uncompressed RGB data
-            self.dxtdwPFFourCC = c_uint32(0)
+            self.dwPFFlags = c_uint32(0x1 + 0x40)  # contains alpha data + contains uncompressed RGB data
+            self.dwPFFourCC = c_uint32(0)
             self.dxtmiscFlag = c_uint32(0)
             self.dxtArraySize = c_uint32(1)
             self.dxtmiscFlags2 = c_uint32(0x1)
+            #self.dxtdxgiFormat = self.texFormat
         self.arraySize=c_uint32(self.arraySize)
     def OutputNorm(self):
         File=open(self.FileName.split(".")[0]+".dds","wb")
@@ -2206,19 +2664,15 @@ class DDS:
         thingsToAdd=[self.MagicNumber,self.dwSize,self.dwFlags,self.dwHeight,self.dwWidth,self.dwPitchOrLinearSize,self.dwDepth,self.dwMipMapCount,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwReserved1,self.dwPFSize,self.dwPFFlags,self.dwPFFourCC,self.dwPFRGBBitCount,self.dwPFRBitMask,self.dwPFGBitMask,self.dwPFBBitMask,self.dwPFABitMask,self.dwCaps,self.dwCaps2,self.dwCaps3,self.dwCaps4,self.dwReserved2]
         for thing in thingsToAdd:
             File.write(thing)
-        thingsToAdd=[self.dxtdxgiFormat,self.dxtresourceDimension,self.dxtmiscFlag,self.dxtArraySize]
+        if self.compressed == True:
+            thingsToAdd=[self.dxtdxgiFormat,self.dxtresourceDimension,self.dxtmiscFlag,self.dxtArraySize]
         for thing in thingsToAdd:
             File.write(thing)
         if self.dxtmiscFlags2 != "":
             File.write(self.dxtmiscFlags2)
         else:
             File.write(c_uint32(0))
-        new=ast.literal_eval("0x"+self.Hash)
-        DirName=Hex_String(Package_ID(new))+"-"+Hex_String(Entry_ID(new))+".cdat"
-        file2=open(custom_direc+"/"+DirName,"rb")
-        Data=file2.read()
-        file2.close()
-        File.write(Data)
+        File.write(binascii.unhexlify(self.Main))
         File.close()
         os.chdir(self.CWD+"/ThirdParty")
         cmd="texassemble.exe h-cross "+self.CWD+"/"+self.FileName.split(".")[0]+".dds"+" -y -nologo -o "+self.CWD+"/"+self.FileName.split(".")[0]+".bmp"
@@ -2390,7 +2844,7 @@ def Hash64(packagesPath):
                 flipped2=binascii.hexlify(bytes(hex_to_little_endian(hValBytes))).decode('utf-8')
                 hValRef = binascii.hexlify(bytes(pkgFile.read(4))).decode()
                 flipped3=binascii.hexlify(bytes(hex_to_little_endian(hValRef))).decode('utf-8')
-                file1.write(str("0x"+flipped)+": "+str("0x"+flipped2)+str(": 0x"+flipped3)+"\n")
+                file1.write(str("0x"+flipped)+": "+str("0x"+flipped2)+str(": 0x"+flipped3)+str(": "+entry)+"\n")
     file1.close()
 def ClearDir(top):
     for file in os.listdir(os.getcwd()+"/out"):
@@ -2414,6 +2868,8 @@ def ClearMaps(top):
         #os.remove(os.getcwd()+"/data/Textures/"+file)
     for file in os.listdir(os.getcwd()+"/data/Terrain"):
         os.remove(os.getcwd()+"/data/Terrain/"+file)
+    for file in os.listdir(os.getcwd()+"/data/DynInstances"):
+        os.remove(os.getcwd()+"/data/DynInstances/"+file)
     
     
     Popup()
@@ -2457,6 +2913,976 @@ def DevMenu():
     Back.place(x=10, y=10)
     filelist = []
     top.mainloop()
+def FileDevRip(File,newStrData):
+    file=open(custom_direc+"/"+File,"rb")
+    Data=binascii.hexlify(bytes(file.read())).decode()
+    temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
+    FileHash=False
+    count=0
+    StringStartP=False
+    for Hash in temp:
+        if Hash == "00000000":
+            continue
+        if Hash == "65008080":
+            StringStartP=count
+            break
+        if len(list(Hash)) == 8:
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode())
+            dec=ast.literal_eval("0x"+flipped)
+            PkgID=Hex_String(Package_ID(dec))
+            EntryID=Hex_String(Entry_ID(dec))
+            DirName=PkgID+"-"+EntryID
+            if DirName.upper() == File.split(".")[0].upper():
+                FileHash=Hash
+                break
+        count+=1
+            
+        
+    Max=len(temp)
+    Pointer=0
+    DataBlocks=[]
+    DataBlocks2=[]
+    DataBlocks3=[]
+    DataBlocks4=[]
+    StringPointer=""
+    DataBlocks5=[]
+    DataBlocks6=[]
+    DataBlocks7=[]
+    DataBlocks8=[]
+    DataBlocks9=[]
+    DataBlocks10=[]
+    DataBlocks11=[]
+    DataBlocks12=[]
+    DataBlocks13=[]
+    DataBlocks14=[]
+    DataBlocks15=[]
+    DataBlocks16=[]
+    DataBlocks17=[]
+    DataBlocks18=[]
+    DataBlocks19=[]
+    for i in range(len(temp)):
+        if temp[Pointer] == "65008080":
+            StringPointer=Pointer
+            break
+        if temp[Pointer].upper() == "1EB13A0F":
+            print("FOUND: "+File)
+        if temp[Pointer] == "79008080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks.append(dat)
+            #Pointer+=5
+        if temp[Pointer] == "53008080":
+            dat=temp[Pointer+1:Pointer+2]
+            dat.append((Pointer+1)*4)
+            #print(dat)
+            #Pointer+=2
+            DataBlocks2.append(dat)
+        if temp[Pointer] == "5a9b8080":
+            dat=temp[Pointer+1:Pointer+2]
+            dat.append((Pointer+1)*4)
+            DataBlocks3.append(dat)  
+            #Pointer+=2
+        if temp[Pointer] == "0d018080":
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[Pointer+1]))).decode())
+            Count=ast.literal_eval("0x"+flipped)
+            Pointer+=3
+            for i in range(Count):
+                dat=temp[Pointer:Pointer+3]
+                dat.append((Pointer)*4)
+                DataBlocks4.append(dat)
+                Pointer+=4
+            #print(dat)
+            #Pointer-=2
+        if temp[Pointer] == "70008080":
+            
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            #print(dat)
+            
+            DataBlocks5.append(dat)
+            #Pointer+=2
+        if temp[Pointer] == "ef008080":  ####TODO
+            dat=temp[Pointer+1:Pointer+12]
+            dat.append((Pointer+1)*4)
+            DataBlocks7.append(dat)  
+            #Pointer+=2
+        #if temp[Pointer] == "04008080":  ####TODO----Find Hash Val and ref to name 
+        #    dat=temp[Pointer+1:Pointer+2]
+        #    dat.append((Pointer+1)*4)
+        #    DataBlocks3.append(dat)  
+            #Pointer+=2
+        if temp[Pointer] == "01998080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks8.append(dat)
+        if temp[Pointer] == "fe988080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks9.append(dat)
+        if temp[Pointer] == "00998080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks10.append(dat)
+        if temp[Pointer] == "47998080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks11.append(dat)
+        if temp[Pointer] == "00998080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks12.append(dat)
+        if temp[Pointer] == "189b8080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks13.append(dat)
+        if temp[Pointer] == "b68e8080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks14.append(dat)
+        if temp[Pointer] == "029b8080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks15.append(dat)
+        if temp[Pointer] == "46998080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks16.append(dat)
+        if temp[Pointer] == "b68e8080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks17.append(dat)
+        if temp[Pointer] == "b38e8080":
+            dat=temp[Pointer+1:Pointer+5]
+            dat.append((Pointer+1)*4)
+            DataBlocks18.append(dat)
+        #if temp[Pointer] == "46998080":
+        #    dat=temp[Pointer+1:Pointer+5]
+        #    dat.append((Pointer+1)*4)
+        #    DataBlocks19.append(dat)
+        if FileHash != False:
+            if temp[Pointer] == FileHash.lower():
+                dat=temp[Pointer+1:Pointer+5]
+                dat.append((Pointer+1)*4)
+                DataBlocks6.append(dat)  
+        Pointer+=1
+    #print(DataBlocks)
+    DataBlocks.reverse()
+    Offset=len(Data)
+    Run=False
+    First=True
+    outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","w")
+    outfile.close()
+    for Hash in temp:
+        dat=StringHash(Hash,newStrData,"")
+        if dat != False:
+            if First == True:
+                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
+                outfile.write("Strings\n")
+                outfile.write(dat+"\n")
+                First=False
+            else:
+                outfile.write(dat+"\n")
+    if First == False:
+        outfile.close()
+    if DataBlocks != []:
+        outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
+        outfile.write("Block1  "+str(len(DataBlocks))+"\n")
+        for Block in DataBlocks:
+            #CurrentRef=[]
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+            new=ast.literal_eval("0x"+flipped)
+            flipped2=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
+            new2=ast.literal_eval("0x"+flipped2)
+            file.seek(new+Block[4])
+            Length=Offset-(new+Block[4])
+            Text=[]
+            for i in range(150):
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    Text.append(binascii.unhexlify(temp).decode())
+                else:
+                    
+                    break
+            CurrentRef="".join(Text)
+            Offset=new+Block[4]
+            outfile.write(str(Block))
+            outfile.write("\n"+CurrentRef+"\n")
+            #print(str(CurrentRef).split("\x00")[0])
+            file.seek(new2+Block[4]+8)
+            Text=[]
+            for i in range(150):
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    Text.append(binascii.unhexlify(temp).decode())
+                else:
+                    
+                    break
+            Length=Offset-(new+Block[4])
+            CurrentRef="".join(Text)
+            Offset=new+Block[4]
+            outfile.write(CurrentRef+"\n\n\n")
+            #print("\n\n\n")
+        outfile.close()
+    
+    
+    if DataBlocks2 != []:
+        outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
+        outfile.write("Block2  "+str(len(DataBlocks2))+"\n")
+        for Block in DataBlocks2:
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+            new=ast.literal_eval("0x"+flipped)
+            file.seek(new+Block[1])
+            #Length=Offset-(new)
+            Text=[]
+            for i in range(150):
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    try:
+                        Text.append(binascii.unhexlify(temp).decode())
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    break
+            CurrentRef="".join(Text)
+            #Offset=new+Block[4]
+            outfile.write(str(Block))
+            outfile.write("\n"+CurrentRef+"\n\n\n")
+        outfile.close()
+    
+    if DataBlocks3 != []:
+        
+        outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
+        outfile.write("Block3  "+str(len(DataBlocks3))+"\n")
+        for Block in DataBlocks3:
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+            new=ast.literal_eval("0x"+flipped)
+            file.seek(new+Block[1])
+            #Length=Offset-(new)
+            Text=[]
+            for i in range(150):
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    try:
+                        Text.append(binascii.unhexlify(temp).decode())
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    break
+            CurrentRef="".join(Text)
+            #Offset=new+Block[4]
+            outfile.write(str(Block))
+            outfile.write("\n"+CurrentRef+"\n\n\n")
+        outfile.close()
+    
+    if DataBlocks4 != []:
+        
+    
+        outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
+        outfile.write("Block4  "+str(len(DataBlocks4))+"\n")
+        #print(DataBlocks4)
+        for Block in DataBlocks4:
+            if Block[0] != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[3])
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+            if Block[2] != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[3]+8)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+                outfile.write(str(Block))
+                outfile.write("\n"+CurrentRef+"\n\n")
+            
+        outfile.close()
+    outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
+        
+    if DataBlocks5 != []:
+        
+        outfile.write("Block5  "+str(len(DataBlocks5))+"\n")
+        #print("b5")
+        #print(DataBlocks5)
+        for Block in DataBlocks5:   #Pointer0 Len?1 StrPoint3 Offset4
+            
+            try:
+                Block[3][4:]
+            except IndexError:
+                continue
+            except TypeError:
+                continue
+            
+            if Block[3][4:] == "8080":
+                Block2Find=Block[1]
+            else:
+                Block2Find=Block[3]
+            if Block2Find != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block2Find))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                
+                for i in range(150):
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    else:
+                        break
+                    
+                if Text == []:
+                    continue
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                outfile.write("".join(str(Block)))
+                outfile.write("\n"+CurrentRef+"\n")
+            if Block[0] != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4])
+                temp=binascii.hexlify(bytes(file.read(4))).decode()
+                if temp == "00000000":
+                    continue
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp))).decode())
+                new2=ast.literal_eval("0x"+flipped)
+                newSet=new2+new+Block[4]
+                #print(newSet)
+                file.seek(int(newSet))
+                Text=[]
+                for i in range(100):
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    else:
+                        break
+                    
+                    if Text == []:
+                        continue
+                CurrentRef="".join(Text)
+                outfile.write("\n"+CurrentRef+"\n\n\n")
+    outfile.write("\nBlock6\n")
+    #if DataBlocks6 != []:
+        #print(DataBlocks6)
+    for Block in DataBlocks6:
+        if len(Block) != 5:
+            continue
+        if len(list(Block[3])) != 8:
+            continue
+        if Block[3] != "00000000":
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+            new=ast.literal_eval("0x"+flipped)
+            file.seek(new+Block[4]+12)
+            #Length=Offset-(new)
+            Text=[]
+            for i in range(150):
+                
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    try:
+                        Text.append(binascii.unhexlify(temp).decode())
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    break
+            CurrentRef="".join(Text)
+            #Offset=new+Block[4]
+            outfile.write(str(Block))
+
+            outfile.write("\n"+CurrentRef+"\n\n")
+        if Block[1] != "00000000":
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[1]))).decode())
+            new=ast.literal_eval("0x"+flipped)
+            file.seek(new+Block[4]+4)
+            #Length=Offset-(new)
+            Text=[]
+            for i in range(150):
+                
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    try:
+                        Text.append(binascii.unhexlify(temp).decode())
+                    except UnicodeDecodeError:
+                        continue
+                else:
+                    break
+            CurrentRef="".join(Text)
+            #Offset=new+Block[4]
+            outfile.write(str(Block))
+    if DataBlocks7 != []:
+        #print(DataBlocks7)
+        outfile.write("\nBlock7\n\n")
+        for Block in DataBlocks7:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if Block[0] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[11])
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+            if Block[2] != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[11]+8)
+                
+                Text=binascii.hexlify(bytes(file.read(4))).decode()
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                outfile.write("\n"+CurrentRef+"\n\n")
+                
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
+                try:
+                    new2=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    continue
+                file.seek(new+Block[11]+8+new2)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                outfile.write("\n"+CurrentRef+"\n\n")
+            if Block[3] != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[11]+12-4)
+                #Length=Offset-(new)
+                Text=binascii.hexlify(bytes(file.read(4))).decode()
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                outfile.write("\n"+CurrentRef+"\n\n")
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
+                try:
+                    new2=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    continue
+                file.seek(new+Block[11]+8+new2)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                outfile.write("\n"+CurrentRef+"\n\n")
+            if Block[5] != "00000000":
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[5]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[11]+20-4)
+                Text=binascii.hexlify(bytes(file.read(4))).decode()
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                outfile.write("\n"+CurrentRef+"\n\n")
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
+                try:
+                    new2=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    continue
+                file.seek(new+Block[11]+8+new2)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                outfile.write("\n"+CurrentRef+"\n\n")
+                
+
+                #outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks8 != []:
+        #print(DataBlocks8)
+        outfile.write("\nBlock8\n\n")
+        for Block in DataBlocks8:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks9 != []:
+        outfile.write("\nBlock9\n\n")
+        for Block in DataBlocks9:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks10 != []:
+        outfile.write("\nBlock10\n\n")
+        for Block in DataBlocks10:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks11 != []:
+        
+        outfile.write("\nBlock11\n\n")
+        for Block in DataBlocks11:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks12 != []:
+        
+        outfile.write("\nBlock12\n\n")
+        for Block in DataBlocks12:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks13 != []:
+        #print(DataBlocks13)
+        outfile.write("\nBlock13\n\n")
+        for Block in DataBlocks13:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    if DataBlocks14 != []:
+        
+        outfile.write("\nBlock14\n\n")
+        for Block in DataBlocks14:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    #print("15")
+    if DataBlocks15 != []:
+        
+        outfile.write("\nBlock15\n\n")
+        for Block in DataBlocks15:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    #print("16")
+    if DataBlocks16 != []:
+        
+        outfile.write("\nBlock16\n\n")
+        for Block in DataBlocks16:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    #print("17")
+    if DataBlocks17 != []:
+        
+        outfile.write("\nBlock17\n\n")
+        for Block in DataBlocks17:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    #print("18")
+    if DataBlocks18 != []:
+        
+        outfile.write("\nBlock18\n\n")
+        for Block in DataBlocks18:#0 str ref, 2 rel off 3 rel off  5 RelOff
+            if len(Block) != 5:
+                continue
+            if Block[3] != "00000000":
+                outfile.write(str(Block))
+                flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
+                new=ast.literal_eval("0x"+flipped)
+                file.seek(new+Block[4]+12)
+                #Length=Offset-(new)
+                Text=[]
+                for i in range(150):
+                    
+                    temp=binascii.hexlify(bytes(file.read(1))).decode()
+                    #print(str(temp))
+                    if str(temp) != "00":
+                        #print(binascii.unhexlify(temp).decode())
+                        try:
+                            Text.append(binascii.unhexlify(temp).decode())
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        break
+                CurrentRef="".join(Text)
+                #Offset=new+Block[4]
+                #outfile.write(str(Block))
+
+                outfile.write("\n"+CurrentRef+"\n\n")
+    #print("ref")
+    outfile.write("References\n")
+    RefFiles=[]
+    temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
+    for Hash in temp:
+        if len(Hash) == 8:
+            #print("ran")
+            temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+            if temp[3] == "80" or temp[3] == "81":
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode()
+                new=ast.literal_eval("0x"+flipped)
+                PkgID=Hex_String(Package_ID(new))
+                EntryID=Hex_String(Entry_ID(new))
+                DirName=PkgID.upper()+"-"+EntryID.upper()+".bin"
+                #print(DirName)
+                #if DirName in os.listdir(custom_direc):
+                if DirName not in RefFiles:
+                    RefFiles.append(DirName)
+    if RefFiles != []:
+        for Ref in RefFiles:
+            outfile.write(Ref+"\n")
+    #print("test")
+    outfile.write("TESTING\n")
+    temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
+    TempLen=len(temp)
+    Pointer=0
+    for Hash in temp:
+        if Hash == "65008080":
+            break
+        if len(Hash) != 8:
+            continue
+        if Hash != "00000000":
+            #print(Hash)
+            flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode())
+            new=ast.literal_eval("0x"+flipped)
+            #Pointer+=1
+            #if new != 0:
+            Offset=(Pointer*4)+new
+            #print(Offset)
+            if StringPointer != "":
+                #print((len(temp)*4))
+                if int((StringPointer*4)) < Offset < int((TempLen*4)):
+                    #print("Run")
+                    
+                #print(newSet)
+                    file.seek(Offset)
+                    Text=[]
+                    for i in range(150):
+                        
+                        temp=binascii.hexlify(bytes(file.read(1))).decode()
+                        #print(str(temp))
+                        if str(temp) != "00":
+                            #print(binascii.unhexlify(temp).decode())
+                            try:
+                                Text.append(binascii.unhexlify(temp).decode())
+                            except UnicodeDecodeError:
+                                continue
+                        else:
+                            break
+                    CurrentRef="".join(Text)
+                    outfile.write("\n"+Hash+","+str(Pointer*4))
+                    outfile.write("\n"+CurrentRef+"\n\n")
+                    #CurrentRef="".join(Text)
+                #outfile.write("\n"+Hash+"\n"+CurrentRef+"\n\n")
+        Pointer+=1
+    if StringPointer != "":
+        file.seek((StringPointer+2)*4)
+        temp=binascii.hexlify(bytes(file.read())).decode()
+        temp=temp.split("00")
+        temp=binascii.unhexlify("20".join(temp)).decode()
+        outfile.write("\n\nDump\n\n"+temp)
+    outfile.close()
 def DevRipper(entry,Answer):
     filelist=[]
     for file in os.listdir(path)[::-1]:
@@ -2490,984 +3916,16 @@ def DevRipper(entry,Answer):
         
         #print(newStrData)
     newStrData.sort(key=lambda x: x[1])
+    FileRips=[]
     for File in os.listdir(custom_direc):
-        if File != "audio":
-            #continue
-            Pointers=[]
-            #print(File)
-            file=open(custom_direc+"/"+File,"rb")
-            Data=binascii.hexlify(bytes(file.read())).decode()
-            temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
-            FileHash=False
-            count=0
-            StringStartP=False
-            for Hash in temp:
-                if Hash == "00000000":
-                    continue
-                if Hash == "65008080":
-                    StringStartP=count
-                    break
-                if len(list(Hash)) == 8:
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode())
-                    dec=ast.literal_eval("0x"+flipped)
-                    PkgID=Hex_String(Package_ID(dec))
-                    EntryID=Hex_String(Entry_ID(dec))
-                    DirName=PkgID+"-"+EntryID
-                    if DirName.upper() == File.split(".")[0].upper():
-                        FileHash=Hash
-                        break
-                count+=1
-                    
-                
-            Max=len(temp)
-            Pointer=0
-            DataBlocks=[]
-            DataBlocks2=[]
-            DataBlocks3=[]
-            DataBlocks4=[]
-            StringPointer=""
-            DataBlocks5=[]
-            DataBlocks6=[]
-            DataBlocks7=[]
-            DataBlocks8=[]
-            DataBlocks9=[]
-            DataBlocks10=[]
-            DataBlocks11=[]
-            DataBlocks12=[]
-            DataBlocks13=[]
-            DataBlocks14=[]
-            DataBlocks15=[]
-            DataBlocks16=[]
-            DataBlocks17=[]
-            DataBlocks18=[]
-            DataBlocks19=[]
-            for i in range(len(temp)):
-                if temp[Pointer] == "65008080":
-                    StringPointer=Pointer
-                    break
-                if temp[Pointer].upper() == "1EB13A0F":
-                    print("FOUND: "+File)
-                if temp[Pointer] == "79008080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks.append(dat)
-                    #Pointer+=5
-                if temp[Pointer] == "53008080":
-                    dat=temp[Pointer+1:Pointer+2]
-                    dat.append((Pointer+1)*4)
-                    #print(dat)
-                    #Pointer+=2
-                    DataBlocks2.append(dat)
-                if temp[Pointer] == "5a9b8080":
-                    dat=temp[Pointer+1:Pointer+2]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks3.append(dat)  
-                    #Pointer+=2
-                if temp[Pointer] == "0d018080":
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[Pointer+1]))).decode())
-                    Count=ast.literal_eval("0x"+flipped)
-                    Pointer+=3
-                    for i in range(Count):
-                        dat=temp[Pointer:Pointer+3]
-                        dat.append((Pointer)*4)
-                        DataBlocks4.append(dat)
-                        Pointer+=4
-                    #print(dat)
-                    #Pointer-=2
-                if temp[Pointer] == "70008080":
-                    
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    #print(dat)
-                    
-                    DataBlocks5.append(dat)
-                    #Pointer+=2
-                if temp[Pointer] == "ef008080":  ####TODO
-                    dat=temp[Pointer+1:Pointer+12]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks7.append(dat)  
-                    #Pointer+=2
-                #if temp[Pointer] == "04008080":  ####TODO----Find Hash Val and ref to name 
-                #    dat=temp[Pointer+1:Pointer+2]
-                #    dat.append((Pointer+1)*4)
-                #    DataBlocks3.append(dat)  
-                    #Pointer+=2
-                if temp[Pointer] == "01998080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks8.append(dat)
-                if temp[Pointer] == "fe988080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks9.append(dat)
-                if temp[Pointer] == "00998080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks10.append(dat)
-                if temp[Pointer] == "47998080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks11.append(dat)
-                if temp[Pointer] == "00998080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks12.append(dat)
-                if temp[Pointer] == "189b8080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks13.append(dat)
-                if temp[Pointer] == "b68e8080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks14.append(dat)
-                if temp[Pointer] == "029b8080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks15.append(dat)
-                if temp[Pointer] == "46998080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks16.append(dat)
-                if temp[Pointer] == "b68e8080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks17.append(dat)
-                if temp[Pointer] == "b38e8080":
-                    dat=temp[Pointer+1:Pointer+5]
-                    dat.append((Pointer+1)*4)
-                    DataBlocks18.append(dat)
-                #if temp[Pointer] == "46998080":
-                #    dat=temp[Pointer+1:Pointer+5]
-                #    dat.append((Pointer+1)*4)
-                #    DataBlocks19.append(dat)
-                if FileHash != False:
-                    if temp[Pointer] == FileHash.lower():
-                        dat=temp[Pointer+1:Pointer+5]
-                        dat.append((Pointer+1)*4)
-                        DataBlocks6.append(dat)  
-                Pointer+=1
-            #print(DataBlocks)
-            DataBlocks.reverse()
-            Offset=len(Data)
-            Run=False
-            First=True
-            outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","w")
-            outfile.close()
-            for Hash in temp:
-                dat=StringHash(Hash,newStrData,"")
-                if dat != False:
-                    if First == True:
-                        outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
-                        outfile.write("Strings\n")
-                        outfile.write(dat+"\n")
-                        First=False
-                    else:
-                        outfile.write(dat+"\n")
-            if First == False:
-                outfile.close()
-            if DataBlocks != []:
-                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
-                outfile.write("Block1  "+str(len(DataBlocks))+"\n")
-                for Block in DataBlocks:
-                    #CurrentRef=[]
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
-                    new=ast.literal_eval("0x"+flipped)
-                    flipped2=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
-                    new2=ast.literal_eval("0x"+flipped2)
-                    file.seek(new+Block[4])
-                    Length=Offset-(new+Block[4])
-                    Text=[]
-                    for i in range(150):
-                        temp=binascii.hexlify(bytes(file.read(1))).decode()
-                        #print(str(temp))
-                        if str(temp) != "00":
-                            #print(binascii.unhexlify(temp).decode())
-                            Text.append(binascii.unhexlify(temp).decode())
-                        else:
-                            
-                            break
-                    CurrentRef="".join(Text)
-                    Offset=new+Block[4]
-                    outfile.write(str(Block))
-                    outfile.write("\n"+CurrentRef+"\n")
-                    #print(str(CurrentRef).split("\x00")[0])
-                    file.seek(new2+Block[4]+8)
-                    Text=[]
-                    for i in range(150):
-                        temp=binascii.hexlify(bytes(file.read(1))).decode()
-                        #print(str(temp))
-                        if str(temp) != "00":
-                            #print(binascii.unhexlify(temp).decode())
-                            Text.append(binascii.unhexlify(temp).decode())
-                        else:
-                            
-                            break
-                    Length=Offset-(new+Block[4])
-                    CurrentRef="".join(Text)
-                    Offset=new+Block[4]
-                    outfile.write(CurrentRef+"\n\n\n")
-                    #print("\n\n\n")
-                outfile.close()
+            if File != "audio":
+                FileRips.append(File)
+    t_pool = mp.Pool(mp.cpu_count())
+    _args = [(File,newStrData) for File in FileRips]
+    t_pool.starmap(
+        FileDevRip, 
+        _args)
             
-            
-            if DataBlocks2 != []:
-                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
-                outfile.write("Block2  "+str(len(DataBlocks2))+"\n")
-                for Block in DataBlocks2:
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
-                    new=ast.literal_eval("0x"+flipped)
-                    file.seek(new+Block[1])
-                    #Length=Offset-(new)
-                    Text=[]
-                    for i in range(150):
-                        temp=binascii.hexlify(bytes(file.read(1))).decode()
-                        #print(str(temp))
-                        if str(temp) != "00":
-                            #print(binascii.unhexlify(temp).decode())
-                            try:
-                                Text.append(binascii.unhexlify(temp).decode())
-                            except UnicodeDecodeError:
-                                continue
-                        else:
-                            break
-                    CurrentRef="".join(Text)
-                    #Offset=new+Block[4]
-                    outfile.write(str(Block))
-                    outfile.write("\n"+CurrentRef+"\n\n\n")
-                outfile.close()
-          
-            if DataBlocks3 != []:
-               
-                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
-                outfile.write("Block3  "+str(len(DataBlocks3))+"\n")
-                for Block in DataBlocks3:
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
-                    new=ast.literal_eval("0x"+flipped)
-                    file.seek(new+Block[1])
-                    #Length=Offset-(new)
-                    Text=[]
-                    for i in range(150):
-                        temp=binascii.hexlify(bytes(file.read(1))).decode()
-                        #print(str(temp))
-                        if str(temp) != "00":
-                            #print(binascii.unhexlify(temp).decode())
-                            try:
-                                Text.append(binascii.unhexlify(temp).decode())
-                            except UnicodeDecodeError:
-                                continue
-                        else:
-                            break
-                    CurrentRef="".join(Text)
-                    #Offset=new+Block[4]
-                    outfile.write(str(Block))
-                    outfile.write("\n"+CurrentRef+"\n\n\n")
-                outfile.close()
-           
-            if DataBlocks4 != []:
-                
-           
-                outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
-                outfile.write("Block4  "+str(len(DataBlocks4))+"\n")
-                #print(DataBlocks4)
-                for Block in DataBlocks4:
-                    if Block[0] != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[3])
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                    if Block[2] != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[3]+8)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-                        outfile.write(str(Block))
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                    
-                outfile.close()
-            outfile=open(os.getcwd()+"/ExtractedFiles/Scripts/"+File.split(".")[0]+".txt","a")
-                
-            if DataBlocks5 != []:
-                
-                outfile.write("Block5  "+str(len(DataBlocks5))+"\n")
-                #print("b5")
-                #print(DataBlocks5)
-                for Block in DataBlocks5:   #Pointer0 Len?1 StrPoint3 Offset4
-                    
-                    try:
-                        Block[3][4:]
-                    except IndexError:
-                        continue
-                    except TypeError:
-                        continue
-                    
-                    if Block[3][4:] == "8080":
-                        Block2Find=Block[1]
-                    else:
-                        Block2Find=Block[3]
-                    if Block2Find != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block2Find))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                     
-                        for i in range(150):
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            
-                            else:
-                                break
-                            
-                        if Text == []:
-                            continue
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        outfile.write("".join(str(Block)))
-                        outfile.write("\n"+CurrentRef+"\n")
-                    if Block[0] != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4])
-                        temp=binascii.hexlify(bytes(file.read(4))).decode()
-                        if temp == "00000000":
-                            continue
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp))).decode())
-                        new2=ast.literal_eval("0x"+flipped)
-                        newSet=new2+new+Block[4]
-                        #print(newSet)
-                        file.seek(int(newSet))
-                        Text=[]
-                        for i in range(100):
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            
-                            else:
-                                break
-                            
-                            if Text == []:
-                                continue
-                        CurrentRef="".join(Text)
-                        outfile.write("\n"+CurrentRef+"\n\n\n")
-            outfile.write("\nBlock6\n")
-            #if DataBlocks6 != []:
-                #print(DataBlocks6)
-            for Block in DataBlocks6:
-                if len(Block) != 5:
-                    continue
-                if len(list(Block[3])) != 8:
-                    continue
-                if Block[3] != "00000000":
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                    new=ast.literal_eval("0x"+flipped)
-                    file.seek(new+Block[4]+12)
-                    #Length=Offset-(new)
-                    Text=[]
-                    for i in range(150):
-                        
-                        temp=binascii.hexlify(bytes(file.read(1))).decode()
-                        #print(str(temp))
-                        if str(temp) != "00":
-                            #print(binascii.unhexlify(temp).decode())
-                            try:
-                                Text.append(binascii.unhexlify(temp).decode())
-                            except UnicodeDecodeError:
-                                continue
-                        else:
-                            break
-                    CurrentRef="".join(Text)
-                    #Offset=new+Block[4]
-                    outfile.write(str(Block))
-
-                    outfile.write("\n"+CurrentRef+"\n\n")
-                if Block[1] != "00000000":
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[1]))).decode())
-                    new=ast.literal_eval("0x"+flipped)
-                    file.seek(new+Block[4]+4)
-                    #Length=Offset-(new)
-                    Text=[]
-                    for i in range(150):
-                        
-                        temp=binascii.hexlify(bytes(file.read(1))).decode()
-                        #print(str(temp))
-                        if str(temp) != "00":
-                            #print(binascii.unhexlify(temp).decode())
-                            try:
-                                Text.append(binascii.unhexlify(temp).decode())
-                            except UnicodeDecodeError:
-                                continue
-                        else:
-                            break
-                    CurrentRef="".join(Text)
-                    #Offset=new+Block[4]
-                    outfile.write(str(Block))
-            if DataBlocks7 != []:
-                #print(DataBlocks7)
-                outfile.write("\nBlock7\n\n")
-                for Block in DataBlocks7:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if Block[0] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[0]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[11])
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                    if Block[2] != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[2]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[11]+8)
-                        
-                        Text=binascii.hexlify(bytes(file.read(4))).decode()
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                        
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
-                        try:
-                            new2=ast.literal_eval("0x"+flipped)
-                        except SyntaxError:
-                            continue
-                        file.seek(new+Block[11]+8+new2)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                    if Block[3] != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[11]+12-4)
-                        #Length=Offset-(new)
-                        Text=binascii.hexlify(bytes(file.read(4))).decode()
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
-                        try:
-                            new2=ast.literal_eval("0x"+flipped)
-                        except SyntaxError:
-                            continue
-                        file.seek(new+Block[11]+8+new2)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                    if Block[5] != "00000000":
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[5]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[11]+20-4)
-                        Text=binascii.hexlify(bytes(file.read(4))).decode()
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Text))).decode())
-                        try:
-                            new2=ast.literal_eval("0x"+flipped)
-                        except SyntaxError:
-                            continue
-                        file.seek(new+Block[11]+8+new2)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        outfile.write("\n"+CurrentRef+"\n\n")
-                       
-
-                        #outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks8 != []:
-                #print(DataBlocks8)
-                outfile.write("\nBlock8\n\n")
-                for Block in DataBlocks8:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks9 != []:
-                if len(Block) != 5:
-                        continue
-                outfile.write("\nBlock9\n\n")
-                for Block in DataBlocks9:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks10 != []:
-                if len(Block) != 5:
-                        continue
-                outfile.write("\nBlock10\n\n")
-                for Block in DataBlocks10:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks11 != []:
-                
-                outfile.write("\nBlock11\n\n")
-                for Block in DataBlocks11:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks12 != []:
-                
-                outfile.write("\nBlock12\n\n")
-                for Block in DataBlocks12:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks13 != []:
-                #print(DataBlocks13)
-                outfile.write("\nBlock13\n\n")
-                for Block in DataBlocks13:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            if DataBlocks14 != []:
-                
-                outfile.write("\nBlock14\n\n")
-                for Block in DataBlocks14:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            #print("15")
-            if DataBlocks15 != []:
-                
-                outfile.write("\nBlock15\n\n")
-                for Block in DataBlocks15:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            #print("16")
-            if DataBlocks16 != []:
-                
-                outfile.write("\nBlock16\n\n")
-                for Block in DataBlocks16:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            #print("17")
-            if DataBlocks17 != []:
-                
-                outfile.write("\nBlock17\n\n")
-                for Block in DataBlocks17:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            #print("18")
-            if DataBlocks18 != []:
-                
-                outfile.write("\nBlock18\n\n")
-                for Block in DataBlocks18:#0 str ref, 2 rel off 3 rel off  5 RelOff
-                    if len(Block) != 5:
-                        continue
-                    if Block[3] != "00000000":
-                        outfile.write(str(Block))
-                        flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Block[3]))).decode())
-                        new=ast.literal_eval("0x"+flipped)
-                        file.seek(new+Block[4]+12)
-                        #Length=Offset-(new)
-                        Text=[]
-                        for i in range(150):
-                            
-                            temp=binascii.hexlify(bytes(file.read(1))).decode()
-                            #print(str(temp))
-                            if str(temp) != "00":
-                                #print(binascii.unhexlify(temp).decode())
-                                try:
-                                    Text.append(binascii.unhexlify(temp).decode())
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                break
-                        CurrentRef="".join(Text)
-                        #Offset=new+Block[4]
-                        #outfile.write(str(Block))
-
-                        outfile.write("\n"+CurrentRef+"\n\n")
-            #print("ref")
-            outfile.write("References\n")
-            RefFiles=[]
-            temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
-            for Hash in temp:
-                if len(Hash) == 8:
-                    #print("ran")
-                    temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
-                    if temp[3] == "80" or temp[3] == "81":
-                        flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode()
-                        new=ast.literal_eval("0x"+flipped)
-                        PkgID=Hex_String(Package_ID(new))
-                        EntryID=Hex_String(Entry_ID(new))
-                        DirName=PkgID.upper()+"-"+EntryID.upper()+".bin"
-                        #print(DirName)
-                        #if DirName in os.listdir(custom_direc):
-                        if DirName not in RefFiles:
-                            RefFiles.append(DirName)
-            if RefFiles != []:
-                for Ref in RefFiles:
-                    outfile.write(Ref+"\n")
-            #print("test")
-            outfile.write("TESTING\n")
-            temp=[Data[i:i+8] for i in range(0, len(Data), 8)]
-            TempLen=len(temp)
-            Pointer=0
-            for Hash in temp:
-                if Hash == "65008080":
-                    break
-                if len(Hash) != 8:
-                    continue
-                if Hash != "00000000":
-                    #print(Hash)
-                    flipped=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode())
-                    new=ast.literal_eval("0x"+flipped)
-                    #Pointer+=1
-                    #if new != 0:
-                    Offset=(Pointer*4)+new
-                    #print(Offset)
-                    if StringPointer != "":
-                        #print((len(temp)*4))
-                        if int((StringPointer*4)) < Offset < int((TempLen*4)):
-                            #print("Run")
-                            
-                        #print(newSet)
-                            file.seek(Offset)
-                            Text=[]
-                            for i in range(150):
-                                
-                                temp=binascii.hexlify(bytes(file.read(1))).decode()
-                                #print(str(temp))
-                                if str(temp) != "00":
-                                    #print(binascii.unhexlify(temp).decode())
-                                    try:
-                                        Text.append(binascii.unhexlify(temp).decode())
-                                    except UnicodeDecodeError:
-                                        continue
-                                else:
-                                    break
-                            CurrentRef="".join(Text)
-                            outfile.write("\n"+Hash+","+str(Pointer*4))
-                            outfile.write("\n"+CurrentRef+"\n\n")
-                            #CurrentRef="".join(Text)
-                        #outfile.write("\n"+Hash+"\n"+CurrentRef+"\n\n")
-                Pointer+=1
-            if StringPointer != "":
-                file.seek((StringPointer+2)*4)
-                temp=binascii.hexlify(bytes(file.read())).decode()
-                temp=temp.split("00")
-                temp=binascii.unhexlify("20".join(temp)).decode()
-                outfile.write("\n\nDump\n\n"+temp)
-            outfile.close()
     Dev=open("mechout.txt","w")
     Dev.close()
     Dev=open("mechout.txt","a")
@@ -3488,6 +3946,7 @@ def DevRipper(entry,Answer):
                     else:
                         temp2=temp.split(" ")
                         
+                        Dev.write(File+"\n")
                         Dev.write("/".join(temp2)+"\n")
                 
                                    
@@ -3793,469 +4252,489 @@ def RipOwnStatic(Static,BufferData,H64Sort):
         #continue
     #print(outcount)
     start=binascii.hexlify(bytes(hex_to_little_endian(Static))).decode('utf-8')
-
-    new=ast.literal_eval("0x"+start)
-    pkg = Hex_String(Package_ID(new))
-    ent = Hex_String(Entry_ID(new))
-    Bank=pkg+"-"+ent+".model"
-    file=open(os.getcwd()+"/out/"+Bank,"rb")
-    mainData=binascii.hexlify(bytes(file.read())).decode()
-    file.seek(0x8)
-    s = binascii.hexlify(bytes(file.read(4))).decode()
-    file.seek(0x50)
-    x=binascii.hexlify(bytes(file.read(4))).decode()
-    xScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))[0]  #vert
-    y=binascii.hexlify(bytes(file.read(4))).decode()
-    yScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))[0]
-    z=binascii.hexlify(bytes(file.read(4))).decode()
-    zScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))[0]
-    MainData=[mainData[i:i+8] for i in range(0, len(mainData), 8)]
-    Materials=[]
-    FoundMat=False
-    flipped=binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')
-    new=ast.literal_eval("0x"+flipped)
-    SubFileU32=new
-    pkg = Hex_String(Package_ID(new))
-    ent = Hex_String(Entry_ID(new))
-    Bank=pkg+"-"+ent+".sub" #subfile
-    sub=open(os.getcwd()+"/out/"+Bank,"rb")
-    SubData=binascii.hexlify(bytes(sub.read())).decode()
-    sub.seek(0x4C)
-    Scale=binascii.hexlify(bytes(sub.read(4))).decode()
-    Scale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Scale))).decode('utf-8'))))[0]
-    sub.seek(0x50)
-    sub.seek(0x10)
-    MatTable=binascii.hexlify(bytes(sub.read(4))).decode()
-    MaterialData=[]
-    for Hash in MainData:
-        if Hash == "00000000":
-            continue
-        if FoundMat == True:
-            Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
-            if (Data[3] == "80") or (Data[3] == "81"):
-                Materials.append(Hash)
-        if Hash == "14008080":
-            FoundMat=True
-    #print(Materials)
-    if MatTable != "00000000":
-        MatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatTable))).decode('utf-8')))
-        sub.seek(16+MatOffset)
-        MatCount=binascii.hexlify(bytes(sub.read(4))).decode()
-        MatCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatCount))).decode('utf-8')))
-        sub.seek(16+MatOffset+16)
-        for i in range(MatCount):
-            MatDat=binascii.hexlify(bytes(sub.read(6))).decode()
-            MaterialData.append([ast.literal_eval("0x"+stripZeros(MatDat[:2])),Materials[i]])
-    #print(MaterialData)
-            
-            
-
-    DataHashes=[]
-    SubData=[SubData[i:i+8] for i in range(0, len(SubData), 8)]
-    count=0
-    for Hash in SubData:
-        if Hash == "366d8080":
-            SubData=SubData[count:]
-        count+=1
-    for Hash in SubData:
-        temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
-        if (temp[3] == "80") or (temp[3] == "81"):
-            if temp[2] != "80":
-            #isHash
-                flipped=binascii.hexlify(bytes(hex_to_little_endian("".join(temp)))).decode('utf-8')
-                DataHashes.append(flipped)  #index at 0 vert at 1
-    #print("MADE IT")
-    
-    if len(DataHashes) > 2:
-        #print("Finding UV")
-        sub.seek(0x48)
-        uvXScale=binascii.hexlify(bytes(sub.read(4))).decode()
-        uvXScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvXScale))).decode('utf-8')))[0]
+    exists=os.path.isfile(os.getcwd()+"/data/Statics/"+Static+".fbx")
+    if exists != True:
+        new=ast.literal_eval("0x"+start)
+        pkg = Hex_String(Package_ID(new))
+        ent = Hex_String(Entry_ID(new))
+        Bank=pkg+"-"+ent+".model"
+        file=open(os.getcwd()+"/out/"+Bank,"rb")
+        mainData=binascii.hexlify(bytes(file.read())).decode()
+        file.seek(0x8)
+        s = binascii.hexlify(bytes(file.read(4))).decode()
+        file.seek(0x50)
+        x=binascii.hexlify(bytes(file.read(4))).decode()
+        xScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))[0]  #vert
+        y=binascii.hexlify(bytes(file.read(4))).decode()
+        yScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))[0]
+        z=binascii.hexlify(bytes(file.read(4))).decode()
+        zScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))[0]
+        MainData=[mainData[i:i+8] for i in range(0, len(mainData), 8)]
+        Materials=[]
+        FoundMat=False
+        flipped=binascii.hexlify(bytes(hex_to_little_endian(s))).decode('utf-8')
+        new=ast.literal_eval("0x"+flipped)
+        SubFileU32=new
+        pkg = Hex_String(Package_ID(new))
+        ent = Hex_String(Entry_ID(new))
+        Bank=pkg+"-"+ent+".sub" #subfile
+        sub=open(os.getcwd()+"/out/"+Bank,"rb")
+        SubData=binascii.hexlify(bytes(sub.read())).decode()
+        sub.seek(0x4C)
+        Scale=binascii.hexlify(bytes(sub.read(4))).decode()
+        Scale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Scale))).decode('utf-8'))))[0]
         sub.seek(0x50)
-        uvYScale=binascii.hexlify(bytes(sub.read(4))).decode()
-        uvYScale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYScale))).decode('utf-8'))))[0]
-        uvXOff=binascii.hexlify(bytes(sub.read(4))).decode()
-        if uvXOff == "00000000":
-            uxXOff=0
-        else:
-            uvXOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvXOff))).decode('utf-8'))))[0]
-        uvYOff=binascii.hexlify(bytes(sub.read(4))).decode()
-        if uvYOff == "00000000":
-            uvYOff=0
-        else:
-            uvYOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYOff))).decode('utf-8'))))[0]
-        FindUV=True
-        FirstVert=False
-    tally=0
-    if len(DataHashes) >= 2:
-        indFound=False
-        vertFound=False
-        UVFound=False
-        VColorFound=False
-        Value=int(ast.literal_eval("0x"+DataHashes[0]))
-        Index=binary_search(BufferData, Value)
-        if Index != -1:
-            IndexName=BufferData[Index][0]+".index"
-            indFound=True
-        Value=int(ast.literal_eval("0x"+DataHashes[1]))
-        Index=binary_search(BufferData, Value)
-        if Index != -1:
-            VertexName=BufferData[Index][0]+".vert"
-            vertFound=True
-        if len(DataHashes) > 2:
-            Value=int(ast.literal_eval("0x"+DataHashes[2]))
-            Index=binary_search(BufferData, Value)
-            if Index != -1:
-                UVName=BufferData[Index][0]+".vert"
-                UVFound=True
-        if len(DataHashes) > 3:
-            Value=int(ast.literal_eval("0x"+DataHashes[3]))
-            Index=binary_search(BufferData, Value)
-            if Index != -1:
-                VColorName=BufferData[Index][0]+".vert"
-                VColorFound=True
-
-
-        
-        if (vertFound == True) and (indFound == True):
-            IndexHeader=int(ast.literal_eval("0x"+DataHashes[0]))
-            pkg = Hex_String(Package_ID(IndexHeader))
-            ent = Hex_String(Entry_ID(IndexHeader))
-            Bank=pkg+"-"+ent+".iheader"
-            U32Check=open(os.getcwd()+"/out/"+Bank,"rb")
-            IndexHeaderData=binascii.hexlify(bytes(U32Check.read())).decode()
-            verts=[]
-            #print("RUNNING")
-            norms=[]
-            Vert=open(os.getcwd()+"/out/"+VertexName,"rb")
-            #print(VertexBufferList[VertexFileOffset])
-            
-            for i in range(int(99999)):
-                s = binascii.hexlify(bytes(Vert.read(16))).decode()
-                if s == "":
-                    break
-                #print(s)
-                Data=[s[i:i+4] for i in range(0, len(s), 4)]
-                if len(Data) < 8:
-                    continue
-                x= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8'),16)/32767)*(Scale)
-                y= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8'),16)/32767)*(Scale)
-                z= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8'),16)/32767)*(Scale)
-                xNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8'),16)/32767)*(Scale*10)
-                yNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[4]))).decode('utf-8'),16)/32767)*(Scale*10)
-                zNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[5]))).decode('utf-8'),16)/32767)*(Scale*10)
-                wNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[6]))).decode('utf-8'),16)/32767)*(Scale*10)
-                verts.append([x,y,z])
-                norms.append([xNorm,yNorm,zNorm,wNorm])
-            #print(verts)
-            if UVFound == True:
-                UV=open(os.getcwd()+"/out/"+UVName,"rb")
-                Data=binascii.hexlify(bytes(UV.read())).decode()
-                Length=len(Data)/8
-                UV.seek(0)
-                UVData=[]
-                for i in range(int(999999)):
-                    Data=binascii.hexlify(bytes(UV.read(4))).decode()
-                    if Data == "":
-                        break
-                    Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
-                    U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),16)/32767) * float(uvYScale)) + float(uvXOff)
-                    V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),16)/32767) * float(uvYScale)*-1) - (float(uvYOff-1))
-                    #print(U,V)
-                    UVData.append([U,V])
-                
-            for Hash in MainData:
-                if Hash == "00000000":
-                    continue
-                if FoundMat == True:
-                    Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
-                    if (Data[3] == "80") or (Data[3] == "81"):
-                        if Hash not in Materials:
-                            Materials.append(Hash)
-                if Hash == "14008080":
-                    FoundMat=True
-            #ParseMaterials
-            MatRef=[]
-            for Material in Materials:
-                Mats=[]
-                flipped=binascii.hexlify(bytes(hex_to_little_endian(Material))).decode('utf-8')
-                new=ast.literal_eval("0x"+flipped)
-                pkg = Hex_String(Package_ID(new))
-                #print(result)
-                ent = Hex_String(Entry_ID(new))
-                MatBank=pkg+"-"+ent+".mat"
-                #print(MatBank)
+        sub.seek(0x10)
+        MatTable=binascii.hexlify(bytes(sub.read(4))).decode()
+        MaterialData=[]
+        for Hash in MainData:
+            if Hash == "00000000":
+                continue
+            if FoundMat == True:
+                Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+                if (Data[3] == "80") or (Data[3] == "81"):
+                    Materials.append(Hash)
+            if Hash == "14008080":
+                FoundMat=True
+        #print(Materials)
+        if MatTable != "00000000":
+            MatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatTable))).decode('utf-8')))
+            sub.seek(16+MatOffset)
+            MatCount=binascii.hexlify(bytes(sub.read(4))).decode()
+            MatCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(MatCount))).decode('utf-8')))
+            sub.seek(16+MatOffset+16)
+            for i in range(MatCount):
+                MatDat=binascii.hexlify(bytes(sub.read(6))).decode()
                 try:
-                    MatFile=open(os.getcwd()+"/out/"+MatBank,"rb")
-                except FileNotFoundError:
+                    MatDat[:2]
+                except IndexError:
                     continue
-                MatFile.seek(0x3E0)
-                Num=binascii.hexlify(bytes(MatFile.read(4))).decode()
-                Num=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Num))).decode('utf-8'))
-                if Num == "":
+                try:
+                    Materials[i]
+                except IndexError:
                     continue
-                Num=ast.literal_eval("0x"+Num)
-                MatFile.seek(0x3F0)
-                for i in range(Num):
-                    Mat=binascii.hexlify(bytes(MatFile.read(0x18))).decode()
-                    temp=[Mat[i:i+8] for i in range(0, len(Mat), 8)]
-                    #print(temp)
-                    try:
-                        temp[4]
-                    except IndexError:
+                MaterialData.append([ast.literal_eval("0x"+stripZeros(MatDat[:2])),Materials[i]])
+        #print(MaterialData)
+                
+                
+
+        DataHashes=[]
+        SubData=[SubData[i:i+8] for i in range(0, len(SubData), 8)]
+        count=0
+        for Hash in SubData:
+            if Hash == "366d8080":
+                SubData=SubData[count:]
+            count+=1
+        for Hash in SubData:
+            temp=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+            if (temp[3] == "80") or (temp[3] == "81"):
+                if temp[2] != "80":
+                #isHash
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian("".join(temp)))).decode('utf-8')
+                    DataHashes.append(flipped)  #index at 0 vert at 1
+        #print("MADE IT")
+        
+        if len(DataHashes) > 2:
+            #print("Finding UV")
+            sub.seek(0x48)
+            uvXScale=binascii.hexlify(bytes(sub.read(4))).decode()
+            uvXScale=struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(uvXScale))).decode('utf-8')))[0]
+            sub.seek(0x50)
+            uvYScale=binascii.hexlify(bytes(sub.read(4))).decode()
+            if uvYScale == "00000000":
+                uvYScale=0
+            else:
+                uvYScale=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYScale))).decode('utf-8'))))[0]
+            uvXOff=binascii.hexlify(bytes(sub.read(4))).decode()
+            if uvXOff == "00000000":
+                uxXOff=0
+            else:
+                uvXOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvXOff))).decode('utf-8'))))[0]
+            uvYOff=binascii.hexlify(bytes(sub.read(4))).decode()
+            if uvYOff == "00000000":
+                uvYOff=0
+            else:
+                uvYOff=struct.unpack('!f', bytes.fromhex(stripZeros(binascii.hexlify(bytes(hex_to_little_endian(uvYOff))).decode('utf-8'))))[0]
+            FindUV=True
+            FirstVert=False
+        tally=0
+        if len(DataHashes) >= 2:
+            indFound=False
+            vertFound=False
+            UVFound=False
+            VColorFound=False
+            Value=int(ast.literal_eval("0x"+DataHashes[0]))
+            Index=binary_search(BufferData, Value)
+            if Index != -1:
+                IndexName=BufferData[Index][0]+".index"
+                indFound=True
+            Value=int(ast.literal_eval("0x"+DataHashes[1]))
+            Index=binary_search(BufferData, Value)
+            if Index != -1:
+                VertexName=BufferData[Index][0]+".vert"
+                vertFound=True
+            if len(DataHashes) > 2:
+                Value=int(ast.literal_eval("0x"+DataHashes[2]))
+                Index=binary_search(BufferData, Value)
+                if Index != -1:
+                    UVName=BufferData[Index][0]+".vert"
+                    UVFound=True
+            if len(DataHashes) > 3:
+                Value=int(ast.literal_eval("0x"+DataHashes[3]))
+                Index=binary_search(BufferData, Value)
+                if Index != -1:
+                    VColorName=BufferData[Index][0]+".vert"
+                    VColorFound=True
+
+
+            
+            if (vertFound == True) and (indFound == True):
+                IndexHeader=int(ast.literal_eval("0x"+DataHashes[0]))
+                pkg = Hex_String(Package_ID(IndexHeader))
+                ent = Hex_String(Entry_ID(IndexHeader))
+                Bank=pkg+"-"+ent+".iheader"
+                U32Check=open(os.getcwd()+"/out/"+Bank,"rb")
+                IndexHeaderData=binascii.hexlify(bytes(U32Check.read())).decode()
+                verts=[]
+                #print("RUNNING")
+                norms=[]
+                Vert=open(os.getcwd()+"/out/"+VertexName,"rb")
+                #print(VertexBufferList[VertexFileOffset])
+                
+                for i in range(int(99999)):
+                    s = binascii.hexlify(bytes(Vert.read(16))).decode()
+                    if s == "":
+                        break
+                    #print(s)
+                    Data=[s[i:i+4] for i in range(0, len(s), 4)]
+                    if len(Data) < 8:
                         continue
-                    hashCheck=[temp[4][i:i+2] for i in range(0, len(temp[4]), 2)]
-                    if (hashCheck == "80") or (hashCheck == "81"):
-                        flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')
-                        new=ast.literal_eval="0x"+flipped
-                        pkg = Hex_String(Package_ID(new))
-                        #print(result)
-                        ent = Hex_String(Entry_ID(new))
-                        MatToAppend=pkg+"-"+ent
-                        if MatToAppend not in Mats:
-                            Mats.append(MatToAppend)
-                    else:
-                        h64=str(temp[4])+str(temp[5])
-                        flipped=binascii.hexlify(bytes(hex_to_little_endian(h64))).decode('utf-8')
-                        new=ast.literal_eval("0x"+flipped)
-                        MatToAppend=Hash64Search(H64Sort,new)
-                        if MatToAppend != False:
-                            new=ast.literal_eval(MatToAppend)
+                    x= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[0]))).decode('utf-8'),16)/32767)*(Scale)
+                    y= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[1]))).decode('utf-8'),16)/32767)*(Scale)
+                    z= (twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[2]))).decode('utf-8'),16)/32767)*(Scale)
+                    xNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    yNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[4]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    zNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[5]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    wNorm=(twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Data[6]))).decode('utf-8'),16)/32767)*(Scale*10)
+                    verts.append([x,y,z])
+                    norms.append([xNorm,yNorm,zNorm,wNorm])
+                #print(verts)
+                if UVFound == True:
+                    UV=open(os.getcwd()+"/out/"+UVName,"rb")
+                    Data=binascii.hexlify(bytes(UV.read())).decode()
+                    Length=len(Data)/8
+                    UV.seek(0)
+                    UVData=[]
+                    for i in range(int(999999)):
+                        Data=binascii.hexlify(bytes(UV.read(4))).decode()
+                        if Data == "":
+                            break
+                        Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
+                        U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),16)/32767) * float(uvYScale)) + float(uvXOff)
+                        V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),16)/32767) * float(uvYScale)*-1) - (float(uvYOff-1))
+                        #print(U,V)
+                        UVData.append([U,V])
+                    
+                for Hash in MainData:
+                    if Hash == "00000000":
+                        continue
+                    if FoundMat == True:
+                        Data=[Hash[i:i+2] for i in range(0, len(Hash), 2)]
+                        if (Data[3] == "80") or (Data[3] == "81"):
+                            if Hash not in Materials:
+                                Materials.append(Hash)
+                    if Hash == "14008080":
+                        FoundMat=True
+                #ParseMaterials
+                MatRef=[]
+                for Material in Materials:
+                    Mats=[]
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Material))).decode('utf-8')
+                    new=ast.literal_eval("0x"+flipped)
+                    pkg = Hex_String(Package_ID(new))
+                    #print(result)
+                    ent = Hex_String(Entry_ID(new))
+                    MatBank=pkg+"-"+ent+".mat"
+                    #print(MatBank)
+                    try:
+                        MatFile=open(os.getcwd()+"/out/"+MatBank,"rb")
+                    except FileNotFoundError:
+                        continue
+                    MatFile.seek(0x3E0)
+                    Num=binascii.hexlify(bytes(MatFile.read(4))).decode()
+                    Num=stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Num))).decode('utf-8'))
+                    if Num == "":
+                        continue
+                    Num=ast.literal_eval("0x"+Num)
+                    MatFile.seek(0x3F0)
+                    for i in range(Num):
+                        Mat=binascii.hexlify(bytes(MatFile.read(0x18))).decode()
+                        temp=[Mat[i:i+8] for i in range(0, len(Mat), 8)]
+                        #print(temp)
+                        try:
+                            temp[4]
+                        except IndexError:
+                            continue
+                        hashCheck=[temp[4][i:i+2] for i in range(0, len(temp[4]), 2)]
+                        if (hashCheck == "80") or (hashCheck == "81"):
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(temp[4]))).decode('utf-8')
+                            new=ast.literal_eval="0x"+flipped
                             pkg = Hex_String(Package_ID(new))
                             #print(result)
                             ent = Hex_String(Entry_ID(new))
                             MatToAppend=pkg+"-"+ent
                             if MatToAppend not in Mats:
                                 Mats.append(MatToAppend)
-                        
-                if Mats != []:
-                    MatRef.append([Material,Mats])
-            Parts=True
-            if Parts == True:
-                sub.seek(0x20)
-                Offset=binascii.hexlify(bytes(sub.read(4))).decode()
-                if Offset != "00000000":
-                    Offset=binascii.hexlify(bytes(hex_to_little_endian(Offset))).decode('utf-8')
-                    Offset=ast.literal_eval("0x"+stripZeros(Offset))
-                    sub.seek(32+Offset)
-                    Length=binascii.hexlify(bytes(sub.read(4))).decode()
-                    Length=binascii.hexlify(bytes(hex_to_little_endian(Length))).decode('utf-8')
-                    Length=ast.literal_eval("0x"+stripZeros(Length))
-                    sub.seek(48+Offset)
-                    PartData=[]
-                    PartLengths=[]
-                    for i in range(Length):
-                        PartDat=binascii.hexlify(bytes(sub.read(12))).decode()
-                        #if PartDat[21] == "1":
-                        PartData.append(PartDat)
-                        #print(PartDat)
-                        temp=[PartDat[i:i+8] for i in range(0, len(PartDat), 8)]
-                        if temp[0] != "00000000":
-                            
-                            PartLengths.append([ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8'))),PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
                         else:
-                            PartLengths.append([0,PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
-            new=ast.literal_eval("0x"+DataHashes[0])
-            new=new-1
-            pkg = Hex_String(Package_ID(new))
-            #print(result)
-            ent = Hex_String(Entry_ID(new))
-            Bank=pkg+"-"+ent+".index"
-            #ind=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
-            faces=[]
-            ind=open(os.getcwd()+"/out/"+IndexName,"rb")
-            ind.seek(0x0)
-            Length = binascii.hexlify(bytes(ind.read())).decode()
-            ind.seek(0x0)
-            #print(IndexBufferList[IndexFileOffset])
-            #print(VertexBufferList[VertexFileOffset])
-
-            #print(faces[len(faces)-1]) 
-            
-            if VColorFound == True:
-                VColData=[]
-                VColor=open(os.getcwd()+"/out/"+VColorName,"rb")
-                for i in range(int(999999)):
-                    Data=binascii.hexlify(bytes(UV.read(4))).decode()
-                    if Data == "":
-                        break
-                    Uvs=[Data[i:i+2] for i in range(0, len(Data), 2)]
-                    x=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),8)
-                    y=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),8)
-                    z=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[2]))).decode('utf-8'),8)
-                    w=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[3]))).decode('utf-8'),8)
-                    #print(U,V)
-                    VColData.append([x,y,z,w])
-            memory_manager = fbx.FbxManager.Create()
-            scene = fbx.FbxScene.Create(memory_manager, '')
-            count99=0
-            MaxDetail=ast.literal_eval("0x"+PartLengths[0][1])
-            for Part in PartLengths:
-                #print(Part)
-                Detail=ast.literal_eval("0x"+Part[1])
-                if Detail != MaxDetail:
-                    #print("broke")
-                    break
-                my_mesh = fbx.FbxMesh.Create(scene, Static+"_"+str(count99))
-                count=0
-                
-                Length = binascii.hexlify(bytes(ind.read())).decode()
-                ind.seek(int(Part[0]*2))
+                            h64=str(temp[4])+str(temp[5])
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(h64))).decode('utf-8')
+                            new=ast.literal_eval("0x"+flipped)
+                            MatToAppend=Hash64Search(H64Sort,new)
+                            if MatToAppend != False:
+                                new=ast.literal_eval(MatToAppend)
+                                pkg = Hex_String(Package_ID(new))
+                                #print(result)
+                                ent = Hex_String(Entry_ID(new))
+                                MatToAppend=pkg+"-"+ent
+                                if MatToAppend not in Mats:
+                                    Mats.append(MatToAppend)
+                            
+                    if Mats != []:
+                        MatRef.append([Material,Mats])
+                Parts=True
+                if Parts == True:
+                    sub.seek(0x20)
+                    Offset=binascii.hexlify(bytes(sub.read(4))).decode()
+                    if Offset != "00000000":
+                        Offset=binascii.hexlify(bytes(hex_to_little_endian(Offset))).decode('utf-8')
+                        Offset=ast.literal_eval("0x"+stripZeros(Offset))
+                        sub.seek(32+Offset)
+                        Length=binascii.hexlify(bytes(sub.read(4))).decode()
+                        Length=binascii.hexlify(bytes(hex_to_little_endian(Length))).decode('utf-8')
+                        Length=ast.literal_eval("0x"+stripZeros(Length))
+                        sub.seek(48+Offset)
+                        PartData=[]
+                        PartLengths=[]
+                        for i in range(Length):
+                            PartDat=binascii.hexlify(bytes(sub.read(12))).decode()
+                            #if PartDat[21] == "1":
+                            PartData.append(PartDat)
+                            #print(PartDat)
+                            temp=[PartDat[i:i+8] for i in range(0, len(PartDat), 8)]
+                            if temp[0] != "00000000":
+                                
+                                PartLengths.append([ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8'))),PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
+                            else:
+                                PartLengths.append([0,PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
+                new=ast.literal_eval("0x"+DataHashes[0])
+                new=new-1
+                pkg = Hex_String(Package_ID(new))
+                #print(result)
+                ent = Hex_String(Entry_ID(new))
+                Bank=pkg+"-"+ent+".index"
+                #ind=open(os.getcwd()+"/data/"+Bank,"rb") #hash +1???
                 faces=[]
-                #print(IndexHeaderData)
-                if IndexHeaderData[3] == "1":
-                    ReadLen=4
-                else:
-                    ReadLen=2
-                #print(ReadLen)
-                for i in range(round(Part[2]/3)):
-                    x = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                    if x == "":
+                ind=open(os.getcwd()+"/out/"+IndexName,"rb")
+                ind.seek(0x0)
+                Length = binascii.hexlify(bytes(ind.read())).decode()
+                ind.seek(0x0)
+                #print(IndexBufferList[IndexFileOffset])
+                #print(VertexBufferList[VertexFileOffset])
+
+                #print(faces[len(faces)-1]) 
+                
+                if VColorFound == True:
+                    VColData=[]
+                    VColor=open(os.getcwd()+"/out/"+VColorName,"rb")
+                    for i in range(int(999999)):
+                        Data=binascii.hexlify(bytes(UV.read(4))).decode()
+                        if Data == "":
+                            break
+                        Uvs=[Data[i:i+2] for i in range(0, len(Data), 2)]
+                        x=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[0]))).decode('utf-8'),8)
+                        y=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[1]))).decode('utf-8'),8)
+                        z=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[2]))).decode('utf-8'),8)
+                        w=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[3]))).decode('utf-8'),8)
+                        #print(U,V)
+                        VColData.append([x,y,z,w])
+                memory_manager = fbx.FbxManager.Create()
+                scene = fbx.FbxScene.Create(memory_manager, '')
+                count99=0
+                MaxDetail=ast.literal_eval("0x"+PartLengths[0][1])
+                for Part in PartLengths:
+                    #print(Part)
+                    Detail=ast.literal_eval("0x"+Part[1])
+                    if Detail != MaxDetail:
+                        #print("broke")
                         break
-                    x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))
-                    y = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                    if y == "":
-                        break
-                    y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))
-                    z = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                    if z == "":
-                        break
-                    z=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))
+                    my_mesh = fbx.FbxMesh.Create(scene, Static+"_"+str(count99))
+                    count=0
                     
-                    faces.append([x,y,z])
-                #print(faces)
-                #print(verts)
-                #print(len(verts))
-                usedVerts=[]
-                tempCheck=[]
-                count5=0
-                #print(verts)
-                for Face in faces:
-                    for Val in Face:
+                    Length = binascii.hexlify(bytes(ind.read())).decode()
+                    ind.seek(int(Part[0]*2))
+                    faces=[]
+                    #print(IndexHeaderData)
+                    if IndexHeaderData[3] == "1":
+                        ReadLen=4
+                    else:
+                        ReadLen=2
+                    #print(ReadLen)
+                    for i in range(round(Part[2]/3)):
+                        x = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
+                        if x == "":
+                            break
+                        x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))
+                        y = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
+                        if y == "":
+                            break
+                        y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))
+                        z = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
+                        if z == "":
+                            break
+                        z=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))
+                        
+                        faces.append([x,y,z])
+                    #print(faces)
+                    #print(verts)
+                    #print(len(verts))
+                    usedVerts=[]
+                    tempCheck=[]
+                    count5=0
+                    #print(verts)
+                    for Face in faces:
+                        for Val in Face:
+                            try:
+                                verts[int(Val)]
+                            except IndexError:
+                                continue
+                            if int(Val) not in tempCheck:
+                                usedVerts.append([verts[int(Val)],int(Val)])
+                                tempCheck.append(int(Val))
+                    for Face in usedVerts:
+                        Face.append(count5)
+                        count5+=1
+                            
+                            
+                    count=0
+
+                    usedVerts.sort(key=lambda x: x[1])
+                    my_mesh.InitControlPoints(len(usedVerts))
+                    for Set in usedVerts:
+                        v = fbx.FbxVector4(Set[0][0]+xScale, Set[0][1]+yScale, Set[0][2]+zScale)
+                        my_mesh.SetControlPointAt( v, count )
+                        count+=1
+                    for Face in faces:
+                        my_mesh.BeginPolygon()
+                        for Val in Face:
+                            vertex_index = binary_search(usedVerts,int(Val))
+                            my_mesh.AddPolygon(vertex_index)
+                        my_mesh.EndPolygon()#################################IDK CHANGE IF BROke
+                            
+                    cubeLocation = (0, 0, 0)
+                    cubeScale    = (Scale, Scale, Scale)
+
+                    newNode = addNode(scene, Static+"_"+str(count99), location = cubeLocation)
+                    rootNode = scene.GetRootNode()
+                    #rootNode.LclTranslation.set(fbx.FbxDouble3(xScale, yScale, zScale))
+                    rootNode.AddChild( newNode )
+
+                    newNode.SetNodeAttribute( my_mesh )
+                    newNode.ScalingActive.Set(1)
+                    px = fbx.FbxDouble3(1, 1, 1)
+                    if UVFound == True:
+                        
+                        layer = my_mesh.GetLayer(0)
+                        uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
+                        uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                        uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                        for Vert in usedVerts:
+                            Pos=Vert[1]
+                            try:
+                                UVData[Pos]
+                            except IndexError:
+                                continue
+                            uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Pos][0]),float(UVData[Pos][1])))
+            #for UV in UVData:
+                        count=0
                         try:
-                            verts[int(Val)]
-                        except IndexError:
-                            continue
-                        if int(Val) not in tempCheck:
-                            usedVerts.append([verts[int(Val)],int(Val)])
-                            tempCheck.append(int(Val))
-                for Face in usedVerts:
-                    Face.append(count5)
-                    count5+=1
+                            layer.SetUVs(uvLayer)
+                        except AttributeError:
+                            u=1
+                    normLayer = fbx.FbxLayerElementNormal.Create(my_mesh, Static)
+                    normLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                    normLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                    colorLayer=fbx.FbxLayerElementVertexColor.Create(my_mesh, Static)
+                    colorLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+                    colorLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                    if VColorFound == True:
+                        for Vert in usedVerts:
+                            try:
+                                Pos=Vert[1]
+                            except IndexError:
+                                continue
+                            try:
+                                VColData[Pos]
+                            except IndexError:
+                                continue
+                            colorLayer.GetDirectArray().Add(fbx.FbxVector4(VColData[Pos][0],VColData[Pos][1],VColData[Pos][2],VColData[Pos][3]))
                         
-                        
-                count=0
-
-                usedVerts.sort(key=lambda x: x[1])
-                my_mesh.InitControlPoints(len(usedVerts))
-                for Set in usedVerts:
-                    v = fbx.FbxVector4(Set[0][0]+xScale, Set[0][1]+yScale, Set[0][2]+zScale)
-                    my_mesh.SetControlPointAt( v, count )
-                    count+=1
-                for Face in faces:
-                    my_mesh.BeginPolygon()
-                    for Val in Face:
-                        vertex_index = binary_search(usedVerts,int(Val))
-                        my_mesh.AddPolygon(vertex_index)
-                    my_mesh.EndPolygon()#################################IDK CHANGE IF BROke
-                        
-                cubeLocation = (0, 0, 0)
-                cubeScale    = (Scale, Scale, Scale)
-
-                newNode = addNode(scene, Static+"_"+str(count99), location = cubeLocation)
-                rootNode = scene.GetRootNode()
-                #rootNode.LclTranslation.set(fbx.FbxDouble3(xScale, yScale, zScale))
-                rootNode.AddChild( newNode )
-
-                newNode.SetNodeAttribute( my_mesh )
-                newNode.ScalingActive.Set(1)
-                px = fbx.FbxDouble3(1, 1, 1)
-                if UVFound == True:
                     
-                    layer = my_mesh.GetLayer(0)
-                    uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
-                    uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
-                    uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+                    # Create the materials.
+                    # Each polygon face will be assigned a unique material.
+                    count=0
+                    lLayer = my_mesh.GetLayer(0)
+                    
                     for Vert in usedVerts:
                         Pos=Vert[1]
-                        try:
-                            UVData[Pos]
-                        except IndexError:
-                            continue
-                        uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Pos][0]),float(UVData[Pos][1])))
-        #for UV in UVData:
-                    count=0
-                    try:
-                        layer.SetUVs(uvLayer)
-                    except AttributeError:
-                        u=1
-                normLayer = fbx.FbxLayerElementNormal.Create(my_mesh, Static)
-                normLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
-                normLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
-                colorLayer=fbx.FbxLayerElementVertexColor.Create(my_mesh, Static)
-                colorLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
-                colorLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
-                if VColorFound == True:
-                    for Vert in usedVerts:
-                        try:
-                            Pos=Vert[1]
-                        except IndexError:
-                            continue
-                        try:
-                            VColData[Pos]
-                        except IndexError:
-                            continue
-                        colorLayer.GetDirectArray().Add(fbx.FbxVector4(VColData[Pos][0],VColData[Pos][1],VColData[Pos][2],VColData[Pos][3]))
-                    
+                        normLayer.GetDirectArray().Add(fbx.FbxVector4(norms[Pos][0],norms[Pos][1],norms[Pos][2],norms[Pos][3]))
+                        
+                    count99+=1
                 
-                # Create the materials.
-                # Each polygon face will be assigned a unique material.
-                count=0
-                lLayer = my_mesh.GetLayer(0)
-                
-                for Vert in usedVerts:
-                    Pos=Vert[1]
-                    normLayer.GetDirectArray().Add(fbx.FbxVector4(norms[Pos][0],norms[Pos][1],norms[Pos][2],norms[Pos][3]))
-                    
-                count99+=1
-            
-            filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
-            FbxCommon.SaveScene(memory_manager, scene, filename)
-            memory_manager.Destroy()
-            countMat=0
-            if len(MaterialData) > 0:
-                MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
-                #print(MaterialData)
-                #print(MatRef)
-                for i in range(count99):
-                    for Mat in MaterialData:
-                        if int(Mat[0]) == int(countMat):
-                            CheckName=Mat[1]
-                            for Texs in MatRef:
-                                #print(Texs)
-                                if CheckName == Texs[0]:
-                                    for Texture in Texs[1]:
-                                        if Texture not in TexturesToRip:
-                                            TexturesToRip.append(Texture)
-                                    Textures=",".join(Texs[1])
-                                    MatOut.write(Static+"_"+str(countMat)+" : "+Mat[1]+" : "+Textures+"\n")
-                                    break
-                    countMat+=1
-                MatOut.close()
-        else:
-            print(Static)
-            print("Fucked it")
+                filename = os.getcwd()+"\\data\\Statics\\"+Static+".fbx"
+                FbxCommon.SaveScene(memory_manager, scene, filename)
+                memory_manager.Destroy()
+                countMat=0
+                if len(MaterialData) > 0:
+                    MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
+                    #print(MaterialData)
+                    #print(MatRef)
+                    for i in range(count99):
+                        for Mat in MaterialData:
+                            if int(Mat[0]) == int(countMat):
+                                CheckName=Mat[1]
+                                for Texs in MatRef:
+                                    #print(Texs)
+                                    if CheckName == Texs[0]:
+                                        for Texture in Texs[1]:
+                                            if Texture not in TexturesToRip:
+                                                TexturesToRip.append(Texture)
+                                        Textures=",".join(Texs[1])
+                                        MatOut.write(Static+"_"+str(countMat)+" : "+Mat[1]+" : "+Textures+"\n")
+                                        break
+                        countMat+=1
+                    MatOut.close()
+            else:
+                print(Static)
+                print("Fucked it")
 
 def GeneratePackageCache():
     PackageCache=[]
-    for File in os.listdir(path):
+    Packages=os.listdir(path)
+    Packages.sort(reverse=True)
+    usedIds=[]
+    for File in Packages:
         temp=File.split("_")
         try:
             ID=ast.literal_eval("0x"+stripZeros(temp[len(temp)-2]))
         except SyntaxError:
             continue
-        if [File,ID] not in PackageCache:
+        if ID not in usedIds:
             PackageCache.append([File,ID])
+            usedIds.append(ID)
+    #newPackageCache=[]
+    #for Entry in newPackageCache:
+    #    ID=Entry[0]
+    PackageCache.sort(key=lambda x: x[1])
     return PackageCache
             
         
@@ -4274,12 +4753,38 @@ def RipTexture(Texture,PackageCache):
         Package=PackageCache[Index][0]
         Header=ExtractSingleEntry.unpack_entry(path,custom_direc,Package,Texture.split("-")[1])
         Hash=Header[120:]
-        Hash=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8'))
+        if Hash == "ffffffff":
+            Hash=ExtractSingleEntry.GetEntryA(path,custom_direc,Package,Texture.split("-")[1])
+            #print(Hash)
+            Hash=ast.literal_eval(Hash)
+        else:
+            Hash=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8'))
         pkg = Hex_String(Package_ID(int(Hash)))
         ent = Hex_String(Entry_ID(int(Hash)))
         Package2=GetPackageName(pkg)
         Main=ExtractSingleEntry.unpack_entry(path,custom_direc,Package2,ent)
         Tex=DDS(Texture,"Norm",Header,Main,os.getcwd()+"/data/Textures")
+def RipCube(Texture,PackageCache):
+    Existing=False
+    if Existing != True:
+        ID=ast.literal_eval("0x"+Texture.split("-")[0])
+        Index=binary_search(PackageCache,ID)
+        Package=PackageCache[Index][0]
+        Header=ExtractSingleEntry.unpack_entry(path,custom_direc,Package,Texture.split("-")[1])
+        Hash=Header[120:]
+        print(Hash)
+        if Hash == "ffffffff":
+            Hash=ExtractSingleEntry.GetEntryA(path,custom_direc,Package,Texture.split("-")[1])
+            print(Hash)
+            Hash=ast.literal_eval(Hash)
+        else:
+            Hash=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8'))
+        #Hash=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8'))
+        pkg = Hex_String(Package_ID(int(Hash)))
+        ent = Hex_String(Entry_ID(int(Hash)))
+        Package2=GetPackageName(pkg)
+        Main=ExtractSingleEntry.unpack_entry(path,custom_direc,Package2,ent)
+        Tex=DDS(Texture,"Cube",Header,Main,os.getcwd()+"/data/Textures")
         
 
 def SortH64(Hash64Data):
@@ -4399,21 +4904,19 @@ def LoadNames(top,ActId,ActName):
     file=open(os.getcwd()+"/cache/ActivityHashes.txt","r")
     Data=file.read().split("\n")
     file.close()
+    Hash64Data=SortH64(ReadHash64())
     for Act in Data:
         temp=Act.split(" : ")
         #print(temp)
         if ActName == temp[1]:
             StringContainer=temp[3]
             break
-    Hash64Data=ReadHash64()
-    for Line1 in Hash64Data:
-        Lines=Line1.split(": ")
-        #print(Lines)
-        if Lines[0].lower() == str("0x"+StringContainer):
-            Ref=Lines[1]
-            num=ast.literal_eval(Ref)
-            StrRef=Hex_String(Package_ID(num)).upper()+"-"+Hex_String(Entry_ID(num)).upper()
-            break
+    StringContainer=ast.literal_eval("0x"+StringContainer)
+    Index=Hash64Search(Hash64Data,int(StringContainer))
+    if Index != False:
+        Ref=Index
+        num=ast.literal_eval(Ref)
+        StrRef=Hex_String(Package_ID(num)).upper()+"-"+Hex_String(Entry_ID(num)).upper()
     LoadNames=[]
     file=open(os.getcwd()+"/cache/output.txt","r")
     data=file.read()
@@ -4450,6 +4953,7 @@ def LoadNames(top,ActId,ActName):
                 DataSplit=[Data[i:i+16] for i in range(0, len(Data), 16)]
                 if ActId in DataSplit:
                     file=open(custom_direc+"/"+File,"rb")
+                    print(File)
                     Hash=binascii.hexlify(bytes(file.read(4))).decode()
                     flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
                     new=ast.literal_eval("0x"+stripZeros(flipped))
@@ -4462,75 +4966,66 @@ def LoadNames(top,ActId,ActName):
                             file.read(12)
                             MapHash=binascii.hexlify(bytes(file.read(8))).decode()
                             flipped=binascii.hexlify(bytes(hex_to_little_endian(MapHash))).decode('utf-8')
-                            MapHashes.append(flipped)
+                            #MapHashes.append(flipped)
                             currentPointer+=8
                     file=open(custom_direc+"/"+File,"rb")
-                    Data=binascii.hexlify(bytes(file.read())).decode()
-                    file.close()
-                    DataSplit=[Data[i:i+8] for i in range(0, len(Data), 8)]
-                    for Hash in DataSplit:
-                        if "0000" not in Hash:
-                            dat=StringHash(Hash,newStrData,StrRef)
+                    file.seek(0x50)
+                    LoadCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(4))).decode()))).decode('utf-8')))
+                    file.seek(0x58)
+                    NameOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(4))).decode()))).decode('utf-8')))
+                    file.seek(0x58+NameOffset+16)
+                    for i in range(LoadCount):
+                        file.seek(0x58+NameOffset+16+(i*0x38))
+                        temp=binascii.hexlify(bytes(file.read(0x38))).decode()
+                        s=[temp[i:i+8] for i in range(0, len(temp), 8)]
+                        LoadN=s[2]
+                        print(str(i)+" "+str(s))
+                        ReferenceOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(s[12]))).decode('utf-8')))
+                        file.seek(0x58+NameOffset+16+(i*0x38)+0x30+ReferenceOffset+0x18)
+                        MapReference=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(file.read(8))).decode()))).decode('utf-8')
+                        #MapHashes.append(MapReference)
+                        Val=ast.literal_eval("0x"+stripZeros(MapReference))
+                        Index=Hash64Search(Hash64Data,int(Val))
+                        if Index != False:
+                            print("MATCH")
+                            LhashFile=Index
+                            num=ast.literal_eval(LhashFile)
+                            name=Hex_String(Package_ID(num))+"-"+Hex_String(Entry_ID(num))+".top"
+                            file2=open(custom_direc+"/"+name,"rb")#.top
+                            file2.seek(0x8)
+                            Hash=binascii.hexlify(bytes(file2.read(4))).decode()
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+                            new=ast.literal_eval("0x"+flipped)
+                            RefHash=Hex_String(Package_ID(new))+"-"+Hex_String(Entry_ID(new))+".mref"
+                            file2.seek(0x18)
+                            Hash=binascii.hexlify(bytes(file2.read(4))).decode()
+                            file2.close()
+                            flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+                            new=ast.literal_eval("0x"+flipped)
+                            print(s[2])
+                            dat=StringHash(s[2],newStrData,StrRef)
+                            print(dat)
                             if dat != False:
-                                if dat not in OrderedLoads:
-                                    OrderedLoads.append(dat)
+                                LoadNames.append([str([dat]),name,RefHash])
+                            else:
+                                LoadNames.append([str([s[2]]),name,RefHash])
+
+
+
+                    #DataSplit=[Data[i:i+8] for i in range(0, len(Data), 8)]
+                    #for Hash in DataSplit:
+                    #    if "0000" not in Hash:
+                    #        dat=StringHash(Hash,newStrData,StrRef)
+                    #        if dat != False:
+                    #            if dat not in OrderedLoads:
+                    #                OrderedLoads.append(dat)
                             
                              
-    TopNames=[]
-    Hash64Data=ReadHash64()
-    for Map in MapHashes:
-        for Line1 in Hash64Data:
-            Lines=Line1.split(": ")
-            #print(Lines)
-            #print(Lines)
-            Hash="0x"+str(Map)
-            #print(Hash)
-            if str(Lines[0].lower()) == Hash:
-                print("MATCH")
-                LhashFile=Lines[1]
-                num=ast.literal_eval(LhashFile)
-                name=Hex_String(Package_ID(num))+"-"+Hex_String(Entry_ID(num))+".top"
-                TopNames.append(name.lower())
-                
-                
-                break
-    print(MapHashes)
-    print(TopNames)
-    #time.sleep(60)
-    for File in os.listdir(custom_direc):
-        if File != "audio":
-             if File.lower() in TopNames:
-                 file=open(custom_direc+"/"+File,"rb")
-                 file.seek(0x8)
-                 Hash=binascii.hexlify(bytes(file.read(4))).decode()
-                 flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
-                 new=ast.literal_eval("0x"+flipped)
-                 RefHash=Hex_String(Package_ID(new))+"-"+Hex_String(Entry_ID(new))+".mref"
-                 file.seek(0x18)
-                 Hash=binascii.hexlify(bytes(file.read(4))).decode()
-                 file.close()
-                 flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
-                 new=ast.literal_eval("0x"+flipped)
-                 LoadHash=new
-                 StringTxt=""
-                 possibleNames=[]
-                 for String in StrData:
-                     Lines=String.split(" // ")
-                     try:
-                         Lines[1]
-                     except IndexError:
-                         pass
-                     else:
-                         if Lines[1] == str(new):
-                             if Lines[0] == StrRef:
-                                 StringTxt=Lines[2]
-                                 possibleNames.append(StringTxt)
-                             
-                 LoadNames.append([str([possibleNames]),File,RefHash])
+    print(LoadNames)
     count=0
     for Load in LoadNames:
         file=open(custom_direc+"/"+Load[2],"rb")#mref
-        print(Load[2])
+        print(Load[0])
         Data=binascii.hexlify(bytes(file.read())).decode()
         data=[Data[i:i+32] for i in range(0, len(Data), 32)]
         file.close() ##############################################################################################
@@ -4543,27 +5038,14 @@ def LoadNames(top,ActId,ActName):
                 Hash=str(split[2])+str(split[3])
                 flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
                 #print(flipped)
-                for Line1 in Hash64Data:
-                    Lines=Line1.split(": ")
-                    #print(Lines)
-                    if Lines[0].lower() == str("0x"+flipped):
-                        LhashFile=Lines[1]
-                        LoadNames[count].append(LhashFile)
-                        break
+                Val=ast.literal_eval("0x"+flipped)
+                Index=Hash64Search(Hash64Data,int(Val))
+                if Index != False:
+                    LhashFile=Index
+                    LoadNames[count].append(LhashFile)
+                        #break
         count+=1
     newLoadNames=[]
-    #print(OrderedLoads)
-    #for Load in OrderedLoads:
-    #    for LoadName in LoadNames:
-    #        if Load in LoadName[0]:
-    #            newLoadNames.append(LoadName)
-    #            break
-        
-            
-        
-            
-    #print(LoadNames)
-    #LoadNames=newLoadNames
     count=0    
     for Load in LoadNames:
         count+=1
@@ -4582,6 +5064,8 @@ def LoadNames(top,ActId,ActName):
     combo_box.place(x=500, y=125)
     Map = Button(top, text="Extract Load", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,True))
     Map.place(x=500, y=400)
+    EntityScrape = Button(top, text="Extract Entities", height=1, width=30,command=partial(EntityScraper,LoadNames))
+    EntityScrape.place(x=500, y=450)
     Map2 = Button(top, text="Extract Map (No Dyn)", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,False))
     Map2.place(x=500, y=350)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
@@ -4597,7 +5081,69 @@ def LoadNames(top,ActId,ActName):
 
     top.mainloop()
 
-
+def EntityScraper(LoadNames):
+    Outfile=open(os.getcwd()+"/data/EntityBulk.txt","w")
+    Outfile.close()
+    for file in os.listdir(os.getcwd()+"/out"):
+        if file == "audio":
+            continue
+        if file.split(".")[1] == "entityscript":
+            #print(file)
+            Outfile=open(os.getcwd()+"/data/EntityBulk.txt","a")
+            File=open(os.getcwd()+"/out/"+file,"rb")
+            while True:
+                Line=binascii.hexlify(bytes(File.read(16))).decode()
+                if int(len(Line)) < 32:
+                    File.close()
+                    break
+                LineData=[Line[i:i+8] for i in range(0, len(Line), 8)]
+                if "05998080" in LineData:
+                    Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(LineData[0]))).decode('utf-8')))
+                    EntityIDs=[]
+                    for i in range(Count):
+                        PhaseData=binascii.hexlify(bytes(File.read(16))).decode()
+                        PhaseSplit=[PhaseData[i:i+16] for i in range(0, len(PhaseData), 16)]
+                        EntityIDs.append(PhaseSplit[1])
+                    EndingPlacement=File.tell()
+                    File.seek(0x80)
+                    NameHash=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(File.read(4))).decode()))).decode('utf-8')))
+                    PkgID=Hex_String(Package_ID(NameHash))
+                    EntryID=Hex_String(Entry_ID(NameHash))
+                    DirName=PkgID+"-"+EntryID+".entitynames"
+                    NameFile=open(os.getcwd()+"/out/"+DirName,"rb")
+                    NameFileData=binascii.hexlify(bytes(NameFile.read())).decode()
+                    NameFileData=[NameFileData[i:i+8] for i in range(0, len(NameFileData), 8)]
+                    NameCount=0
+                    StringFound=False
+                    for Hash in NameFileData:
+                        if Hash == "65008080":
+                            StringFound=True
+                            NameFile.seek((NameCount+3)*4)
+                        NameCount+=1
+                    RawString=NameFile.read()
+                    #print(RawString)
+                    if StringFound == True:
+                        RawString=binascii.hexlify(bytes(RawString)).decode()
+                        SplitString=[RawString[i:i+2] for i in range(0, len(RawString), 2)]
+                        tempBuffer=[]
+                        EntityNames=[]
+                        for Val in SplitString:
+                            if Val == "00":
+                                String=binascii.unhexlify("".join(tempBuffer)).decode()
+                                EntityNames.append(String)
+                                tempBuffer=[]
+                                continue
+                            tempBuffer.append(Val)
+                        for j in range(len(EntityIDs)):
+                            try:
+                                EntityNames[j]
+                            except IndexError:
+                                continue
+                            Outfile.write(EntityIDs[j]+" : "+EntityNames[j]+"\n")
+                    File.seek(EndingPlacement)
+                if "65008080" in LineData:
+                    ScriptName=File.read().decode()
+            Outfile.close()
 
 def MapExtractor(entry,LoadNames,Dyns):
     things=entry.get().split(" ")
@@ -4728,22 +5274,8 @@ def MapExtractor(entry,LoadNames,Dyns):
                                                 File.seek(File.tell()+4)
                                                 if binascii.hexlify(bytes(File.read(4))).decode() != "7d6c8080":
                                                     break
-                                            
-
-
-
-
-                                        
-                                        
-                                   
-                
-        
-        #print(Dts)
-                                            
-    print(refs)                                   
-    #print(LoadFiles)                                       
-    #ans2=int(input("Enter which Load to extract from: "))
-    #print(TerrainHashes)
+                                        #elif Ref == "b58c8080":    #spawnpoints
+                                        #95 66 80 80 is cubemap resource
     InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns,TerrainHashes)
 def GetTextures(PackageCache):
     TexturesToRip=[]
@@ -4829,7 +5361,7 @@ def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes):
                 continue
             if File.split(".")[1] == "dt":
                 DataTables.append(File)
-        _args = [(Name,H64Sort) for Name in DataTables]
+        _args = [(Name,H64Sort,"") for Name in DataTables]
         t_pool.starmap(
             PullMechanicStructs, 
             _args)
@@ -4847,89 +5379,188 @@ def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes):
 def RipTerrain(Hashes,Pool):
     #print(Hashes)
     Terrain.ExtractTerrain(os.getcwd(),Hashes)
-def PullMechanicStructs(file,H64Sort):
+def PullMechanicStructs(file,H64Sort,Name):
     ExtractedHashes=[]
     DynNames=[]
-    Test=open(os.getcwd()+"/out/"+file,"rb")
-    Test.seek(0x20)
-    count=binascii.hexlify(bytes(Test.read(4))).decode()
-    
-    if len(list(count)) == 8:
-        count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
-        StartingOffset=48
-        Test.seek(48)
-        for i in range(count):
-            Test.seek(48+(i*144)+48)
-            Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
-            flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
-            try:
-                num=ast.literal_eval("0x"+flipped)
-            except SyntaxError:
-                Test.close()
-                continue
-            Check=Hash64Search2(H64Sort,num)
-            
-            if Check != False:
-                flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
-                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
-                if Exists != True:
-                    if DynNames != []:
-                        index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
+    try:
+        Test=open(os.getcwd()+"/out/"+file,"rb")
+    except FileNotFoundError:
+        print("FileNotExtracted")
+    else:
+        Test.seek(0x20)
+        count=binascii.hexlify(bytes(Test.read(4))).decode()
+        if len(list(count)) == 8:
+            count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
+            StartingOffset=48
+            Test.seek(48)
+            for i in range(count):
+                Test.seek(48+(i*144)+48)
+                Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
+                try:
+                    num=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    Test.close()
+                    continue
+                Check=Hash64Search2(H64Sort,num)
+                
+                if Check != False:
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    if Exists != True:
+                        if DynNames != []:
+                            index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
+                        else:
+                            index=-1
+                        if index == -1:
+                            PullDyn(str(flipped))
+                            DynNames.append(int(ast.literal_eval("0x"+flipped)))
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    file2=open(os.getcwd()+"/data/EntityNameScripts.txt","a")
+                    file2.write(flipped.lower()+" : "+Name+"\n")
+                    file2.close()
+                    file1=open(os.getcwd()+"/data/DynInstances/"+flipped.lower()+".inst","a")
+                    Test.seek(48+(i*144))
+                    rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
+                    Test.seek(48+(i*144)+112)
+                    ObjectUUID=binascii.hexlify(bytes(Test.read(8))).decode()
+                    #print(PosX)
+                    if PosX != "00000000":
+                        PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
                     else:
-                        index=-1
-                    if index == -1:
-                        PullDyn(str(flipped))
-                        DynNames.append(int(ast.literal_eval("0x"+flipped)))
-                Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
-                file1=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
-                Test.seek(48+(i*144))
-                rotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                rotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                rotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                rotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
-                #print(PosX)
-                if PosX != "00000000":
-                    PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
-                else:
-                    PosX=0
-                if PosY != "00000000":
-                    PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
-                else:
-                    PosY=0
-                if PosZ != "00000000":
-                    PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
-                else:
-                    PosZ=0
-                if rotX != "00000000":
-                    rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
-                else:
-                    rotX=0
-                if rotY != "00000000":
-                    rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
-                else:
-                    rotY=0
-                if rotZ != "00000000":
-                    rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
-                else:
-                    rotZ=0
-                if rotW != "00000000":
-                    rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
-                else:
-                    rotW=0
+                        PosX=0
+                    if PosY != "00000000":
+                        PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                    else:
+                        PosY=0
+                    if PosZ != "00000000":
+                        PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                    else:
+                        PosZ=0
+                    if rotX != "00000000":
+                        rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
+                    else:
+                        rotX=0
+                    if rotY != "00000000":
+                        rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
+                    else:
+                        rotY=0
+                    if rotZ != "00000000":
+                        rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
+                    else:
+                        rotZ=0
+                    if rotW != "00000000":
+                        rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
+                    else:
+                        rotW=0
+                    
+                    
+                    if ScaleX != "00000000":
+                        ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                    else:
+                        ScaleX=1
                 
+                    file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(ObjectUUID)+"\n")
+                    file1.close()
+        Test.close()
+def PullCombatantStructs(file,H64Sort,Name,InstanceData):
+    ExtractedHashes=[]
+    DynNames=[]
+    try:
+        Test=open(os.getcwd()+"/out/"+file,"rb")
+    except FileNotFoundError:
+        print("FileNotExtracted")
+    else:
+        Test.seek(0x20)
+        count=binascii.hexlify(bytes(Test.read(4))).decode()
+        if len(list(count)) == 8:
+            count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
+            StartingOffset=48
+            Test.seek(48)
+            for i in range(count):
+                Test.seek(48+(i*144)+48)
+                Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
+                try:
+                    num=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    Test.close()
+                    continue
+                Check=Hash64Search2(H64Sort,num)
                 
-                if ScaleX != "00000000":
-                    ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
-                else:
-                    ScaleX=1
-            
-                file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+"\n")
-                file1.close()
-    Test.close()
+                if Check != False:
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    if Exists != True:
+                        if DynNames != []:
+                            index=binary_search_single(sorted(DynNames),int(ast.literal_eval("0x"+Check[1][2:])))
+                        else:
+                            index=-1
+                        if index == -1:
+                            PullDyn(str(flipped))
+                            DynNames.append(int(ast.literal_eval("0x"+flipped)))
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    file2=open(os.getcwd()+"/data/EntityNameScripts.txt","a")
+                    file2.write(flipped.lower()+" : "+Name+"\n")
+                    file2.close()
+                    if InstanceData != False:
+                        file1=open(os.getcwd()+"/data/DynInstances/"+flipped.lower()+".inst","a")
+                        InstanceData=[InstanceData[i:i+8] for i in range(0, len(InstanceData), 8)]
+                        rotX=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[0]))).decode('utf-8')
+                        rotY=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[1]))).decode('utf-8')
+                        rotZ=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[2]))).decode('utf-8')
+                        rotW=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[3]))).decode('utf-8')
+                        PosX=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[4]))).decode('utf-8')
+                        PosY=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[5]))).decode('utf-8')
+                        PosZ=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[6]))).decode('utf-8')
+                        ScaleX=binascii.hexlify(bytes(hex_to_little_endian(InstanceData[7]))).decode('utf-8')
+                        
+                        #print(PosX)
+                        if PosX != "00000000":
+                            PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                        else:
+                            PosX=0
+                        if PosY != "00000000":
+                            PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                        else:
+                            PosY=0
+                        if PosZ != "00000000":
+                            PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                        else:
+                            PosZ=0
+                        if rotX != "00000000":
+                            rotX=struct.unpack('!f', bytes.fromhex(rotX))[0]
+                        else:
+                            rotX=0
+                        if rotY != "00000000":
+                            rotY=struct.unpack('!f', bytes.fromhex(rotY))[0]
+                        else:
+                            rotY=0
+                        if rotZ != "00000000":
+                            rotZ=struct.unpack('!f', bytes.fromhex(rotZ))[0]
+                        else:
+                            rotZ=0
+                        if rotW != "00000000":
+                            rotW=struct.unpack('!f', bytes.fromhex(rotW))[0]
+                        else:
+                            rotW=0
+                        
+                        
+                        if ScaleX != "00000000":
+                            ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                        else:
+                            ScaleX=1
+                    
+                        file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str("ffffffffffffffff")+"\n")
+                        file1.close()
+        Test.close()
 def PullDyn(Hash):
     print("Start "+Hash)
     CWD=os.getcwd()
@@ -5016,7 +5647,7 @@ def MapRipper(entry,top,skip):
             print("found")
             break
     for file in os.listdir(path)[::-1]:
-        if fnmatch.fnmatch(file,package+"_*"):
+        if fnmatch.fnmatch(file,package+"_0*"):
             filelist.append(file)
     useful=["Map","0x808093ad","0x80806d44","0x80806c81","0x80809ed2","0x80806daa","0x80806d30","0x80808707","0x80809883","0x8080891e","0x80808701","0x808093b1","0x80806a0d","0x80808e8e","0x80806daa"]
     if skip == False:
@@ -5028,6 +5659,59 @@ def MapRipper(entry,top,skip):
 def QuitOut(top):
     top.destroy()
     sys.exit()
+
+def NamedEntities(top):
+    useful=["0x80808930"]
+    filelist=[]
+    H64Sort=SortH64(ReadHash64())
+    for file in os.listdir(path)[::-1]:
+        if fnmatch.fnmatch(file,"w64_sr_destination*"):
+            filelist.append(file)
+    unpack_all(path,custom_direc,useful,filelist)
+    outfile=open(os.getcwd()+"/data/NamedEntities.txt","w")
+    for File in os.listdir(os.getcwd()+"/out"):
+        if File == "audio":
+            continue
+        file=open(os.getcwd()+"/out/"+File,"rb")
+        file.seek(0x30)
+        Count=binascii.hexlify(bytes(file.read(4))).decode()
+        Count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Count))).decode('utf-8')))
+        file.seek(0x40)
+        for i in range(Count):
+            file.seek(0x40+(0x20*i))
+            temp=binascii.hexlify(bytes(file.read(0x20))).decode()
+            temp=[temp[i:i+8] for i in range(0, len(temp), 8)]
+            if (temp[4]+temp[5]) == "0000000000000000":
+                EntityHash=""
+            else:
+                H64=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[4]+temp[5]))).decode('utf-8')))
+                EntityHash=Hash64Search(H64Sort,H64)
+                EntityHash=binascii.hexlify(bytes(hex_to_little_endian(str(EntityHash[2:])))).decode('utf-8')
+            StringOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
+            
+            
+            file.seek(0x40+(0x20*i)+StringOffset)
+            Text=[]
+            for i in range(150):
+                temp=binascii.hexlify(bytes(file.read(1))).decode()
+                #print(str(temp))
+                if str(temp) != "00":
+                    #print(binascii.unhexlify(temp).decode())
+                    Text.append(binascii.unhexlify(temp).decode())
+                else:
+                    
+                    break
+            CurrentRef="".join(Text)
+            print(CurrentRef)
+            print(EntityHash)
+            Name="".join(CurrentRef.split("\\")[len(CurrentRef.split("\\"))-1])
+            temp=Name.split(".")
+            Name=temp[0]
+            outfile.write(EntityHash+" : "+Name+" : "+CurrentRef+"\n")
+    outfile.close()
+
+
+
 def MapWindow(top):
     global lst, combo_box
     lst=[]
@@ -5054,6 +5738,8 @@ def MapWindow(top):
     combo_box.place(x=500, y=125)
     Map = Button(top, text="Extract Map", height=1, width=30,command=partial(MapRipper,combo_box,top,False))
     Map.place(x=500, y=175)
+    Named = Button(top, text="Generate Named Entites", height=1, width=30,command=partial(NamedEntities,top))
+    Named.place(x=700, y=375)
     
     Map2 = Button(top, text="Extract Map(no ext)", height=1, width=30,command=partial(MapRipper,combo_box,top,True))
     Map2.place(x=800, y=175)
@@ -5102,6 +5788,73 @@ def InvestmentMenu(top):
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
     top.mainloop()
+def DumpHash(PackageCache,combo_box):
+    Val=combo_box.get()
+    Val="".join(Val.split(" "))
+    print(Val)
+    flipped=binascii.hexlify(bytes(hex_to_little_endian(Val))).decode('utf-8')
+    new=int(ast.literal_eval("0x"+flipped))
+    #print(Val)
+    pkg=Hex_String(Package_ID(new))
+    #print(pkg)
+    temp=ast.literal_eval("0x"+stripZeros(pkg))
+    print(temp)
+    Index=binary_search(PackageCache,int(temp))
+    Package=PackageCache[Index][0]
+    #print(Package)
+    #print(ent)
+    
+    ent=Hex_String(Entry_ID(new))
+    ExtractSingleEntry.unpack_entry_ext(path,custom_direc,Package,ent)
+    print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
+def DumpFile(PackageCache,combo_box):
+    Val=combo_box.get()
+    temp=Val.split("-")
+    
+    pkg=ast.literal_eval("0x"+stripZeros(temp[0]))
+    #print(temp)
+    Index=binary_search(PackageCache,int(pkg))
+    Package=PackageCache[Index][0]
+    #print(Package)
+    #print(ent)
+    ExtractSingleEntry.unpack_entry_ext(path,custom_direc,Package,temp[1])
+    print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,temp[1]))
+def TexFile(PackageCache,combo_box):
+    RipTexture(combo_box.get(),PackageCache)
+    RipCube(combo_box.get(),PackageCache)
+def DebugMenu(top):
+    global lst, combo_box
+    lst=[]
+    PackageCache=GeneratePackageCache()
+    print(PackageCache)
+    for widget in top.winfo_children():
+        widget.destroy()
+    bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
+    label1 = Label(top, image = bg)
+    label1.pack()
+    combo_box = ttk.Combobox(top,height=20, width=40)
+    combo_box['values'] = []
+    combo_box.bind('<KeyRelease>', check_input)
+    combo_box.place(x=500, y=125)
+    Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
+    Back.place(x=10, y=10)
+    HashDump = Button(top, text="Dump Hash", height=1, width=15,command=partial(DumpHash,PackageCache,combo_box))
+    HashDump.place(x=500, y=250)
+    FileDump = Button(top, text="Dump File", height=1, width=15,command=partial(DumpFile,PackageCache,combo_box))
+    TexDump = Button(top, text="Dump Norm", height=1, width=15,command=partial(TexFile,PackageCache,combo_box))
+    FileDump.place(x=500, y=350)
+    TexDump.place(x=550, y=350)
+    Clear = Button(top, text="Clear Audio", height=1, width=15,command=partial(ClearAudio,top))
+    Clear.place(x=1000, y=550)
+    ClearOut = Button(top, text="Clear Out", height=1, width=15,command=partial(ClearDir,top))
+    ClearOut.place(x=1000, y=510)
+    ClearTex = Button(top, text="Clear Textures", height=1, width=15,command=partial(ClearTextures,top))
+    ClearTex.place(x=1000, y=470)
+    ClearMap = Button(top, text="Clear Maps", height=1, width=15,command=partial(ClearMaps,top))
+    ClearMap.place(x=1000, y=430)
+    ClearScript = Button(top, text="Clear Scripts", height=1, width=15,command=partial(ClearScripts,top))
+    ClearScript.place(x=1000, y=390)
+    top.mainloop()
 def MainWindow(top):
     for widget in top.winfo_children():
         widget.destroy()
@@ -5136,6 +5889,8 @@ def MainWindow(top):
     ClearMap.place(x=1000, y=430)
     ClearScript = Button(top, text="Clear Scripts", height=1, width=15,command=partial(ClearScripts,top))
     ClearScript.place(x=1000, y=390)
+    Debug = Button(top, text="Debug Menu", height=1, width=15,command=partial(DebugMenu,top))
+    Debug.place(x=1000, y=100)
     Quit = Button(top, text="Quit", height=1, width=15,command=partial(QuitOut,top))
     Quit.place(x=100, y=510)
     

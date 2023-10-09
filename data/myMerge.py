@@ -362,7 +362,7 @@ for Fbx in os.listdir(Filepath+"/Terrain"):
             quat = mathutils.Quaternion([1, 0, 0, 0])            
             for Obj in MSH_OBJS:
                 #for poly in Obj.data:
-                bpy.ops.object.shade_flat()
+                #bpy.ops.object.shade_flat()
                 Obj.location = location
                 Obj.rotation_mode = 'QUATERNION'
                 Obj.rotation_quaternion = quat

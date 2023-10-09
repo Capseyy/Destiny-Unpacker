@@ -264,14 +264,12 @@ def ExtractTerrain(MainPath,TerrainHash):
         #j=0
         BreakOp=False
         IndexData=[]
+        triCount=0
         while True:
             v1 = binascii.hexlify(bytes(ind.read(2))).decode()
             v2 = binascii.hexlify(bytes(ind.read(2))).decode()
             v3 = binascii.hexlify(bytes(ind.read(2))).decode()
             temp=[v1,v2,v3]
-            if v3 == "ffff":
-                #break
-                continue
             if "" in temp:
                 break
             #print(temp)
@@ -280,9 +278,14 @@ def ExtractTerrain(MainPath,TerrainHash):
             v3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(v3))).decode('utf-8')))
             #temp=[v1,v2,v3]
             if "ffff" in temp:
+                triCount=0
                 continue
-            IndexData.append([v1,v2,v3])
+            if triCount % 2 == 0:
+                IndexData.append([v1,v2,v3])
+            else:
+                IndexData.append([v2,v1,v3])
             ind.seek(ind.tell()-4)
+            triCount+=1
             
         memory_manager = fbx.FbxManager.Create()
         scene = fbx.FbxScene.Create(memory_manager, '')
