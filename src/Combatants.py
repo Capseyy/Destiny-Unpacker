@@ -10,7 +10,7 @@ import ast,fbx,struct
 from fbx import FbxManager
 import FbxCommon
 from ctypes import *
-path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
+#path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
 #path="C:\Program Files (x86)\Steam\steamapps\common\Destiny2\packages"
 #path="D:/oldd2/packages"
 custom_direc = os.getcwd()+"/out" #Where you want the bin files to go
@@ -185,7 +185,7 @@ def binary_search2(arr, x):
 import ast,fbx,struct
 from fbx import FbxManager
 import FbxCommon, ExtractSingleEntry
-def GetFileData(Hash,PackageCache):
+def GetFileData(path,Hash,PackageCache):
     flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
     new=int(ast.literal_eval("0x"+flipped))
     #print(Val)
@@ -200,7 +200,12 @@ def GetFileData(Hash,PackageCache):
     #print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
     #print(Data)
     return Data
-def ParseEntityFile(entry,PackageCache,H64Sort,top):
+def twos_complement(hexstr, bits):
+    value = int(hexstr, 16)
+    if value & (1 << (bits - 1)):
+        value -= 1 << bits
+    return value
+def ParseEntityFile(path,entry,PackageCache,H64Sort,top):
     output=open(os.getcwd()+"/cache/directive.txt","w")
     Data=entry.get()
     Data=Data.split(",")
@@ -211,26 +216,30 @@ def ParseEntityFile(entry,PackageCache,H64Sort,top):
     EntryID=Hex_String(Entry_ID(EntityFile))
     EntityFile=PkgID+"-"+EntryID
     output.write("\nEntity File : "+EntityFile+"\n") 
-    EntityFileData=GetFileData(Data[3],PackageCache)
-    #print(EntityFileData[48:56])
-    EntityFileData=GetFileData(EntityFileData[48:56],PackageCache)
+    EntityFileData=GetFileData(path,Data[3],PackageCache)
+    EntityFileData=GetFileData(path,EntityFileData[48:56],PackageCache)
     EntityResources=EntityFileData[128:]
     EntityResources=[EntityResources[i:i+8] for i in range(0, len(EntityResources), 8)]
     First=True
     for Resource in EntityResources:
         EntityIDMapper=open(os.getcwd()+"/data/EntityIDMapper.txt","a")
         ObjectName="unknown"
-        EntityFileData=GetFileData(Resource,PackageCache)
+        EntityFileData=GetFileData(path,Resource,PackageCache)
         count=0
         if EntityFileData[64:72] != "ffffffff":
-            EntityFileData2=GetFileData(EntityFileData[64:72],PackageCache)
-            if (EntityFileData2[656:664] != "ffffffff") and (EntityFileData2[656:664] != "00000000"):
-                CombatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EntityFileData2[656:664]))).decode('utf-8')))
-                CombatOffset=EntityFileData2[(656+48+(2*CombatOffset)):(664+48+(2*CombatOffset))]
-                if (CombatOffset != "") and (CombatOffset != "00000000"):
-                    CombatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(CombatOffset))).decode('utf-8')))
-                    Hash64Val=EntityFileData2[(2*(CombatOffset+48)):(2*(CombatOffset+56))]
-                    #print(Hash64Val)
+            EntityFileData2=GetFileData(path,EntityFileData[64:72],PackageCache)
+            if (EntityFileData2[208:216] != "ffffffff") and (EntityFileData2[208:216] != "00000000"):
+                print(EntityFileData[64:72])
+                CombatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EntityFileData2[208:216]))).decode('utf-8')))
+                CombatTableCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EntityFileData2[192:200]))).decode('utf-8')))
+                for i in range(CombatTableCount):
+                    Offset=208+(2*CombatOffset)+32+(i*16)
+                    print(Offset)
+                    EntityTable=EntityFileData2[Offset:Offset+16]
+                    EntityTableOffset=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(EntityTable[:8]))).decode('utf-8'),32)
+                    print(EntityTableOffset)
+                    Hash64Val=EntityFileData2[Offset+(2*EntityTableOffset)+16:Offset+(2*EntityTableOffset)+32]
+                    print(Hash64Val)
                     try:
                         Hash64Int=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash64Val))).decode('utf-8')))
                     except SyntaxError:
@@ -238,13 +247,15 @@ def ParseEntityFile(entry,PackageCache,H64Sort,top):
                     else:
                         Ans=Hash64Search(H64Sort,Hash64Int)
                         if Ans != False:
-                            print("entity found")
+                            print(str(i)+" entity found "+str(Ans))
                             print(EntityFileData[64:72])
                             InstanceData=False
+                            DevNameID=False
                             if (EntityFileData2[368:376] != "00000000"):
                                 InstanceOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EntityFileData2[368:376]))).decode('utf-8')))
                                 InstanceData=EntityFileData2[(368+16+(InstanceOffset*2)):(368+16+(InstanceOffset*2)+64)]
-                            Entities.append([Ans,EntityFileData2[(2*(CombatOffset+56)):(2*(CombatOffset+60))],InstanceData])
+                                DevNameID=EntityFileData2[80+(InstanceOffset*2):88+(InstanceOffset*2)]
+                            Entities.append([Ans,EntityFileData2[Offset+(2*EntityTableOffset)+32:Offset+(2*EntityTableOffset)+40],InstanceData,EntityFileData[64:72],DevNameID])
             
                 
         EntityIDMapper.close()                

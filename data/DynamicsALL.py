@@ -105,7 +105,7 @@ def binary_search2(arr, x):
     return -1    
 #installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
 Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_DIR"
-def InstanceDyn(ObjectData,NameData,SortedIDs):
+def InstanceDyn(ObjectData,NameData,SortedIDs,EnemyData):
     for Object in ObjectData:
         #print(HasRoot)
         try:
@@ -159,6 +159,33 @@ def InstanceDyn(ObjectData,NameData,SortedIDs):
                         ob.location= location
                         ob.rotation_euler= (x,y*-1,z+3.1415)
                         ob.scale = [float(instance[7])]*3
+                try:
+                    instance[9]
+                except IndexError:
+                    continue
+                else:
+                    Index=binary_search2(EnemyData,int(ast.literal_eval("0x"+stripZeros(instance[9]))))
+                    if Index != -1:
+                        bpy.ops.object.text_add()
+                        ob=bpy.context.object
+                        ob.data.body = str(SortedIDs[Index][1])
+                        ob.name = str(Object[0].name)
+                        ob.location= location
+                        ob.rotation_euler= (x,y*-1,z+3.1415)
+                        ob.scale = [float(instance[7])]*3
+                try:
+                    instance[10]
+                except IndexError:
+                    continue
+                else:
+                    bpy.ops.object.text_add()
+                    ob=bpy.context.object
+                    ob.data.body = str(instance[10])
+                    ob.name = str(Object[0].name)
+                    location=[float(instance[4]), float(instance[5]), float(instance[6])-0.5]
+                    ob.location= location
+                    ob.rotation_euler= (x,y*-1,z+3.1415)
+                    ob.scale = [float(instance[7])]*3
             
     bpy.ops.object.select_all(action='DESELECT')
     for Obj in bpy.data.objects:
@@ -214,11 +241,14 @@ data=file.read().split("\n")
 data.remove("")
 used=[]
 SortedIDs=[]
+EnemyNames=[]
 for Line in data:
     temp=Line.split(" : ")
     print(Line)
-    SortedIDs.append([int(ast.literal_eval("0x"+stripZeros(temp[0]))),temp[1]])
+    SortedIDs.append([int(ast.literal_eval("0x"+stripZeros(temp[1]))),temp[2]])
+    EnemyNames.append([int(ast.literal_eval("0x"+stripZeros(temp[0]))),temp[2]])
 SortedIDs.sort(key=lambda x: x[0])
+EnemyNames.sort(key=lambda x: x[0])
 file.close()
 NameData=[]
 file=open(Filepath+"/NamedEntities.txt","r").read()
@@ -344,5 +374,5 @@ for Fbx in os.listdir(Filepath+"/DynInstances"):
 #    ob.name = str(split[0])
 #    ObjectData.append([ob,False])
     
-InstanceDyn(ObjectData,NameData,SortedIDs)
+InstanceDyn(ObjectData,NameData,SortedIDs,EnemyNames)
         

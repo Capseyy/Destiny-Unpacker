@@ -429,7 +429,6 @@ class Package:
         return decompressed
 
     def output_files(self, all_pkg_bin, custom_direc):
-        
         for entry in self.entry_table.Entries[::-1]:
             ###print(entry)
             current_block_id = entry.StartingBlock
@@ -544,4 +543,4 @@ def GetTypes(path, custom_direc,package,entry):
         pkg.extract_package(custom_direc,entrytoget,False,extract=True)
     ##print(DataToWrite)
     return DataToWrite
-unpack_entry_ext(path,custom_direc,"w64_sr_globals_012d_4.pkg","0022")
+#unpack_entry_ext(path,custom_direc,"w64_sr_globals_012d_4.pkg","0022")

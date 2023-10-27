@@ -12,7 +12,7 @@ import fnmatch
 import time,ast
 
 #path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
-path="E:\SteamLibrary\steamapps\common\Destiny2\packages"
+#path="E:\SteamLibrary\steamapps\common\Destiny2\packages"
 custom_direc = os.getcwd()+"/out/" #Where you want the bin files to go
 oodlepath = os.getcwd()+"/ThirdParty/oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
 oodlepath = "E:/oo2core_9_win64.dll"

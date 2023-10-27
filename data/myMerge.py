@@ -6,10 +6,8 @@ import binascii
 import ast
 import math
 import struct
-#!!!DO NOT MANUALLY IMPORT THE FBX, THE SCRIPT WILL DO IT FOR YOU!!!#
 
-#Adapted from Monteven's UE5 import script
-#installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
+
 Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_DIR"
 
 objects = bpy.data.objects
@@ -99,7 +97,7 @@ def assemble_map():
     for Obj in bpy.data.objects:
         if len(Obj.data.materials) == 0:
             Obj.select_set(state=True)
-            bpy.data.objects.remove(Obj)
+            #bpy.data.objects.remove(Obj)
     newobjects = bpy.data.collections[str(Name)].objects
     objects = bpy.data.objects
     for O in objects:
@@ -252,12 +250,24 @@ def GenerateMaterials():
             except RuntimeError:
                 continue
             mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
-        
+    for Mat in Mats:
+        mat=bpy.data.materials.new(Mat[0])
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        for Texture in Mat[1].split(","):
+            texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
+            try:
+                texImage.image = bpy.data.images.load(Filepath+"/Textures/"+Texture+".png")
+            except RuntimeError:
+                continue
+            mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])        
 for Fbx in os.listdir(Filepath+"/Statics"):
-    #if bx != "8321ba80.fbx":
-    #continue
+    #if Fbx != "d972fc80.fbx":
+        #continue
     split=Fbx.split(".")
     if split[1] == "fbx":
+        print("RUNNING")
         path=Filepath+"/Statics/"+Fbx
         print("ran")
         bpy.ops.object.select_all(action='DESELECT')
@@ -268,6 +278,50 @@ for Fbx in os.listdir(Filepath+"/Statics"):
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
         #bpy.ops.import_scene.fbx(filepath=path)
         bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
+        print("imported")
+        #for Obj in bpy.data.objects:
+           # Obj.parent = None
+        #    split=Obj.name.split("_")
+        #    if split[1] == "0":
+        #        bpy.data.objects.remove(Obj)
+        #for Obj in bpy.data.objects:
+        
+        bpy.ops.object.select_all(action='DESELECT')
+        newobjects = bpy.data.collections[str(split[0]).upper()].objects
+        #newobjects = bpy.data.collections[str(Name)].objects
+        #for obj in newobjects:
+         #   Material(obj)
+        #    #deselect all objects
+        #    bpy.ops.object.select_all(action='DESELECT')
+        #    tmp.append(obj.name[:8])
+            #print(obj.name[:8])
+            
+        count=0
+        MSH_OBJS = [m for m in bpy.data.collections[str(split[0]).upper()].objects if m.type == 'MESH']
+        bpy.ops.outliner.orphans_purge()
+        for OBJS in MSH_OBJS:
+            #Select all mesh objects
+            OBJS.select_set(state=True)
+            bpy.context.view_layer.objects.active = OBJS
+        #bpy.ops.object.join()
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+for Fbx in os.listdir(Filepath+"/Dynamics"):
+    #if Fbx != "d972fc80.fbx":
+        #continue
+    split=Fbx.split(".")
+    if split[1] == "fbx":
+        print("RUNNING")
+        path=Filepath+"/Dynamics/"+Fbx
+        print("ran")
+        bpy.ops.object.select_all(action='DESELECT')
+        thing=(0,0,0)
+        bpy.context.scene.cursor.rotation_euler = (0, 0, 0)
+        bpy.data.collections.new(str(split[0]).upper())
+        bpy.context.scene.collection.children.link(bpy.data.collections[str(split[0]).upper()])
+        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[str(split[0]).upper()]
+        #bpy.ops.import_scene.fbx(filepath=path)
+        bpy.ops.import_scene.fbx(filepath=path, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
+        print("imported")
         #for Obj in bpy.data.objects:
            # Obj.parent = None
         #    split=Obj.name.split("_")
@@ -295,14 +349,9 @@ for Fbx in os.listdir(Filepath+"/Statics"):
         #bpy.ops.object.join()
         bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
 
-
-GenerateMaterials()
-
-        
-assemble_map()
 for Fbx in os.listdir(Filepath+"/Terrain"):
     #if Fbx != "8321ba80.fbx":
-    #continue
+        #continue
     split=Fbx.split(".")
     if split[1] == "fbx":
         path=Filepath+"/Terrain/"+Fbx
@@ -349,7 +398,8 @@ for Fbx in os.listdir(Filepath+"/Terrain"):
         except:
             print("no file")
         else:              
-            data=file.read().split("\n")         
+            data=file.read().split("\n")     
+            print(data)    
             file.close()
             #print(data)
             #data.remove('')
@@ -367,5 +417,10 @@ for Fbx in os.listdir(Filepath+"/Terrain"):
                 Obj.rotation_mode = 'QUATERNION'
                 Obj.rotation_quaternion = quat
                 Obj.scale = [1]*3
+GenerateMaterials()
+
+        
+assemble_map()
+
 
         

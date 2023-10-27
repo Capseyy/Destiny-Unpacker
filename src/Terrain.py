@@ -2,6 +2,7 @@ from dataclasses import dataclass, fields, field
 from typing import List
 import os
 import sys
+sys.path.append("E:/MyUnpacker/DestinyUnpackerNew/new/MultiCore/ThirdParty")
 import binascii
 import io
 import fnmatch
@@ -10,6 +11,11 @@ import ast,fbx,struct
 from fbx import FbxManager
 import FbxCommon
 from ctypes import *
+temp=os.getcwd()
+temp=temp.split("\\")
+output="/".join(temp[:len(temp)])
+sys.path.append(output+"/ThirdParty")
+custom_direc=output
 def hex_to_little_endian(hex_string):
     little_endian_hex = bytearray.fromhex(hex_string)[::-1]
     return little_endian_hex
@@ -151,11 +157,177 @@ def binary_search2(arr, x):
         else:
             return mid
     # If we reach here, then the element was not present
-    return -1    
+    return -1 
+def GetFileReference(Hash,PackageCache,path):
+    flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+    new=int(ast.literal_eval("0x"+flipped))
+    #print(Val)
+    pkg=Hex_String(Package_ID(new))
+    #print(pkg)
+    temp=ast.literal_eval("0x"+stripZeros(pkg))
+    #print(temp)
+    Index=binary_search(PackageCache,int(temp))
+    Package=PackageCache[Index][0]
+    ent=Hex_String(Entry_ID(new))
+    Data=ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent)
+    #print(Data)
+    return Data   
 import ast,fbx,struct
 from fbx import FbxManager
-import FbxCommon
-def ExtractTerrain(MainPath,TerrainHash):
+import FbxCommon, ExtractSingleEntry
+def ReadFaces(ind,IndexOffset,IndexCount):
+    IndexData=[]
+    triCount=0
+    ind.seek(IndexOffset*2)
+    Start=ind.tell()
+    if binascii.hexlify(bytes(ind.read(2))).decode() != "ffff":
+        ind.seek(ind.tell()-2)
+    while (ind.tell()+4-Start) < (IndexCount*2):
+        i1=binascii.hexlify(bytes(ind.read(2))).decode()
+        i2=binascii.hexlify(bytes(ind.read(2))).decode()
+        i3=binascii.hexlify(bytes(ind.read(2))).decode()
+        if i3 == "ffff":
+            triCount=0
+            continue
+        if i1 == "":
+            break
+        if i2 == "":
+            break
+        if i3 == "":
+            break
+        i1=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i1))).decode('utf-8')))
+        i2=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i2))).decode('utf-8')))
+        i3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i3))).decode('utf-8')))
+        if 65535 in [i1,i2,i3]:
+            print([i1,i2,i3])
+        if triCount % 2 == 0:
+            IndexData.append([i1,i2,i3])
+        else:
+            IndexData.append([i2,i1,i3])
+        ind.seek(ind.tell()-4)
+        triCount+=1
+        if len(IndexData) == IndexCount:
+            break
+    return IndexData
+import bisect
+def binary_search_single(arr, x):
+    low = 0
+    high = len(arr) - 1
+    mid = 0
+ 
+    while low <= high:
+ 
+        mid = (high + low) // 2
+        if int(arr[mid]) < x:
+            low = mid + 1
+ 
+        # If x is smaller, ignore right half
+        elif int(arr[mid]) > x:
+            high = mid - 1
+ 
+        # means x is present at mid
+        else:
+            return mid
+    # If we reach here, then the element was not present
+    return -1  
+def ReadFloat32(Input):
+    return struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(Input))).decode('utf-8')))[0]    
+def TransformTexcord(vec):
+    scaleX=0
+    scaleY=0
+    translateX=0
+    translateY=0
+    if vec[2] == 0.0078125:
+        scaleX = (1 / 0.4375) * 2.28571428571 * 2
+        translateX = 0.333333  # 0 if no 2 * 2.285
+    elif vec[2] == -0.9765625:
+        scaleX = 32
+        translateX = -14
+    elif vec[2] == -1.9609375:
+        # todo shadowkeep idk
+        scaleX = 1
+        translateX = 0
+    elif vec[2] == -2.9453125:
+        # todo shadowkeep idk
+        scaleX = 1
+        translateX = 0
+    else:
+        print("Unknown terrain uv scale x")
+    if vec[3] == 0.0078125:
+        scaleY = (-1 / 0.4375) * 2.28571428571 * 2
+        translateY = 0.333333
+    elif vec[3] == -0.9765625:
+        scaleY = -32
+        translateY = -14
+    elif vec[3] == -1.9609375:
+        # todo shadowkeep idk
+        scaleY = 1
+        translateY = 0
+    elif vec[3] == -2.9453125:
+        # todo shadowkeep idk
+        scaleY = 1
+        translateY = 0
+    else:
+        raise Exception("Unknown terrain uv scale y")
+    return scaleX,scaleY,translateX,translateY
+def ReadUV(Header,UVName):
+    Header=binascii.hexlify(bytes(hex_to_little_endian(Header))).decode('utf-8')
+    new=ast.literal_eval("0x"+Header)
+    pkg = Hex_String(Package_ID(new))
+    ent = Hex_String(Entry_ID(new))
+    Bank=pkg+"-"+ent+".vheader"
+    VHeader=open(custom_direc+"/out/"+Bank,"rb")
+    VBufferSize=int.from_bytes(VHeader.read(4),"little")
+    Stride=int.from_bytes(VHeader.read(2),"little")
+    VHeader.close()
+    UVData=[]
+    UV=open(custom_direc+"/out/"+UVName,"rb")
+    for i in range(int(VBufferSize/Stride)):
+        Data=binascii.hexlify(bytes(UV.read(Stride))).decode()
+        Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
+        U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[4]))).decode('utf-8'),16)/32767))
+        V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[5]))).decode('utf-8'),16)/32767))
+        UVData.append([U,V])
+    UV.close()
+    return UVData
+def Hash64Search(Hash64Data,Input):
+    Found=False
+    ans=binary_search2(Hash64Data,int(Input))
+    #print(ans)
+    if str(ans) != "-1":
+        Found=True
+    if Found == True:
+        return Hash64Data[ans][1]
+    else:
+        return False
+def ParseMaterial(Material,H64Sort):
+    #DumpHash(path,PackageCache,Material)
+    Header=binascii.hexlify(bytes(hex_to_little_endian(Material))).decode('utf-8')
+    new=ast.literal_eval("0x"+Header)
+    pkg = Hex_String(Package_ID(new))
+    ent = Hex_String(Entry_ID(new))
+    Bank=pkg+"-"+ent+".mat"
+    MaterialData=open(custom_direc+"/out/"+Bank,"rb")
+    MaterialData.seek(0x2C0)
+    Offset=int.from_bytes(MaterialData.read(4),"little")
+    MaterialData.seek(MaterialData.tell()-4+Offset)
+    MatCount=int.from_bytes(MaterialData.read(4),"little")
+    MaterialData.seek(MaterialData.tell()+12)
+    PartMats=[]
+    for i in range(MatCount):
+        MaterialData.seek(MaterialData.tell()+16)
+        Mat64=int.from_bytes(MaterialData.read(8),"little")
+        Hash=Hash64Search(H64Sort,Mat64)
+        if Hash != False:
+            new=ast.literal_eval(Hash)
+            pkg = Hex_String(Package_ID(new))
+            ent = Hex_String(Entry_ID(new))
+
+            PartMats.append(pkg+"-"+ent)
+    return PartMats            
+def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
+    vertFound=False
+    indFound=False
     Input=binascii.hexlify(bytes(hex_to_little_endian(TerrainHash))).decode('utf-8')
     new=ast.literal_eval("0x"+Input)
     pkg = Hex_String(Package_ID(new))
@@ -163,7 +335,6 @@ def ExtractTerrain(MainPath,TerrainHash):
     ent = Hex_String(Entry_ID(new))
     Bank=pkg+"-"+ent+".terrain"
     #rint(Bank)
-    BufferData=GetBufferInfo(MainPath)
     file=open(MainPath+"/out/"+Bank,"rb")
     mainData=binascii.hexlify(bytes(file.read())).decode()
     file.seek(0x8)
@@ -207,16 +378,29 @@ def ExtractTerrain(MainPath,TerrainHash):
     Index2=binascii.hexlify(bytes(hex_to_little_endian(Index2))).decode('utf-8')
     new=ast.literal_eval("0x"+Vertex1)
     new-=1
-    Value=int(ast.literal_eval("0x"+Index1))
-    Index=binary_search(BufferData, Value)
-    if Index != -1:
-        IndexName=BufferData[Index][0]+".index"
+    if Index1 != "ffffffff":
+        IndexBufferHash=GetFileReference(binascii.hexlify(bytes(hex_to_little_endian(Index1))).decode('utf-8'),PackageCache,path)
+        IndexBuffer=int(ast.literal_eval(IndexBufferHash))
+        pkg = Hex_String(Package_ID(IndexBuffer))
+        ent = Hex_String(Entry_ID(IndexBuffer))
+        IndexName=pkg+"-"+ent+".index"
         indFound=True
-    Value=int(ast.literal_eval("0x"+Vertex1))
-    Index=binary_search(BufferData, Value)
-    if Index != -1:
-        VertexName=BufferData[Index][0]+".vert"
+    if Vertex1 != "ffffffff":
+        VertexBufferHash=GetFileReference(binascii.hexlify(bytes(hex_to_little_endian(Vertex1))).decode('utf-8'),PackageCache,path)
+        VertexBuffer=int(ast.literal_eval(VertexBufferHash))
+        pkg = Hex_String(Package_ID(VertexBuffer))
+        ent = Hex_String(Entry_ID(VertexBuffer))
+        VertexName=pkg+"-"+ent+".vert"
         vertFound=True
+    if Vertex2 != "ffffffff":
+        UVBufferHash=GetFileReference(binascii.hexlify(bytes(hex_to_little_endian(Vertex2))).decode('utf-8'),PackageCache,path)
+        UVBuffer=int(ast.literal_eval(UVBufferHash))
+        pkg = Hex_String(Package_ID(UVBuffer))
+        ent = Hex_String(Entry_ID(UVBuffer))
+        UVName=pkg+"-"+ent+".vert"
+        UVFound=True
+        UVData=ReadUV(binascii.hexlify(bytes(hex_to_little_endian(Vertex2))).decode('utf-8'),UVName)
+        print(UVData)
     FindUV=False
     Scale=1
     if (vertFound == True) and (indFound == True):
@@ -227,9 +411,9 @@ def ExtractTerrain(MainPath,TerrainHash):
         Vert=open(MainPath+"/out/"+VertexName,"rb")
         Length=binascii.hexlify(bytes(Vert.read())).decode()
         Vert.seek(0x0)
-        print(len(Length))
+        #print(len(Length))
         num=len(Length)/16
-        print(num)
+        #print(num)
         norms=[]
         Xs=[]
         Ys=[]
@@ -249,9 +433,11 @@ def ExtractTerrain(MainPath,TerrainHash):
             Ys.append(y)    
             Zs.append(z)
             verts.append([x,y,z,w])
-        
-
+        Verts=[]
         GlobalX=[(max(Xs)+min(Xs))/2,(max(Ys)+min(Ys))/2,(max(Zs)+min(Zs))/2]
+        for vert in verts:
+            print(vert)
+            Verts.append([(vert[0]-GlobalX[0])*1024,(vert[1]-GlobalX[1])*1024,(vert[2]-GlobalX[2])*8,vert[3]])
         FindUV=False
         PartData=[]
         ind=open(MainPath+"/out/"+IndexName,"rb")
@@ -265,63 +451,101 @@ def ExtractTerrain(MainPath,TerrainHash):
         BreakOp=False
         IndexData=[]
         triCount=0
-        while True:
-            v1 = binascii.hexlify(bytes(ind.read(2))).decode()
-            v2 = binascii.hexlify(bytes(ind.read(2))).decode()
-            v3 = binascii.hexlify(bytes(ind.read(2))).decode()
-            temp=[v1,v2,v3]
-            if "" in temp:
-                break
-            #print(temp)
-            v1=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(v1))).decode('utf-8')))
-            v2=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(v2))).decode('utf-8')))
-            v3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(v3))).decode('utf-8')))
-            #temp=[v1,v2,v3]
-            if "ffff" in temp:
-                triCount=0
-                continue
-            if triCount % 2 == 0:
-                IndexData.append([v1,v2,v3])
-            else:
-                IndexData.append([v2,v1,v3])
-            ind.seek(ind.tell()-4)
-            triCount+=1
-            
+        file.seek(0x80)
+        PartOffset=int.from_bytes(file.read(4),"little")
+        print(PartOffset)
+        file.seek(0x80+PartOffset)
+        PartCount=int.from_bytes(file.read(4),"little")
+        Parts=[]
+        for i in range(PartCount):
+            file.seek(0x80+PartOffset+16+(i*0xC))
+            Material=binascii.hexlify(bytes(file.read(4))).decode()
+            IndexOffset=int.from_bytes(file.read(4),"little")
+            IndexCount=int.from_bytes(file.read(2),"little")
+            GroupIndex=int.from_bytes(file.read(1),"little")
+            #print(GroupIndex)
+            DetailLevel=int.from_bytes(file.read(1),"little")
+            Parts.append([Material,IndexOffset,IndexCount,GroupIndex,DetailLevel])
+        file.seek(0x58)
+        MeshGroupOffsets=int.from_bytes(file.read(4),"little")
+        file.seek(0x58+MeshGroupOffsets)
+        MeshGroupCount=int.from_bytes(file.read(4),"little")
+        MeshGroupVectors=[]
+        for i in range(MeshGroupCount):
+            file.seek(0x58+MeshGroupOffsets+0x10+(i*0x60)+0x20)
+            Vector=[ReadFloat32(binascii.hexlify(bytes(file.read(4))).decode()),ReadFloat32(binascii.hexlify(bytes(file.read(4))).decode()),ReadFloat32(binascii.hexlify(bytes(file.read(4))).decode()),ReadFloat32(binascii.hexlify(bytes(file.read(4))).decode())]
+            MeshGroupVectors.append(Vector)
+            #Scalex Scaley transx transy
         memory_manager = fbx.FbxManager.Create()
         scene = fbx.FbxScene.Create(memory_manager, '')
-        if 1 == 1:
+        PartCount=0
+        MinLod=99
+        for Part in Parts:
+           
+            if Part[4] < MinLod:
+                MinLod=Part[4]
+        OutputtedSubmeshes=[]
+        for Part in Parts:
+            print(Part)
+            if Part[2] == 0:
+                #PartCount+=1
+                continue
+            if Part[4] > MinLod:
+                #PartCount+=1
+                continue
+            OutputtedSubmeshes.append([Part[0],TerrainHash+"_"+str(Part[3])+"_"+str(PartCount)])
             usedVerts=[]
-            
-            my_mesh = fbx.FbxMesh.Create(scene, TerrainHash)
+            IndexData=ReadFaces(ind,Part[1],Part[2])
+            my_mesh = fbx.FbxMesh.Create(scene, TerrainHash+"_"+str(Part[3])+"_"+str(PartCount))
+            Verticies=[]   
+            for List in IndexData:
+                for Val in List:
+                    check=binary_search_single(Verticies,Val)
+                    if check == -1:
+                        bisect.insort(Verticies, Val)
             count=0
             #print(IndexCount)
             tempcheck=[]
-            Verticies=[]
-            for vert in verts:
-                Verticies.append([(vert[0]-GlobalX[0])*1024,(vert[1]-GlobalX[1])*1024,(vert[2]-GlobalX[2])*8,vert[3]])
+            #
+            # print(Verticies)
+            Vertexs=[]
+            #print(Vert)
             count=0
             my_mesh.InitControlPoints(len(Verticies))
             for Set in Verticies:
-                v = fbx.FbxVector4(Set[0]/2, Set[1]/2, Set[2]/2,Set[3]/2)
+                #print(Set)
+                v = fbx.FbxVector4(Verts[Set][0]/2, Verts[Set][1]/2, Verts[Set][2]/2, Verts[Set][3]/2)
                 my_mesh.SetControlPointAt( v, count )
                 count+=1
-            tempcheck.sort(key=lambda x: x[0])
+
+            ScaleX,ScaleY,TransX,TransY=TransformTexcord(MeshGroupVectors[Part[3]])
+            #print(ScaleY)
+            #tempcheck.sort(key=lambda x: x[0])
             #print(IndexData)
-            for List in IndexData:
+            for Face in IndexData:
                 my_mesh.BeginPolygon()
-                vertex_index = List[0]
+                vertex_index = binary_search_single(Verticies,int(Face[0]))
                 my_mesh.AddPolygon(vertex_index)
-                vertex_index = List[1]
+                vertex_index = binary_search_single(Verticies,int(Face[1]))
                 my_mesh.AddPolygon(vertex_index)
-                vertex_index = List[2]
+                vertex_index = binary_search_single(Verticies,int(Face[2]))
                 my_mesh.AddPolygon(vertex_index)
                 my_mesh.EndPolygon()
-                    
+            uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
+            uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
+            uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
+            layer = my_mesh.GetLayer(0)
+            for Vert in Verticies:
+                uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Vert][0]) * ScaleX + TransX,float(UVData[Vert][1])*ScaleY+(1-TransY)))
+            try:
+                layer.SetUVs(uvLayer)
+            except AttributeError:
+                u=1   
             #cubeLocation = (xScale, yScale, zScale)
             cubeLocation = (0, 0, 0)
             cubeScale    = (Scale, Scale, Scale)
 
-            newNode = addNode(scene, TerrainHash, location = cubeLocation)
+            newNode = addNode(scene, TerrainHash+"_"+str(Part[3])+"_"+str(PartCount), location = cubeLocation)
             rootNode = scene.GetRootNode()
             #rootNode.LclTranslation.set(fbx.FbxDouble3(xScale, yScale, zScale))
             rootNode.AddChild( newNode )
@@ -331,6 +555,8 @@ def ExtractTerrain(MainPath,TerrainHash):
             px = fbx.FbxDouble3(1, 1, 1)
             count=0
             #lLayer = my_mesh.GetLayer(0)
+
+            PartCount+=1
             
         filename = MainPath+"\\data\\Terrain\\"+TerrainHash+".fbx"
         FbxCommon.SaveScene(memory_manager, scene, filename)
@@ -338,10 +564,37 @@ def ExtractTerrain(MainPath,TerrainHash):
         InstFile=open(MainPath+"/data/Instances/"+TerrainHash+".inst","a")
         InstFile.write("0,0,0,0,"+str(InstX)+","+str(InstY)+","+str(InstZ)+",1")
         InstFile.close()
+        MatOut=open(os.getcwd()+"/data/Materials/"+TerrainHash+".txt","w")
+        for Mesh in OutputtedSubmeshes:
+            Textures=ParseMaterial(Mesh[0],H64Sort)
+            if Textures != []:
+                Textures=",".join(Textures)
+                MatOut.write(Mesh[1]+" : "+Mesh[0]+" : "+Textures+"\n")
+        MatOut.close()
 
 
 
 
-
+def GeneratePackageCache(path):
+    PackageCache=[]
+    Packages=os.listdir(path)
+    Packages.sort(reverse=True)
+    usedIds=[]
+    for File in Packages:
+        temp=File.split("_")
+        try:
+            ID=ast.literal_eval("0x"+stripZeros(temp[len(temp)-2]))
+        except SyntaxError:
+            continue
+        if ID not in usedIds:
+            PackageCache.append([File,ID])
+            usedIds.append(ID)
+    #newPackageCache=[]
+    #for Entry in newPackageCache:
+    #    ID=Entry[0]
+    PackageCache.sort(key=lambda x: x[1])
+    return PackageCache
+PackageCache=GeneratePackageCache("E:\SteamLibrary\steamapps\common\Destiny2\packages")
+#ExtractTerrain("E:/MyUnpacker/DestinyUnpackerNew/new/MultiCore","1b75fc80",PackageCache,"E:\SteamLibrary\steamapps\common\Destiny2\packages")
 #filename=name+".bin"
 #exporter.export(scene)

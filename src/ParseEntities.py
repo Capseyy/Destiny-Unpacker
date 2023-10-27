@@ -14,7 +14,7 @@ import bisect
 global custom_direc
 
 path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
-#path="D:\oldd2\packages"
+path="C:\oldd2\packages"
 custom_direc = os.getcwd()+"/data" #Where you want the bin files to go
 temp=os.getcwd()
 temp=temp.split("\\")
@@ -182,9 +182,9 @@ def binary_search2(arr, x):
             return mid
     # If we reach here, then the element was not present
     return -1    
-import ast,fbx,struct
-from fbx import FbxManager
-import FbxCommon, ExtractSingleEntry
+import ast,struct
+#from fbx import FbxManager
+import  ExtractSingleEntry
 def GetFileData(Hash,PackageCache):
     flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
     new=int(ast.literal_eval("0x"+flipped))
@@ -197,7 +197,7 @@ def GetFileData(Hash,PackageCache):
     Package=PackageCache[Index][0]
     ent=Hex_String(Entry_ID(new))
     Data=ExtractSingleEntry.unpack_entry(path,custom_direc,Package,ent)
-    #print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
+    print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
     #print(Data)
     return Data
 def DumpHash(PackageCache,Val):
@@ -217,7 +217,7 @@ def DumpHash(PackageCache,Val):
     ent=Hex_String(Entry_ID(new))
     print(custom_direc)
     ExtractSingleEntry.unpack_entry_ext(path,custom_direc+"/out",Package,ent)
-    #print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
+    print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
 def GeneratePackageCache():
     PackageCache=[]
     Packages=os.listdir(path)
@@ -238,7 +238,7 @@ def GeneratePackageCache():
     PackageCache.sort(key=lambda x: x[1])
     return PackageCache
 #ans=input("y/n")
-Input="4317e380"
+Input="2e66b880"
 dec=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Input))).decode('utf-8')))
 PkgID=Hex_String(Package_ID(dec))
 EntryID=Hex_String(Entry_ID(dec))
