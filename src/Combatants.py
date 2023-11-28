@@ -229,17 +229,13 @@ def ParseEntityFile(path,entry,PackageCache,H64Sort,top):
         if EntityFileData[64:72] != "ffffffff":
             EntityFileData2=GetFileData(path,EntityFileData[64:72],PackageCache)
             if (EntityFileData2[208:216] != "ffffffff") and (EntityFileData2[208:216] != "00000000"):
-                print(EntityFileData[64:72])
                 CombatOffset=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EntityFileData2[208:216]))).decode('utf-8')))
                 CombatTableCount=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(EntityFileData2[192:200]))).decode('utf-8')))
                 for i in range(CombatTableCount):
                     Offset=208+(2*CombatOffset)+32+(i*16)
-                    print(Offset)
                     EntityTable=EntityFileData2[Offset:Offset+16]
                     EntityTableOffset=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(EntityTable[:8]))).decode('utf-8'),32)
-                    print(EntityTableOffset)
                     Hash64Val=EntityFileData2[Offset+(2*EntityTableOffset)+16:Offset+(2*EntityTableOffset)+32]
-                    print(Hash64Val)
                     try:
                         Hash64Int=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash64Val))).decode('utf-8')))
                     except SyntaxError:
@@ -247,8 +243,6 @@ def ParseEntityFile(path,entry,PackageCache,H64Sort,top):
                     else:
                         Ans=Hash64Search(H64Sort,Hash64Int)
                         if Ans != False:
-                            print(str(i)+" entity found "+str(Ans))
-                            print(EntityFileData[64:72])
                             InstanceData=False
                             DevNameID=False
                             if (EntityFileData2[368:376] != "00000000"):

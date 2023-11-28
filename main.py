@@ -1,5 +1,5 @@
 from dataclasses import dataclass, fields, field
-import os, sys, shutil
+import os, sys, shutil,bisect
 sys.path.append(os.getcwd()+"/ThirdParty")
 sys.path.append(os.getcwd()+"/src")
 import numpy as np
@@ -23,8 +23,8 @@ from fbx import *
 from fbx import FbxManager
 from functools import partial
 import multiprocessing as mp
-import Combatants, myEntities
-global custom_direc,useful ,path,Hash64Data
+import Combatants, myEntities, Model
+global custom_direc,useful ,path,Hash64Data, StrData
 path = "E:\SteamLibrary\steamapps\common\Destiny2\packages" #Path to your packages folder.
 #path="C:\Program Files (x86)\Steam\steamapps\common\Destiny2\packages"
 #path="C:\OldD2\packages"
@@ -1493,10 +1493,10 @@ def CutsceneView(top):
         widget.destroy()
     for File in os.listdir(path):
         temp=File.split("_")
-        if "video" in temp:
-            new="_".join(temp[:(len(temp)-1)])
-            if new not in lst:
-                lst.append(new)
+        #if "video" in temp:
+        new="_".join(temp[:(len(temp)-1)])
+        if new not in lst:
+            lst.append(new)
     bg = PhotoImage(file = os.getcwd()+"/ThirdParty/destiny.png")
     label1 = Label(top, image = bg)
     label1.pack()
@@ -2052,7 +2052,27 @@ def EncounterMenu(top,entry):
         PkgID=Hex_String(Package_ID(ContainerHash))
         EntryID=Hex_String(Entry_ID(ContainerHash))
         StringContainer=PkgID+"-"+EntryID
-        print(StringContainer)
+        File.seek(0x58)
+        LoadZoneOffset=int.from_bytes(File.read(4),"little")
+        File.seek(0x58+LoadZoneOffset)
+        LoadCount=int.from_bytes(File.read(4),"little")
+        File.seek(File.tell()+0xC)
+        Start=File.tell()
+        LoadSearch=[]
+        for j in range(LoadCount):
+            File.seek(Start+(j*0x38)+0x8)
+            LoadHash=binascii.hexlify(bytes(File.read(4))).decode()
+            File.seek(Start+(j*0x38)+0x30)
+            LoadFileOffset=int.from_bytes(File.read(4),"little")
+            File.seek(Start+(j*0x38)+0x30+LoadFileOffset+0x18)
+            Hash64Val=int.from_bytes(File.read(8),"little")
+            TopHash=Hash64Search(H64Sort,Hash64Val)
+            print(TopHash)
+            LoadFileHash=binascii.hexlify(bytes(hex_to_little_endian(TopHash[2:]))).decode('utf-8')
+            LoadSearch.append([LoadHash,LoadFileHash])
+
+
+        
         for Pointer in range(9999):
             File.seek(0x10*Pointer)
             Line=binascii.hexlify(bytes(File.read(0x10))).decode()
@@ -2069,11 +2089,14 @@ def EncounterMenu(top,entry):
                     ActDatSplit=[ActDat[i:i+8] for i in range(0, len(ActDat), 8)]
                     print(StringContainer.upper())
                     dat=StringHash(ActDatSplit[2],StrData,StringContainer.upper())
-                    EncounterInfo=[dat,ActDatSplit[3],ActDatSplit[5],str(Start+(i*18))]
+                    for Val in LoadSearch:
+                        if Val[0] == ActDatSplit[2]:
+                            LoadFile=Val[1]
+                            break
+                    EncounterInfo=[dat,ActDatSplit[3],ActDatSplit[5],str(Start+(i*18)),LoadFile]
                     EncounterList.append(EncounterInfo)
                     print(EncounterInfo)
     EncounterCount=0
-    print()
     for Encounter in EncounterList:
         EntityFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Encounter[2]))).decode('utf-8')))
         PkgID=Hex_String(Package_ID(EntityFile))
@@ -2137,11 +2160,12 @@ def EncounterMenu(top,entry):
     filelist = []
     top.mainloop()
 def VariableRipper(combo_box,PackageCache,H64Sort,top,StrData):
-    output=open(os.getcwd()+"/cache/directive.txt","w")
     Data=combo_box.get()
     print(Data)
     Data=Data.split(",")
+    OutName=Data[0].split(".")[0]
     ScriptCache=[]
+    output=open(os.getcwd()+"/ExtractedFiles/Encounters/"+OutName+"_variables.txt","a")
     for File in os.listdir(os.getcwd()+"/out"):
         if File == "audio":
             continue
@@ -2181,11 +2205,52 @@ def VariableRipper(combo_box,PackageCache,H64Sort,top,StrData):
     for Resource in EntityResources:
         EntityFileData=GetFileData(Resource,PackageCache)
         UnpackEntry(EntityFileData[64:72],PackageCache)
-    BinEntityScraper(PackageCache,ExtraES,StrData)
+    BinEntityScraper(PackageCache,ExtraES,StrData,OutName)
     
 def ExtractSingleEncounter(entry,PackageCache,H64Sort,top):
+    file2=open(os.getcwd()+"/cache/output.txt","r")
+    data=file2.read()
+    file2.close()
+    StrData=data.split("\n")
+    #print(StrData)
+    #file.close()
+    newStrData=[]
+    for String in StrData:
+        try:
+            String.split(" // ")[1]
+        except IndexError:
+            continue
+        try:
+            int(String.split(" // ")[1])
+        except ValueError:
+            continue
+            
+        try:
+            newStrData.append([(String.split(" // ")[0]),int(String.split(" // ")[1]),String.split(" // ")[2]])
+        except IndexError:
+            #print(String)
+            continue
+        
+        #print(newStrData)
+    newStrData.sort(key=lambda x: x[1])
+    StrData=newStrData
     output=open(os.getcwd()+"/cache/directive.txt","w")
     Data=entry.get()
+    UIDTable=open(os.getcwd()+"/data/AllGameBulk.txt","r").read()
+    SplitMaps=UIDTable.split("\n")
+    UIDSearch=[]
+    for Val in SplitMaps:
+        temp=Val.split(" : ")
+        #print(temp)
+        try:
+            UIDSearch.append([ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8'))),temp[2]])
+        except IndexError:
+            continue
+        except AttributeError:
+            continue
+        except SyntaxError:
+            continue
+    UIDSearch.sort(key=lambda x: x[0])
     Data=Data.split(",")
     #print(Data)
     EntityFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Data[3]))).decode('utf-8')))
@@ -2200,6 +2265,8 @@ def ExtractSingleEncounter(entry,PackageCache,H64Sort,top):
     EntityResources=[EntityResources[i:i+8] for i in range(0, len(EntityResources), 8)]
     First=True
     DTFiles=[]
+    CombatDtFiles=[]
+    SubScriptNames=[]
     for Resource in EntityResources:
         #print(Resource)
         EntityIDMapper=open(os.getcwd()+"/data/EntityIDMapper.txt","a")
@@ -2229,10 +2296,99 @@ def ExtractSingleEncounter(entry,PackageCache,H64Sort,top):
             PlacementOffset=int.from_bytes(DataStream.read(4),"little")
             DataStream.seek(0x18+PlacementOffset-4)
             Type=binascii.hexlify(bytes(DataStream.read(4))).decode()
-            if Type == "d8928080":
-                DataStream.seek(DataStream.tell()+0x84)
+            if Type == "d8928080":  #EntityPlacement
+                #print("Started")
+                SubFileFnvs=[]
+                Start=DataStream.tell()
+                DataStream.seek(0x80)
+                NameFile=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                if NameFile != "ffffffff":
+                    UnpackEntry(NameFile,PackageCache)
+                    NameFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(NameFile))).decode('utf-8')))
+                    PkgID=Hex_String(Package_ID(NameFile))
+                    EntryID=Hex_String(Entry_ID(NameFile))
+                    NameFile=PkgID+"-"+EntryID+".bin"
+                    NameFileStream=open(os.getcwd()+"/out/"+NameFile,"rb")
+                    NameFileStream.seek(0x30)
+                    #print(NameFile)
+                    NameInstCount=int.from_bytes(NameFileStream.read(4),"little")
+                    NameFileStream.seek(NameFileStream.tell()+0xC)
+                    TableStart=NameFileStream.tell()
+                    for j in range(NameInstCount):
+                        #print("Looped name")
+                        NameFileStream.seek(0x40+(j*0x10))
+                        Off1=int.from_bytes(NameFileStream.read(4),"little")
+                        if Off1 != 0:
+                            #print("ran")
+                            NameFileStream.seek(NameFileStream.tell()+Off1-4)
+                            Off2=int.from_bytes(NameFileStream.read(4),"little")
+                            NameFileStream.seek(NameFileStream.tell()+Off2-4)
+                            String=ReadDevString(NameFileStream)
+                            if String != False:
+                                SubFileFnvs.append([gf.FNVString(String),String])
+
+                DataStream.seek(Start+0x30)
+                EntitySubName=int.from_bytes(DataStream.read(8),"little")
+                Index=binary_search2(UIDSearch,EntitySubName)
+                if Index != -1:
+                    Name=UIDSearch[Index][1]
+                    print(Name)
+                    DataStream.seek(DataStream.tell()+0x38)
+                    EntityAttributesOffset=int.from_bytes(DataStream.read(4),"little")
+                    DataStream.seek(Start+0x70+EntityAttributesOffset)
+                    EntityAttributeCount=int.from_bytes(DataStream.read(4),"little")
+                    DataStream.seek(DataStream.tell()+0xC)
+                    TableStart=DataStream.tell()
+                    for j in range(EntityAttributeCount):  #SelfRef,Type,AbsOffset,00000000,Rel
+                        #print("looped attri")
+                        DataStream.seek(TableStart+(j*0x18)+0x10)
+                        RelOffset=int.from_bytes(DataStream.read(4),"little")
+                        DataStream.seek(RelOffset+DataStream.tell()-8)
+                        AttributeType=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                        if AttributeType == "fe8c8080": #0x18 networked
+                            DataStream.seek(DataStream.tell()+0x10)
+                            Fnv=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                            #print(SubFileFnvs)
+                            for Val in SubFileFnvs:
+                                if Fnv == Val[0]:
+                                    print(Val[1])
+                        elif AttributeType == "71238080": #0x48
+                            DataStream.seek(DataStream.tell()+0x10)
+                            Fnv=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                            #print(SubFileFnvs)
+                            for Val in SubFileFnvs:
+                                if Fnv == Val[0]:
+                                    print(Val[1])
+                        elif AttributeType == "21428080": #0x38 interactable
+                            DataStream.seek(DataStream.tell()+0x10)
+                            Fnv=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                            #print(SubFileFnvs)
+                            for Val in SubFileFnvs:
+                                if Fnv == Val[0]:
+                                    print(Val[1])
+                        elif AttributeType == "0e488080": #0x30 timer
+                            DataStream.seek(DataStream.tell()+0x10)
+                            Fnv=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                            #print(SubFileFnvs)
+                            for Val in SubFileFnvs:
+                                if Fnv == Val[0]:
+                                    print(Val[1])
+                        else:
+                            DataStream.seek(DataStream.tell()+0x10)
+                            Fnv=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                            #print(SubFileFnvs)
+                            found=""
+                            for Val in SubFileFnvs:
+                                if Fnv == Val[0]:
+                                    #print(Val[1])
+                                    found=Val[1]
+                                    break
+                            print("unknown attribute type",AttributeType,found)
+                        
+
+                DataStream.seek(Start+0x84)
                 Hash=binascii.hexlify(bytes(DataStream.read(4))).decode()
-            elif Type == "ef8c8080":
+            elif Type == "ef8c8080":  #EntityPlacementV2
                 DataStream.seek(DataStream.tell()+0x58)
                 Hash=binascii.hexlify(bytes(DataStream.read(4))).decode()
             elif Type == "e58c8080": #Hxk Resource (no idea how to parse)
@@ -2245,13 +2401,308 @@ def ExtractSingleEncounter(entry,PackageCache,H64Sort,top):
                         if EntryA == "0x80809883":
                             Hash=Val
                             break
+            elif Type == "95468080": #AdPlacementGroupPlacer + loot + spline
+                DataStart=DataStream.tell()
+                DataStream.seek(DataStream.tell()+0xF0)
+                DataToSearch=binascii.hexlify(bytes(DataStream.read())).decode()
+                DataToSearch=[DataToSearch[i:i+8] for i in range(0, len(DataToSearch), 8)]
+                for Val in DataToSearch:
+                    if (Val[6:] == "80") or (Val[6:] == "81"):
+                        EntryA=GetFileReference(Val,PackageCache)
+                        if EntryA == "0x80809883":
+                            Hash=Val
+                            break
+                DataStream.seek(DataStart+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(DataStream.tell()+0x28)
+                MappingOffset=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+MappingOffset-4)
+                Count=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+0xC)
+                Start=DataStream.tell()
+                IDList=[]
+                for j in range(Count):
+                    DataStream.seek(Start+(j*0x10)+0x8)
+                    MainID=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                    IDList.append(MainID)
+                IDs=":".join(IDList)
+                DataStream.seek(DataStream.tell()+0xB0)
+                PlacementCount=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+0x4)
+                VecCheck=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                DataStream.seek(DataStream.tell()+0x4)
+                if VecCheck == "90008080":
+                    Start=DataStream.tell()
+                    for j in range(PlacementCount):
+                        DataStream.seek(Start+(j*0x10))
+                        PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                        PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                        PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                        ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                        if PosX != "00000000":
+                            PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                        else:
+                            PosX=0
+                        if PosY != "00000000":
+                            PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                        else:
+                            PosY=0
+                        if PosZ != "00000000":
+                            PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                        else:
+                            PosZ=0
+                        if ScaleX != "00000000":
+                            ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                        else:
+                            PosZ=0
+                        OutFile=open(os.getcwd()+"/data/Instances/NonEntity.inst","a")
+                        OutFile.write(str(0)+","+str(0)+","+str(0)+","+str(1)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(IDs)+":"+str(EntitySubName)+"\n")
+                        print(str(0)+","+str(0)+","+str(0)+","+str(1)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(IDs)+":"+str(EntitySubName))
+                        OutFile.close()
+            elif Type == "fa988080":  #entity val assignment
+                u=1
+            elif Type == "c6458080": #dialog
+                u=1
+            elif Type == "ef988080":  #ScriptNameIDMapper
+                DataStream.seek(DataStream.tell()+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(DataStream.tell()+0x28)
+                MappingOffset=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+MappingOffset-4)
+                Count=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+0xC)
+                Start=DataStream.tell()
+                for j in range(Count):
+                    DataStream.seek(Start+(j*0x10)+0x8)
+                    MainID=int.from_bytes(DataStream.read(8),"little")
+                    SubScriptNames.append([MainID,EntitySubName])
+            elif Type == "02468080": #whatever d_ is mapping (sometimes to base load entities)
+                AltMap=open(os.getcwd()+"/data/AltMapping.txt","a")
+                DataStream.seek(DataStream.tell()+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(DataStream.tell()+0x48)
+                EntityWorldId=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                AltMap.write(EntityWorldId+" : "+EntitySubName+"\n")
+                AltMap.close()
+            elif Type == "99468080": #whatever d_ is mapping (sometimes to base load entities)
+                print("Ran ",EntityFileData[64:72])
+                AltMap=open(os.getcwd()+"/data/AltMapping.txt","a")
+                Start=DataStream.tell()
+                DataStream.seek(DataStream.tell()+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(Start-0xA8)
+                MapCount=int.from_bytes(DataStream.read(4),"little")
+                DataStream.read(4)
+                Check=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                DataStream.read(4)
+                if Check == "46968080":
+                    TableStart=DataStream.tell()
+                    for j in range(MapCount):
+                        DataStream.seek(TableStart+(j*0x10))
+                        EntityWorldId=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                        AltMap.write(EntityWorldId+" : "+EntitySubName+"\n")
+                AltMap.close()
+            elif Type == "ae478080": #commandMapping??? pf_ (player_function??) functionmapping?
+                DataStream.seek(DataStream.tell()+0x30)
+                EntitySubName=int.from_bytes(DataStream.read(8),"little")
+                Name="        "
+                Index=binary_search2(UIDSearch,EntitySubName)
+                if Index != -1:
+                    Name=UIDSearch[Index][1]
+                DataStream.seek(DataStream.tell()+0x58)
+                MappingOffset=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+MappingOffset-4)
+                StatementCount=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+12)
+                TableStart=DataStream.tell()
+                for j in range(StatementCount):
+                    Name2="        "
+                    DataStream.seek(TableStart+(j*0x10))
+                    Zeros=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                    DataStream.read(4)
+                    ConditionOffset=int.from_bytes(DataStream.read(4),"little")
+                    DataStream.seek(DataStream.tell()+ConditionOffset-4-4)
+                    SubType=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                    if SubType == "c2448080": #Points to pf_ pc_ with unk10 being an ID?
+                        DataStream.seek(DataStream.tell()+0x8)
+                        IDSearch=int.from_bytes(DataStream.read(8),"little")
+                        UnkID=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                        Index=binary_search2(UIDSearch,IDSearch)
+                        if Index != -1:
+                            Name2=UIDSearch[Index][1]
+                        print("if ",Name," then ",Name2+"   "+UnkID)
+                    elif SubType == "c8448080": #Groups with ID at 0x4  RNG?!?!?!
+                        DataStream.seek(DataStream.tell()+0x4)
+                        UnkID=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                        print(Name+"   "+UnkID)
+                    elif SubType == "c5448080":  #elif?? extended statement
+                        DataStream.seek(DataStream.tell()+0x8)
+                        IDSearch=int.from_bytes(DataStream.read(8),"little")
+                        UnkID=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                        Index=binary_search2(UIDSearch,IDSearch)
+                        if Index != -1:
+                            Name2=UIDSearch[Index][1]
+                        print("if ",Name," then ",Name2+"   "+UnkID)
+                    else:
+                        print("unk subtype",SubType)
+                    
+                    
+            elif Type == "6f458080":   #links prefix ha_ to an entity "filter"  #hopons
+                u=1 #TODO once sorted entity parsing
+            elif Type == "108d8080":
+                DataStart=DataStream.tell()
+                DataStream.seek(DataStart+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(DataStream.tell()+0x48)
+                RotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                RotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                RotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                RotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                if RotX != "00000000":
+                    RotX=struct.unpack('!f', bytes.fromhex(RotX))[0]
+                else:
+                    RotX=0
+                if RotY != "00000000":
+                    RotY=struct.unpack('!f', bytes.fromhex(RotY))[0]
+                else:
+                    RotY=0
+                if RotZ != "00000000":
+                    RotZ=struct.unpack('!f', bytes.fromhex(RotZ))[0]
+                else:
+                    RotZ=0
+                if RotW != "00000000":
+                    RotW=struct.unpack('!f', bytes.fromhex(RotW))[0]
+                else:
+                    RotW=0
+                if PosX != "00000000":
+                    PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                else:
+                    PosX=0
+                if PosY != "00000000":
+                    PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                else:
+                    PosY=0
+                if PosZ != "00000000":
+                    PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                else:
+                    PosZ=0
+                if ScaleX != "00000000":
+                    ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                else:
+                    PosZ=0
+                OutFile=open(os.getcwd()+"/data/Instances/NonEntity.inst","a")
+                OutFile.write(str(RotX)+","+str(RotY)+","+str(RotZ)+","+str(RotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(EntitySubName)+"\n")
+                #print(str(0)+","+str(0)+","+str(0)+","+str(1)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(EntitySubName))
+                OutFile.close()
+            elif Type == "97448080": #maps pho to an entity (provided sounds and screenvfx)
+                u=1
+            elif Type == "348d8080": #eflag resource  doesnt point anywhere??
+                u=1
+            elif Type == "2e8d8080": #pflag resource  doesnt point anywhere??
+                u=1
+            elif Type == "cc468080": #objs ??scripting?? ad objectives
+                print("TODO: ",Type,Resource)
+                DataStream.seek(DataStart+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+            elif Type == "6f418080":  #Combatant Fnv mapper
+                u=1
+            elif Type == "b5468080":  #squad spawner
+                print("Squad",EntityFileData[64:72])
+                DataStart=DataStream.tell()
+                DataStream.seek(DataStream.tell()+0x30)
+                EntitySubName=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(DataStream.tell()+0x88)
+                RotX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                RotY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                RotZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                RotW=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                PosX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                PosY=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                PosZ=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(DataStream.read(4))).decode()))).decode('utf-8')
+                if RotX != "00000000":
+                    RotX=struct.unpack('!f', bytes.fromhex(RotX))[0]
+                else:
+                    RotX=0
+                if RotY != "00000000":
+                    RotY=struct.unpack('!f', bytes.fromhex(RotY))[0]
+                else:
+                    RotY=0
+                if RotZ != "00000000":
+                    RotZ=struct.unpack('!f', bytes.fromhex(RotZ))[0]
+                else:
+                    RotZ=0
+                if RotW != "00000000":
+                    RotW=struct.unpack('!f', bytes.fromhex(RotW))[0]
+                else:
+                    RotW=0
+                if PosX != "00000000":
+                    PosX=struct.unpack('!f', bytes.fromhex(PosX))[0]
+                else:
+                    PosX=0
+                if PosY != "00000000":
+                    PosY=struct.unpack('!f', bytes.fromhex(PosY))[0]
+                else:
+                    PosY=0
+                if PosZ != "00000000":
+                    PosZ=struct.unpack('!f', bytes.fromhex(PosZ))[0]
+                else:
+                    PosZ=0
+                if ScaleX != "00000000":
+                    ScaleX=struct.unpack('!f', bytes.fromhex(ScaleX))[0]
+                else:
+                    PosZ=0
+                OutFile=open(os.getcwd()+"/data/Instances/NonEntity.inst","a")
+                OutFile.write(str(RotX)+","+str(RotY)+","+str(RotZ)+","+str(RotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(EntitySubName)+"\n")
+                print(str(0)+","+str(0)+","+str(0)+","+str(1)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(EntitySubName))
+                OutFile.close()
+                DataStream.seek(DataStart+0xB0)
+                CombatMapping=binascii.hexlify(bytes(DataStream.read(8))).decode()
+                DataStream.seek(DataStart+0x70)
+                TableOffset=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+TableOffset-4)
+                TableCount=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+0xC)
+                TableStart=DataStream.tell()
+                for j in range(TableCount):
+                    DataStream.seek(TableStart+(j*0x18))# temperment stuff
+                DataStream.seek(DataStart+0x88)
+                CombDtOffset=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()-4+CombDtOffset)
+                CombDtCount=int.from_bytes(DataStream.read(4),"little")
+                DataStream.seek(DataStream.tell()+0xC)
+                PlacementStart=DataStream.tell()
+                for j in range(CombDtCount):  #0x80 size??
+                    DataStream.seek(PlacementStart+(j*0x80))
+                    DataStream.seek(DataStream.tell()+0x18)
+                    MeshGroup=binascii.hexlify(bytes(DataStream.read(4))).decode() #pls
+                    DataStream.seek(DataStream.tell()+0x14)
+                    H64Int=int.from_bytes(DataStream.read(8),"little")
+                    RealName=binascii.hexlify(bytes(DataStream.read(4))).decode()
+                    RealName=StringHash(RealName,StrData,"")
+                    DTHash=Hash64Search(H64Sort,H64Int)
+                    if DTHash != False:
+                        DTHash=binascii.hexlify(bytes(hex_to_little_endian(DTHash[2:]))).decode('utf-8')
+                        if RealName != False:
+                            CombatDtFiles.append([DTHash,str(RotX)+","+str(RotY)+","+str(RotZ)+","+str(RotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX),[EntitySubName,CombatMapping],RealName])
+                        else:
+                            CombatDtFiles.append([DTHash,str(RotX)+","+str(RotY)+","+str(RotZ)+","+str(RotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX),[EntitySubName,CombatMapping]])
+                    DataStream.seek(DataStream.tell()+0x40)
+                    DevGroupFnv=binascii.hexlify(bytes(DataStream.read(4))).decode()
+
+
+
             else:
                 u=1
                 #TODO, check others
                 # fa988080 is entity val assignment
                 # ef988080 music
                 # 97448080 interesting
-                print(Type+ " "+RSFile)
+                print("Not Implemented: "+Type+ " "+EntityFileData[64:72])
             if Hash != False:
                 EntryA=GetFileReference(Hash,PackageCache)
                 if str(EntryA) == "0x80809883":
@@ -2286,14 +2737,135 @@ def ExtractSingleEncounter(entry,PackageCache,H64Sort,top):
               
     output.close() 
     outname=Data[0].split(".")[0]
-    t_pool = mp.Pool(mp.cpu_count())
-    _args = [(File,H64Sort,ObjectName,PackageCache) for File in DTFiles]
+    SubScriptNames.sort(key=lambda x: x[0])
+    #t_pool = mp.Pool(mp.cpu_count())
+    _args = [(File,H64Sort,PackageCache,SubScriptNames,StrData) for File in CombatDtFiles]
+    t_pool.starmap(
+        ProperCombatTables, 
+        _args)
+    _args = [(File,H64Sort,ObjectName,PackageCache,SubScriptNames) for File in DTFiles] #file,H64Sort,Name,PackageCache,SubScriptNames
     t_pool.starmap(
         PullMechanicStructs, 
         _args)
     OutputAct2(outname) 
     GetTextures(PackageCache)
     Popup()
+def ProperCombatTables(File,H64Sort,PackageCache,SubScriptNames,StrData):
+    filename=File[0]
+    print(filename)
+    DTFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(filename))).decode('utf-8')))
+    PkgID=Hex_String(Package_ID(DTFile))
+    EntryID=Hex_String(Entry_ID(DTFile))
+    DirName=PkgID+"-"+EntryID+".bin"
+    Vec=File[1]
+    try:
+        Test=open(os.getcwd()+"/out/"+DirName,"rb")
+    except FileNotFoundError:
+        UnpackEntry(File[0],PackageCache)
+        Test=open(os.getcwd()+"/out/"+PkgID+"-"+EntryID+".bin","rb")
+    else:
+        Test.seek(0x20)
+        count=binascii.hexlify(bytes(Test.read(4))).decode()
+        if len(list(count)) == 8:
+            count=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(count))).decode('utf-8')))
+            StartingOffset=48
+            Test.seek(48)
+            for i in range(count):
+                Test.seek(48+(i*144)+48)
+                Hash64Bit=binascii.hexlify(bytes(Test.read(8))).decode()
+                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash64Bit))).decode('utf-8')
+                try:
+                    num=ast.literal_eval("0x"+flipped)
+                except SyntaxError:
+                    Test.close()
+                    break
+                Check=Hash64Search2(H64Sort,num)
+                
+                if Check != False:
+                    flipped=binascii.hexlify(bytes(hex_to_little_endian(Check[1][2:]))).decode('utf-8')
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    if Exists != True:
+                        myEntities.ExtractEntity(path,PackageCache,str(flipped),H64Sort)
+                    Exists=os.path.isfile(os.getcwd()+"/data/Dynamics/"+flipped+".fbx")
+                    Test.seek(48+(i*144))
+                    Test.seek(48+(i*144)+112)
+                    ObjectUUID=binascii.hexlify(bytes(Test.read(8))).decode()
+                    Test.seek(Test.tell()-8)
+                    ObjectUUIDInt=int.from_bytes(Test.read(8),"little")
+                    Attribute=int.from_bytes(Test.read(4),"little")
+                    Test.seek(0x30+(i*144)+120)
+                    NameHpOffset=int.from_bytes(Test.read(4),"little")
+                    Test.seek(Test.tell()+NameHpOffset-4)
+                    Test.seek(Test.tell()+0x24)
+                    NameString=binascii.hexlify(bytes(Test.read(4))).decode()
+                    Val=StringHash(NameString,StrData,"")
+                    UUIDsToWrite=[]
+                    UUIDsToWrite.append(str(ObjectUUID))
+                    for Val in File[2]:
+                        UUIDsToWrite.append(str(Val))
+                    UUIDS=":".join(UUIDsToWrite)
+                    OutFile=open(os.getcwd()+"/data/Instances/"+flipped.lower()+".inst","a")
+                    if Val != False:
+                        OutFile.write(Vec+","+str(UUIDS)+","+Val+"\n")
+                    else:
+                        OutFile.write(Vec+","+str(UUIDS)+"\n")
+                    OutFile.close()
+
+def ParseNameFile(NameFileHash,MainFile):
+    DTFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(NameFileHash))).decode('utf-8')))
+    PkgID=Hex_String(Package_ID(DTFile))
+    EntryID=Hex_String(Entry_ID(DTFile))
+    DirName=PkgID+"-"+EntryID+".bin"
+    NameFile=open(os.getcwd()+"/out/"+DirName,"rb")
+    NameFile.seek(0x30)
+    Count=int.from_bytes(NameFile.read(4),"little")
+    DevStringData=[]
+    for i in range(Count):
+        NameFile.seek(0x40+(i*0x10))
+        RawStringOffset=int.from_bytes(NameFile.read(4),"little")
+        if RawStringOffset == 0:
+            continue
+        NameFile.read(4)
+        DataOrderOffset=int.from_bytes(NameFile.read(4),"little")
+        if DataOrderOffset == 0:
+            continue
+        NameFile.seek(0x40+(i*0x10)+4+DataOrderOffset+8)
+        DataCheck=binascii.hexlify(bytes(NameFile.read(4))).decode()
+        #if DataCheck != "46998080":
+        #    continue
+        DataOrder=int.from_bytes(NameFile.read(4),"little")
+        MainFile.seek(DataOrder+8)
+        AbsOffset=int.from_bytes(MainFile.read(4),"little")
+        MainFile.seek(AbsOffset+0x10)
+        VarID=binascii.hexlify(bytes(MainFile.read(4))).decode()
+        NameFile.seek(0x40+(i*0x10)+RawStringOffset)
+        RawStringOffset2=int.from_bytes(NameFile.read(4),"little")
+        NameFile.seek(0x40+(i*0x10)+RawStringOffset+RawStringOffset2)
+        tempBuffer=[]
+        while True:
+            Val=binascii.hexlify(bytes(NameFile.read(1))).decode()
+            if Val == "00" or Val == "":
+                String=binascii.unhexlify("".join(tempBuffer)).decode()
+                break
+            tempBuffer.append(Val)
+        DevStringData.append([int(DataOrder),String,VarID])
+        print(String)
+    DevStringData.sort(key=lambda x: x[0])
+    NamesToReturn=[]
+    print(DevStringData)
+    for String in DevStringData:
+        NamesToReturn.append(String[1])
+    return NamesToReturn
+def ReadDevString(NameFile):
+    tempBuffer=[]
+    String=False
+    while True:
+        Val=binascii.hexlify(bytes(NameFile.read(1))).decode()
+        if Val == "00" or Val == "":
+            String=binascii.unhexlify("".join(tempBuffer)).decode()
+            break
+        tempBuffer.append(Val)
+    return String
 def CombatantRipper(entry,PackageCache,H64Sort,top,StrData):
     DTFiles=[]
     Entities=Combatants.ParseEntityFile(path,entry,PackageCache,H64Sort,top)
@@ -2373,7 +2945,7 @@ def CombatantRipper(entry,PackageCache,H64Sort,top,StrData):
             file1.close()
         else:
             print("Not a reference to Entity Placement")
-    t_pool = mp.Pool(mp.cpu_count())
+    #t_pool = mp.Pool(mp.cpu_count())
     _args = [(path,PackageCache,File,H64Sort) for File in EntitiesToRip]
     t_pool.starmap(
         myEntities.ExtractEntity, 
@@ -2535,6 +3107,7 @@ class DDS:
         self.ReadData()
         if Type == "Norm":
             self.ProcessNorm()
+            #if self.broke == False:
             self.OutputNorm()
         else:
             self.Process()
@@ -2559,9 +3132,23 @@ class DDS:
         flipped=binascii.hexlify(bytes(hex_to_little_endian(self.texFormat))).decode('utf-8')
         new=ast.literal_eval("0x"+stripZeros(flipped))
         #print(new)
+        self.broke=False
         if (70< new < 99):
             self.compressed=True
         self.Norm=new
+        try:
+            DxgiCheck=DXGI_FORMAT[self.Norm]
+        except IndexError:
+            u=1
+        else:
+            split=DxgiCheck.split("_")
+            try:
+                split[len(split)-1]
+            except IndexError:
+                u=1
+            else:
+                if split[len(split)-1] != "SRGB":
+                    self.broke=True
         self.texFormat=c_uint32(new)
         self.MagicNumber = c_uint32(542327876)
         self.dwSize = c_uint32(124)
@@ -2670,129 +3257,7 @@ class DDS:
         File.close()       
         #cmd="texassemble.exe h-cross "+self.FileName.split(".")[0]+".dds"+" -y -nologo -o "+self.FileName.split(".")[0]+".bmp"
         #os.system('cmd /c '+cmd)
-        DXGI_FORMAT = [
-        "UNKNOWN",
-        "R32G32B32A32_TYPELESS",
-        "R32G32B32A32_FLOAT",
-        "R32G32B32A32_UINT",
-        "R32G32B32A32_SINT",
-        "R32G32B32_TYPELESS",
-        "R32G32B32_FLOAT",
-        "R32G32B32_UINT",
-        "R32G32B32_SINT",
-        "R16G16B16A16_TYPELESS",
-        "R16G16B16A16_FLOAT",
-        "R16G16B16A16_UNORM",
-        "R16G16B16A16_UINT",
-        "R16G16B16A16_SNORM",
-        "R16G16B16A16_SINT",
-        "R32G32_TYPELESS",
-        "R32G32_FLOAT",
-        "R32G32_UINT",
-        "R32G32_SINT",
-        "R32G8X24_TYPELESS",
-        "D32_FLOAT_S8X24_UINT",
-        "R32_FLOAT_X8X24_TYPELESS",
-        "X32_TYPELESS_G8X24_UINT",
-        "R10G10B10A2_TYPELESS",
-        "R10G10B10A2_UNORM",
-        "R10G10B10A2_UINT",
-        "R11G11B10_FLOAT",
-        "R8G8B8A8_TYPELESS",
-        "R8G8B8A8_UNORM",
-        "R8G8B8A8_UNORM_SRGB",
-        "R8G8B8A8_UINT",
-        "R8G8B8A8_SNORM",
-        "R8G8B8A8_SINT",
-        "R16G16_TYPELESS",
-        "R16G16_FLOAT",
-        "R16G16_UNORM",
-        "R16G16_UINT",
-        "R16G16_SNORM",
-        "R16G16_SINT",
-        "R32_TYPELESS",
-        "D32_FLOAT",
-        "R32_FLOAT",
-        "R32_UINT",
-        "R32_SINT",
-        "R24G8_TYPELESS",
-        "D24_UNORM_S8_UINT",
-        "R24_UNORM_X8_TYPELESS",
-        "X24_TYPELESS_G8_UINT",
-        "R8G8_TYPELESS",
-        "R8G8_UNORM",
-        "R8G8_UINT",
-        "R8G8_SNORM",
-        "R8G8_SINT",
-        "R16_TYPELESS",
-        "R16_FLOAT",
-        "D16_UNORM",
-        "R16_UNORM",
-        "R16_UINT",
-        "R16_SNORM",
-        "R16_SINT",
-        "R8_TYPELESS",
-        "R8_UNORM",
-        "R8_UINT",
-        "R8_SNORM",
-        "R8_SINT",
-        "A8_UNORM",
-        "R1_UNORM",
-        "R9G9B9E5_SHAREDEXP",
-        "R8G8_B8G8_UNORM",
-        "G8R8_G8B8_UNORM",
-        "BC1_TYPELESS",
-        "BC1_UNORM",
-        "BC1_UNORM_SRGB",
-        "BC2_TYPELESS",
-        "BC2_UNORM",
-        "BC2_UNORM_SRGB",
-        "BC3_TYPELESS",
-        "BC3_UNORM",
-        "BC3_UNORM_SRGB",
-        "BC4_TYPELESS",
-        "BC4_UNORM",
-        "BC4_SNORM",
-        "BC5_TYPELESS",
-        "BC5_UNORM",
-        "BC5_SNORM",
-        "B5G6R5_UNORM",
-        "B5G5R5A1_UNORM",
-        "B8G8R8A8_UNORM",
-        "B8G8R8X8_UNORM",
-        "R10G10B10_XR_BIAS_A2_UNORM",
-        "B8G8R8A8_TYPELESS",
-        "B8G8R8A8_UNORM_SRGB",
-        "B8G8R8X8_TYPELESS",
-        "B8G8R8X8_UNORM_SRGB",
-        "BC6H_TYPELESS",
-        "BC6H_UF16",
-        "BC6H_SF16",
-        "BC7_TYPELESS",
-        "BC7_UNORM",
-        "BC7_UNORM_SRGB",
-        "AYUV",
-        "Y410",
-        "Y416",
-        "NV12",
-        "P010",
-        "P016",
-        "420_OPAQUE",
-        "YUY2",
-        "Y210",
-        "Y216",
-        "NV11",
-        "AI44",
-        "IA44",
-        "P8",
-        "A8P8",
-        "B4G4R4A4_UNORM",
-        "P208",
-        "V208",
-        "V408",
-        "SAMPLER_FEEDBACK_MIN_MIP_OPAQUE",
-        "SAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE",
-        "FORCE_UINT"]
+        
         try:
             dxgiFormat = DXGI_FORMAT[self.Norm]
         except IndexError:
@@ -2829,129 +3294,7 @@ class DDS:
         cmd="texassemble.exe h-cross "+self.CWD+"/"+self.FileName.split(".")[0]+".dds"+" -y -nologo -o "+self.CWD+"/"+self.FileName.split(".")[0]+".bmp"
         print(cmd)
         subprocess.call(cmd, shell=True) 
-        DXGI_FORMAT = [
-        "UNKNOWN",
-	"R32G32B32A32_TYPELESS",
-	"R32G32B32A32_FLOAT",
-	"R32G32B32A32_UINT",
-	"R32G32B32A32_SINT",
-	"R32G32B32_TYPELESS",
-	"R32G32B32_FLOAT",
-	"R32G32B32_UINT",
-	"R32G32B32_SINT",
-	"R16G16B16A16_TYPELESS",
-	"R16G16B16A16_FLOAT",
-	"R16G16B16A16_UNORM",
-	"R16G16B16A16_UINT",
-	"R16G16B16A16_SNORM",
-	"R16G16B16A16_SINT",
-	"R32G32_TYPELESS",
-	"R32G32_FLOAT",
-	"R32G32_UINT",
-	"R32G32_SINT",
-	"R32G8X24_TYPELESS",
-	"D32_FLOAT_S8X24_UINT",
-	"R32_FLOAT_X8X24_TYPELESS",
-	"X32_TYPELESS_G8X24_UINT",
-	"R10G10B10A2_TYPELESS",
-	"R10G10B10A2_UNORM",
-	"R10G10B10A2_UINT",
-	"R11G11B10_FLOAT",
-	"R8G8B8A8_TYPELESS",
-	"R8G8B8A8_UNORM",
-	"R8G8B8A8_UNORM_SRGB",
-	"R8G8B8A8_UINT",
-	"R8G8B8A8_SNORM",
-	"R8G8B8A8_SINT",
-	"R16G16_TYPELESS",
-	"R16G16_FLOAT",
-	"R16G16_UNORM",
-	"R16G16_UINT",
-	"R16G16_SNORM",
-	"R16G16_SINT",
-	"R32_TYPELESS",
-	"D32_FLOAT",
-	"R32_FLOAT",
-	"R32_UINT",
-	"R32_SINT",
-	"R24G8_TYPELESS",
-	"D24_UNORM_S8_UINT",
-	"R24_UNORM_X8_TYPELESS",
-	"X24_TYPELESS_G8_UINT",
-	"R8G8_TYPELESS",
-	"R8G8_UNORM",
-	"R8G8_UINT",
-	"R8G8_SNORM",
-	"R8G8_SINT",
-	"R16_TYPELESS",
-	"R16_FLOAT",
-	"D16_UNORM",
-	"R16_UNORM",
-	"R16_UINT",
-	"R16_SNORM",
-	"R16_SINT",
-	"R8_TYPELESS",
-	"R8_UNORM",
-	"R8_UINT",
-	"R8_SNORM",
-	"R8_SINT",
-	"A8_UNORM",
-	"R1_UNORM",
-	"R9G9B9E5_SHAREDEXP",
-	"R8G8_B8G8_UNORM",
-	"G8R8_G8B8_UNORM",
-	"BC1_TYPELESS",
-	"BC1_UNORM",
-	"BC1_UNORM_SRGB",
-	"BC2_TYPELESS",
-	"BC2_UNORM",
-	"BC2_UNORM_SRGB",
-	"BC3_TYPELESS",
-	"BC3_UNORM",
-	"BC3_UNORM_SRGB",
-	"BC4_TYPELESS",
-	"BC4_UNORM",
-	"BC4_SNORM",
-	"BC5_TYPELESS",
-	"BC5_UNORM",
-	"BC5_SNORM",
-	"B5G6R5_UNORM",
-	"B5G5R5A1_UNORM",
-	"B8G8R8A8_UNORM",
-	"B8G8R8X8_UNORM",
-	"R10G10B10_XR_BIAS_A2_UNORM",
-	"B8G8R8A8_TYPELESS",
-	"B8G8R8A8_UNORM_SRGB",
-	"B8G8R8X8_TYPELESS",
-	"B8G8R8X8_UNORM_SRGB",
-	"BC6H_TYPELESS",
-	"BC6H_UF16",
-	"BC6H_SF16",
-	"BC7_TYPELESS",
-	"BC7_UNORM",
-	"BC7_UNORM_SRGB",
-	"AYUV",
-	"Y410",
-	"Y416",
-	"NV12",
-	"P010",
-	"P016",
-	"420_OPAQUE",
-	"YUY2",
-	"Y210",
-	"Y216",
-	"NV11",
-	"AI44",
-	"IA44",
-	"P8",
-	"A8P8",
-	"B4G4R4A4_UNORM",
-	"P208",
-	"V208",
-	"V408",
-	"SAMPLER_FEEDBACK_MIN_MIP_OPAQUE",
-	"SAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE",
-	"FORCE_UINT"]
+        
         #dxgiFormat = DXGI_FORMAT[self.texFormat]
         cmd="texconv.exe "+self.CWD+"\\"+self.FileName.split(".")[0]+".bmp -y -nologo -ft PNG -o "+self.SaveLoc
         subprocess.call(cmd, shell=True)
@@ -3008,10 +3351,14 @@ def Hash64(packagesPath):
                 file1.write(str("0x"+flipped)+": "+str("0x"+flipped2)+str(": 0x"+flipped3)+str(": "+entry)+"\n")
     file1.close()
 def ClearDir(top):
-    for file in os.listdir(os.getcwd()+"/out"):
-        if file != "audio":
-            os.remove(os.getcwd()+"/out/"+file)
+    _args = [(File,"L") for File in os.listdir(os.getcwd()+"/out")]
+    t_pool.starmap(
+        DelFile, 
+        _args)
     Popup()
+def DelFile(File,Null):
+    if File != "audio":
+        os.remove(os.getcwd()+"/out/"+File)
 def ClearMaps(top):
     for file in os.listdir(os.getcwd()+"/data/Statics"):
         os.remove(os.getcwd()+"/data/Statics/"+file)
@@ -3068,12 +3415,54 @@ def DevMenu():
     combo_box.place(x=500, y=125)
     Activity = Button(top, text="Extract Dev Strings", height=1, width=20,command=partial(DevRipper,combo_box,False))
     Activity.place(x=500, y=175)
+    FnvGen = Button(top, text="Extract Fnv list", height=1, width=20,command=partial(GenFnvList))
+    FnvGen.place(x=500, y=375)
     Activity2 = Button(top, text="Extract Dev Strings(All)", height=1, width=20,command=partial(DevRipper,combo_box,True))
     Activity2.place(x=500, y=225)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
     filelist = []
     top.mainloop()
+def GenFnvList():
+    useful=["0x80800000","0x8080906b","0x80809b06","0x80809212"]
+    filelist=[]
+    for file in os.listdir(path)[::-1]:
+            if fnmatch.fnmatch(file,"w64_*"):       #Customize this to what pkgs you need from. Can wildcard with * for all packages, or all of a certain type.
+                filelist.append(file)
+    unpack_all(path,custom_direc,useful,filelist)
+    OutFile=open(os.getcwd()+"/data/FnvList.txt","w")
+    for File in os.listdir(os.getcwd()+"/out"):
+        FileStrings=[]
+        File=open(os.getcwd()+"/out/"+File,"rb")
+        while True:
+            Check=binascii.hexlify(bytes(File.read(4))).decode()
+            if Check == "65008080":
+                File.seek(File.tell()+8)
+                while True:
+                    tempBuffer=[]
+                    while True:
+                        Val=binascii.hexlify(bytes(File.read(1))).decode()
+                        if Val == "00":
+                            String=binascii.unhexlify("".join(tempBuffer)).decode()
+                            break
+                        tempBuffer.append(Val)
+                    FileStrings.append(String)
+                    EndCheck=binascii.hexlify(bytes(File.read(1))).decode()
+                    if EndCheck == "":
+                        break
+                    else:
+                        File.seek(File.tell()-1)
+                
+            elif Check == "":
+                break
+        for String in FileStrings:
+            FnvString=gf.FNVString(String)
+            OutFile.write(str(FnvString)+" : "+String+"\n")
+    OutFile.close()
+            
+
+
+    
 def FileDevRip(File,newStrData,ObjectValues,ObjectValues2,PackageCache):
     file=open(custom_direc+"/"+File,"rb")
     Data=binascii.hexlify(bytes(file.read())).decode()
@@ -4131,7 +4520,7 @@ def DevRipper(entry,Answer):
     for File in os.listdir(custom_direc):
             if File != "audio":
                 FileRips.append(File)
-    t_pool = mp.Pool(mp.cpu_count())
+    #t_pool = mp.Pool(mp.cpu_count())
     _args = [(File,newStrData,ObjectArray,ObjectArray2,PackageCache) for File in FileRips]
     t_pool.starmap(
         FileDevRip, 
@@ -4504,20 +4893,27 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
 
             
             if (vertFound == True) and (indFound == True):
-                print(IndexHead)
                 IndexHeader=int(ast.literal_eval("0x"+IndexHead))
                 pkg = Hex_String(Package_ID(IndexHeader))
                 ent = Hex_String(Entry_ID(IndexHeader))
                 Bank=pkg+"-"+ent+".iheader"
                 U32Check=open(os.getcwd()+"/out/"+Bank,"rb")
-                IndexHeaderData=binascii.hexlify(bytes(U32Check.read())).decode()
-                verts=[]
-                #print("RUNNING")
+                U32Check.seek(1)
+                isU32=int.from_bytes(U32Check.read(1),"little")
+                if isU32 == 1:
+                    isU32=True
+                else:
+                    isU32=False
+                VertHeader=int(ast.literal_eval("0x"+VertHead))
+                pkg = Hex_String(Package_ID(VertHeader))
+                ent = Hex_String(Entry_ID(VertHeader))
+                Bank=pkg+"-"+ent+".vheader"
+                VHead=open(os.getcwd()+"/out/"+Bank,"rb")
+                VertexLength=int.from_bytes(VHead.read(4),"little")
                 norms=[]
+                verts=[]
                 Vert=open(os.getcwd()+"/out/"+VertexName,"rb")
-                #print(VertexBufferList[VertexFileOffset])
-                
-                for i in range(int(99999)):
+                for i in range(int(VertexLength/16)):
                     s = binascii.hexlify(bytes(Vert.read(16))).decode()
                     if s == "":
                         break
@@ -4541,7 +4937,7 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                     Length=len(Data)/8
                     UV.seek(0)
                     UVData=[]
-                    for i in range(int(999999)):
+                    for i in range(int(99999999)):
                         Data=binascii.hexlify(bytes(UV.read(4))).decode()
                         if Data == "":
                             break
@@ -4556,34 +4952,30 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                 Parts=True
                 if Parts == True:
                     sub.seek(0x20)
-                    Offset=binascii.hexlify(bytes(sub.read(4))).decode()
-                    if Offset != "00000000":
-                        Offset=binascii.hexlify(bytes(hex_to_little_endian(Offset))).decode('utf-8')
-                        Offset=ast.literal_eval("0x"+stripZeros(Offset))
+                    Offset=int.from_bytes(sub.read(4),"little")
+                    if Offset != 0:
                         sub.seek(32+Offset)
-                        Length=binascii.hexlify(bytes(sub.read(4))).decode()
-                        Length=binascii.hexlify(bytes(hex_to_little_endian(Length))).decode('utf-8')
-                        Length=ast.literal_eval("0x"+stripZeros(Length))
+                        Length=int.from_bytes(sub.read(4),"little")
                         sub.seek(48+Offset)
                         PartData=[]
                         PartLengths=[]
                         for i in range(Length):
-                            PartDat=binascii.hexlify(bytes(sub.read(12))).decode()
-                            PartData.append(PartDat)
-                            temp=[PartDat[i:i+8] for i in range(0, len(PartDat), 8)]
-                            if temp[0] != "00000000":
-                                PartLengths.append([ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8'))),PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
-                            else:
-                                PartLengths.append([0,PartDat[21],ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[1]))).decode('utf-8')))])
+                            sub.seek(48+Offset+(i*12))
+                            IndexCount=int.from_bytes(sub.read(4),"little")
+                            IndexOffset=int.from_bytes(sub.read(4),"little")
+                            BufferIndex=int.from_bytes(sub.read(2),"little")
+                            LOD=int.from_bytes(sub.read(1),"little")
+                            PrimitiveType=int.from_bytes(sub.read(1),"little")
+                            PartLengths.append([IndexCount,IndexOffset,BufferIndex,LOD,PrimitiveType])
+                           
                 faces=[]
                 ind=open(os.getcwd()+"/out/"+IndexName,"rb")
-                ind.seek(0x0)
                 Length = binascii.hexlify(bytes(ind.read())).decode()
                 ind.seek(0x0)
                 if VColorFound == True:
                     VColData=[]
                     VColor=open(os.getcwd()+"/out/"+VColorName,"rb")
-                    for i in range(int(999999)):
+                    for i in range(int(99999999)):
                         Data=binascii.hexlify(bytes(VColor.read(4))).decode()
                         if Data == "":
                             break
@@ -4598,73 +4990,59 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                 memory_manager = fbx.FbxManager.Create()
                 scene = fbx.FbxScene.Create(memory_manager, '')
                 count99=0
-                MaxDetail=ast.literal_eval("0x"+PartLengths[0][1])
+                WrittenMats=[]
+                MaxDetail=PartLengths[0][3]
+                if len(MaterialData) > 0:
+                    MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
+                    #print(MaterialData)
+                    #print(MatRef)
+                    for Mat in MaterialData:
+                        Textures=ParseMaterial(Mat[1],H64Sort)
+                        if Textures != []:
+                            Textures=",".join(Textures)
+                            MatOut.write(Static+"_"+str(Mat[0])+" : "+Mat[1]+" : "+Textures+"\n")
+                            WrittenMats.append(int(Mat[0]))
+                    MatOut.close()
+                WrittenMats.sort()
                 for Part in PartLengths:
-                    #print(Part)
-                    Detail=ast.literal_eval("0x"+Part[1])
-                    if Detail != MaxDetail:
+                    if Part[3] > 3:
                         #print("broke")
-                        break
-                    my_mesh = fbx.FbxMesh.Create(scene, Static+"_"+str(count99))
+                        continue
+                    #print(Part)
+                    my_mesh = fbx.FbxMesh.Create(scene, Static+"_"+str(count99)+"_"+str(Part[3]))
                     count=0
-                    
                     Length = binascii.hexlify(bytes(ind.read())).decode()
-                    ind.seek(int(Part[0]*2))
+                    #ind.seek(int(Part[0]*2))
                     faces=[]
-                    #print(IndexHeaderData)
-                    if IndexHeaderData[3] == "1":
-                        ReadLen=4
-                    else:
-                        ReadLen=2
-                    #print(ReadLen)
-                    for i in range(round(Part[2]/3)):
-                        x = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                        if x == "":
-                            break
-                        x=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(x))).decode('utf-8')))
-                        y = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                        if y == "":
-                            break
-                        y=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(y))).decode('utf-8')))
-                        z = binascii.hexlify(bytes(ind.read(ReadLen))).decode()
-                        if z == "":
-                            break
-                        z=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(z))).decode('utf-8')))
-                        
-                        faces.append([x,y,z])
-                    #print(faces)
-                    #print(verts)
-                    #print(len(verts))
+                    IndexData=Model.ReadIndexData(Part[4],isU32,Part[0],Part[1],ind)
+                    #print(Static+"_"+str(count99)+"_"+str(Part[3]))
+                    #print(IndexData)
                     usedVerts=[]
                     tempCheck=[]
                     count5=0
                     #print(verts)
-                    for Face in faces:
-                        for Val in Face:
-                            try:
-                                verts[int(Val)]
-                            except IndexError:
-                                continue
-                            if int(Val) not in tempCheck:
-                                usedVerts.append([verts[int(Val)],int(Val)])
-                                tempCheck.append(int(Val))
-                    for Face in usedVerts:
-                        Face.append(count5)
-                        count5+=1
+                    usedVerts=[]   
+                    for List in IndexData:
+                        for Val in List:
+                            Check = binary_search_single(usedVerts,Val)
+                            if Check == -1:
+                                bisect.insort(usedVerts, Val) 
+                    
+                    #for Face in usedVerts:
+                    #    Face.append(count5)
+                    #    count5+=1
                             
                             
                     count=0
-
-                    usedVerts.sort(key=lambda x: x[1])
                     my_mesh.InitControlPoints(len(usedVerts))
                     for Set in usedVerts:
-                        v = fbx.FbxVector4(Set[0][0]+xScale, Set[0][1]+yScale, Set[0][2]+zScale)
+                        v = fbx.FbxVector4(verts[Set][0]+xScale, verts[Set][1]+yScale, verts[Set][2]+zScale)
                         my_mesh.SetControlPointAt( v, count )
                         count+=1
-                    for Face in faces:
+                    for Face in IndexData:
                         my_mesh.BeginPolygon()
                         for Val in Face:
-                            vertex_index = binary_search(usedVerts,int(Val))
+                            vertex_index = binary_search_single(usedVerts,int(Val))
                             my_mesh.AddPolygon(vertex_index)
                         my_mesh.EndPolygon()#################################IDK CHANGE IF BROke
                             
@@ -4686,12 +5064,11 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                         uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
                         uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
                         for Vert in usedVerts:
-                            Pos=Vert[1]
                             try:
-                                UVData[Pos]
+                                UVData[Vert]
                             except IndexError:
                                 continue
-                            uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Pos][0]),float(UVData[Pos][1])))
+                            uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Vert][0]),float(UVData[Vert][1])))
             #for UV in UVData:
                         count=0
                         try:
@@ -4707,7 +5084,7 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                     if VColorFound == True:
                         for Vert in usedVerts:
                             try:
-                                Pos=Vert[1]
+                                Pos=Vert
                             except IndexError:
                                 continue
                             try:
@@ -4726,8 +5103,11 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                     lLayer = my_mesh.GetLayer(0)
                     
                     for Vert in usedVerts:
-                        Pos=Vert[1]
-                        normLayer.GetDirectArray().Add(fbx.FbxVector4(norms[Pos][0],norms[Pos][1],norms[Pos][2],norms[Pos][3]))
+                        Pos=Vert
+                        try:
+                            normLayer.GetDirectArray().Add(fbx.FbxVector4(norms[Pos][0],norms[Pos][1],norms[Pos][2],norms[Pos][3]))
+                        except IndexError:
+                            continue
                         
                     count99+=1
                 
@@ -4735,16 +5115,7 @@ def RipOwnStatic(Static,PackageCache,H64Sort):
                 FbxCommon.SaveScene(memory_manager, scene, filename)
                 memory_manager.Destroy()
                 countMat=0
-                if len(MaterialData) > 0:
-                    MatOut=open(os.getcwd()+"/data/Materials/"+Static+".txt","w")
-                    print(MaterialData)
-                    #print(MatRef)
-                    for Mat in MaterialData:
-                        Textures=ParseMaterial(Mat[1],H64Sort)
-                        if Textures != []:
-                            Textures=",".join(Textures)
-                            MatOut.write(Static+"_"+str(Mat[0])+" : "+Mat[1]+" : "+Textures+"\n")
-                    MatOut.close()
+                
             else:
                 print(Static)
                 print("Fucked it")
@@ -5093,22 +5464,29 @@ def LoadNames(top,ActId,ActName):
         print(Load[0])
         Data=binascii.hexlify(bytes(file.read())).decode()
         data=[Data[i:i+32] for i in range(0, len(Data), 32)]
-        file.close() ##############################################################################################
+        #file.close() ##############################################################################################
         LoadHashes=[]
         First=True
         #print(len(data))
-        for Line in data:
-            split=[Line[i:i+8] for i in range(0, len(Line), 8)]
-            if split[0].lower() == "ffffffff":
-                Hash=str(split[2])+str(split[3])
-                flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
-                #print(flipped)
-                Val=ast.literal_eval("0x"+flipped)
+        file.seek(0x10)
+        TableOffset=int.from_bytes(file.read(4),"little")
+        file.seek(0x10+TableOffset)
+        TableCount=int.from_bytes(file.read(4),"little")
+        file.seek(0x20+TableOffset)
+        for i in range(TableCount):
+            file.seek(0x20+TableOffset+(i*0x10))
+            Check32=binascii.hexlify(bytes(file.read(4))).decode()
+            if Check32 == "ffffffff":
+                file.read(4)
+                Val=int.from_bytes(file.read(8),"little")
                 Index=Hash64Search(Hash64Data,int(Val))
                 if Index != False:
                     LhashFile=Index
                     LoadNames[count].append(LhashFile)
                         #break
+            else:
+                LoadNames[count].append("0x"+binascii.hexlify(bytes(hex_to_little_endian(Check32))).decode('utf-8'))
+        file.close()
         count+=1
     newLoadNames=[]
     count=0    
@@ -5127,13 +5505,13 @@ def LoadNames(top,ActId,ActName):
     combo_box['values'] = lst
     combo_box.bind('<KeyRelease>', check_input)
     combo_box.place(x=500, y=125)
-    Map = Button(top, text="Extract Load", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,True))
+    Map = Button(top, text="Extract Load Entities", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,True,False))
     Map.place(x=500, y=400)
     EntityScrape = Button(top, text="Extract Entities", height=1, width=30,command=partial(EntityScraper,LoadNames))
     EntityScrape.place(x=500, y=450)
     EntityScrapeBulk = Button(top, text="Extract Entities (bulk)", height=1, width=30,command=partial(EntityScraperBulk,LoadNames))
     EntityScrapeBulk.place(x=700, y=450)
-    Map2 = Button(top, text="Extract Map (No Dyn)", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,False))
+    Map2 = Button(top, text="Extract Map", height=1, width=30,command=partial(MapExtractor,combo_box,LoadNames,False,True))
     Map2.place(x=500, y=350)
     Back = Button(top, text="Back", height=1, width=15,command=partial(MainWindow,top))
     Back.place(x=10, y=10)
@@ -5164,80 +5542,11 @@ def EntityScraperBulk(LoadNames):
     filelist=[]
     useful=["0x8080906b","0x80809b06"]
     for file in os.listdir(path)[::-1]:
-        if fnmatch.fnmatch(file,"w64_sr*"):
+        if fnmatch.fnmatch(file,"w64_*"):
             filelist.append(file)
-    #unpack_all(path,custom_direc,useful,filelist)
-    for file in os.listdir(os.getcwd()+"/out"):
-        if file == "audio":
-            continue
-        if file.split(".")[1] == "entityscript":
-            print(file)
-            Outfile=open(os.getcwd()+"/data/EntityBulk.txt","a")
-            File=open(os.getcwd()+"/out/"+file,"rb")
-            File.seek(0x80)
-            Check=binascii.hexlify(bytes(File.read(4))).decode()
-            if Check == "ffffffff":
-                continue
-            File.seek(0xB4)
-            ClassType=int.from_bytes(File.read(4),"little")
-            File.seek(0xB8)
-            ObjectPlacementOffset=int.from_bytes(File.read(4),"little")
-            Stride=binary_search2(Strides,ClassType)
-            print(Stride)
-            Stride=Strides[Stride][1]
-            #print(Stride)
-            File.seek(ObjectPlacementOffset+Stride+16)
-            Check=binascii.hexlify(bytes(File.read(4))).decode()
-            if Check == "05998080":
-                print("running")
-                File.seek(ObjectPlacementOffset+Stride+8)
-                Count=int.from_bytes(File.read(2),"little")
-                File.seek(ObjectPlacementOffset+Stride+24)
-                EntityIDs=[]
-                for i in range(Count):
-                    PhaseData=binascii.hexlify(bytes(File.read(4))).decode()
-                    File.read(4)
-                    PhaseSplit=binascii.hexlify(bytes(File.read(8))).decode()
-                    EntityIDs.append([PhaseData,PhaseSplit])
-                EndingPlacement=File.tell()
-                File.seek(0x80)
-                NameHash=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(File.read(4))).decode()))).decode('utf-8')))
-                PkgID=Hex_String(Package_ID(NameHash))
-                EntryID=Hex_String(Entry_ID(NameHash))
-                DirName=PkgID+"-"+EntryID+".entitynames"
-                NameFile=open(os.getcwd()+"/out/"+DirName,"rb")
-                NameFile.seek(0x30)
-                Count=int.from_bytes(NameFile.read(4),"little")
-                DevStringData=[]
-                for i in range(Count):
-                    NameFile.seek(0x40+(i*0x10))
-                    RawStringOffset=int.from_bytes(NameFile.read(4),"little")
-                    if RawStringOffset == 0:
-                        continue
-                    NameFile.read(4)
-                    DataOrderOffset=int.from_bytes(NameFile.read(4),"little")
-                    if DataOrderOffset == 0:
-                        continue
-                    NameFile.seek(0x40+(i*0x10)+4+DataOrderOffset+8)
-                    DataCheck=binascii.hexlify(bytes(NameFile.read(4))).decode()
-                    if DataCheck != "46998080":
-                        continue
-                    DataOrder=int.from_bytes(NameFile.read(4),"little")
-                    NameFile.seek(0x40+(i*0x10)+RawStringOffset)
-                    RawStringOffset2=int.from_bytes(NameFile.read(4),"little")
-                    NameFile.seek(0x40+(i*0x10)+RawStringOffset+RawStringOffset2)
-                    tempBuffer=[]
-                    while True:
-                        Val=binascii.hexlify(bytes(NameFile.read(1))).decode()
-                        if Val == "00":
-                            String=binascii.unhexlify("".join(tempBuffer)).decode()
-                            break
-                        tempBuffer.append(Val)
-                    DevStringData.append([int(DataOrder),String])
-                DevStringData.sort(key=lambda x: x[0])
-                for j in range(len(DevStringData)):
-                    Outfile.write(EntityIDs[j][0]+" : "+EntityIDs[j][1]+" : "+DevStringData[j][1]+"\n")
-                Outfile.close()
+    unpack_all(path,custom_direc,useful,filelist)
+    EntityScraper("")
+    
 def EntityScraper(LoadNames):
     Outfile=open(os.getcwd()+"/data/EntityBulk.txt","w")
     Outfile.close()
@@ -5245,7 +5554,7 @@ def EntityScraper(LoadNames):
         if file == "audio":
             continue
         if file.split(".")[1] == "entityscript":
-            #print(file)
+            print(file)
             Outfile=open(os.getcwd()+"/data/EntityBulk.txt","a")
             File=open(os.getcwd()+"/out/"+file,"rb")
             while True:
@@ -5271,7 +5580,7 @@ def EntityScraper(LoadNames):
                     NameFile=open(os.getcwd()+"/out/"+DirName,"rb")
                     NameFile.seek(0x30)
                     Count=int.from_bytes(NameFile.read(4),"little")
-                    DevStringData=[]
+                    DevStrings=[]
                     for i in range(Count):
                         NameFile.seek(0x40+(i*0x10))
                         RawStringOffset=int.from_bytes(NameFile.read(4),"little")
@@ -5296,24 +5605,41 @@ def EntityScraper(LoadNames):
                                 String=binascii.unhexlify("".join(tempBuffer)).decode()
                                 break
                             tempBuffer.append(Val)
-                        DevStringData.append([int(DataOrder),String])
-                    DevStringData.sort(key=lambda x: x[0])
-                    for j in range(len(DevStringData)):
-                        Outfile.write(EntityIDs[j][0]+" : "+EntityIDs[j][1]+" : "+DevStringData[j][1]+"\n")
+                        DevStrings.append([String,DataOrder])
+                    DevStrings.sort(key=lambda x: x[1])
+                    SortedStrings=[]
+                    for Val in DevStrings:
+                        SortedStrings.append(Val[0])
+                    for String in SortedStrings:
+                        FnvString=gf.FNVString(String)
+                        for EntityID in EntityIDs:
+                            if EntityID[0] == FnvString:
+                                Outfile.write(EntityID[0]+" : "+EntityID[1]+" : "+String+"\n")
+                                break
                     File.seek(EndingPlacement)
-                if "65008080" in LineData:
-                    ScriptName=File.read().decode()
             Outfile.close()
-def BinEntityScraper(PackageCache,ExtraES,StrData):
-    Outfile=open(os.getcwd()+"/data/EntityBulk.txt","w")
+def BinEntityScraper(PackageCache,ExtraES,StrData,OutName):
+    ObjectNames=open(os.getcwd()+"/data/EntityBulk.txt","r").read()
+    ObjectNames=ObjectNames.split("\n")
+    NameCache=[]
+    for Entry in ObjectNames:
+        temp=Entry.split(" : ")
+        try:
+            NameCache.append([ast.literal_eval("0x"+temp[1]),temp[2]])
+        except IndexError:
+            continue
+    NameCache.sort(key=lambda x: x[0])
+    Outfile=open(os.getcwd()+"/ExtractedFiles/Encounters/"+OutName+"_variables.txt","a")
     Outfile.close()
+    H64Sort=SortH64(ReadHash64())
     ScriptHashes=[]
+    DTFiles=[]
     for file in os.listdir(os.getcwd()+"/out"):
         if file == "audio":
             continue
         if (file.split(".")[1] == "bin") or (file in ExtraES):
             #print(file)
-            Outfile=open(os.getcwd()+"/data/EntityBulk.txt","a")
+            Outfile=open(os.getcwd()+"/ExtractedFiles/Encounters/"+OutName+"_variables.txt","a")
             File=open(os.getcwd()+"/out/"+file,"rb")
             File.seek(0x58)
             UnkStringMappingOffset=int.from_bytes(File.read(4),"little")
@@ -5356,7 +5682,6 @@ def BinEntityScraper(PackageCache,ExtraES,StrData):
             while True:
                 Line=binascii.hexlify(bytes(File.read(16))).decode()
                 if int(len(Line)) < 32:
-                    File.close()
                     break
                 LineData=[Line[i:i+8] for i in range(0, len(Line), 8)]
                 if "05998080" in LineData:
@@ -5408,9 +5733,83 @@ def BinEntityScraper(PackageCache,ExtraES,StrData):
                     for j in range(len(DevStringData)):
                         Outfile.write(EntityIDs[j][0]+" : "+EntityIDs[j][1]+" : "+DevStringData[j][1]+"\n")
                     File.seek(EndingPlacement)
-            Outfile.close()
+            File.seek(0x18)
+            TypeCheck=int.from_bytes(File.read(4),"little")
+            File.seek(0x18+TypeCheck-4)
+            Type=binascii.hexlify(bytes(File.read(4))).decode()
+            Hash=False
+            if Type == "d8928080":  #EntityPlacement
+                File.seek(File.tell()+0x84)
+                Hash=binascii.hexlify(bytes(File.read(4))).decode()
+            elif Type == "ef8c8080":  #EntityPlacementV2
+                File.seek(File.tell()+0x58)
+                Hash=binascii.hexlify(bytes(File.read(4))).decode()
+            elif Type == "e58c8080": #Hxk Resource (no idea how to parse)
+                File.seek(File.tell()+0xF0)
+                DataToSearch=binascii.hexlify(bytes(File.read())).decode()
+                DataToSearch=[DataToSearch[i:i+8] for i in range(0, len(DataToSearch), 8)]
+                for Val in DataToSearch:
+                    if (Val[6:] == "80") or (Val[6:] == "81"):
+                        EntryA=GetFileReference(Val,PackageCache)
+                        if EntryA == "0x80809883":
+                            Hash=Val
+                            break
+            elif Type == "e7978080":
+                print("FOUND ACT VARS")
+                print(file)
+                File.seek(File.tell()+0x60)
+                Start=File.tell()
+                File.seek(0x80)
+                NameFileHash=binascii.hexlify(bytes(File.read(4))).decode()
+                if NameFileHash != "ffffffff":
+                    UnpackEntry(NameFileHash,PackageCache)
+                    Names=ParseNameFile(NameFileHash,File)
+                File.seek(Start)
+                VariableTableOffset=int.from_bytes(File.read(4),"little")
+                File.seek(Start+VariableTableOffset)
+                VariableTableLength=int.from_bytes(File.read(4),"little")
+                File.seek(Start+VariableTableOffset+0x10)
+                VariableIDs=[]
+                for i in range(VariableTableLength):
+                    print(File.tell())
+                    File.seek(Start+VariableTableOffset+0x10+(i*0x18)+0x8)
+                    AbsOffset=int.from_bytes(File.read(4),"little")
+                    File.seek(AbsOffset+0x20)
+                    RelOffset=int.from_bytes(File.read(4),"little")
+                    File.seek(AbsOffset+0x20+RelOffset+8)
+                    AbsOffset=int.from_bytes(File.read(4),"little")
+                    File.seek(AbsOffset+0x10)
+                    VariableID=binascii.hexlify(bytes(File.read(4))).decode()
+                    print(VariableID)
+                    VariableIDs.append(VariableID)
+                print(VariableIDs)
+                Outfile.write("ActivityVariables\n")
+                for i in range(len(Names)):
+                    try:
+                        Outfile.write(Names[i]+" : "+VariableIDs[i]+"\n")
+                    except IndexError:
+                        continue
 
-    print(ScriptHashes)
+            else:
+                #print("Not implemented ES Type "+Type)
+                u=1
+            if Hash != False:
+                EntryA=GetFileReference(Hash,PackageCache)
+                if str(EntryA) == "0x80809883":
+                    #print(Resource)
+                    EntityID=""
+                    DTFile=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')))
+                    PkgID=Hex_String(Package_ID(DTFile))
+                    EntryID=Hex_String(Entry_ID(DTFile))
+                    DTFile=PkgID+"-"+EntryID
+                    if os.path.isfile(os.getcwd()+"/out/"+DTFile):
+                        DTName=DTFile+".dt"
+                    else:
+                        UnpackEntry(Hash,PackageCache)
+                        DTName=PkgID+"-"+EntryID+".bin"
+                    DTFiles.append([DTName,EntityID])
+            
+            Outfile.close()
     for Script in ScriptHashes:
         Tag=GetFileReference(Script,PackageCache)
         if Tag == "0x80800000":
@@ -5427,7 +5826,7 @@ def BinEntityScraper(PackageCache,ExtraES,StrData):
             ScriptFile.seek(0xAC)
             Script2=binascii.hexlify(bytes(ScriptFile.read(4))).decode()
             Tag=GetFileReference(Script2,PackageCache)
-            Outfile=open(os.getcwd()+"/data/EntityBulk.txt","a")
+            Outfile=open(os.getcwd()+"/ExtractedFiles/Encounters/"+OutName+"_variables.txt","a")
             SData2=False
             if Tag == "0x80800000":
                 UnpackEntry(Script,PackageCache)
@@ -5436,44 +5835,107 @@ def BinEntityScraper(PackageCache,ExtraES,StrData):
                 FileDevRip(Name2+".script",StrData,"","",PackageCache)#(File,newStrData,ObjectValues,ObjectValues2,PackageCache):
                 RippedScript2=open(os.getcwd()+"/ExtractedFiles/Scripts/"+Name2+".txt","r")
                 SData2=RippedScript2.read()
-            
             Outfile.write(Script+"\n")
             RippedScript=open(os.getcwd()+"/ExtractedFiles/Scripts/"+Name+".txt","r")
-            
             SData=RippedScript.read()
             Outfile.write(SData)
             if SData2 != False:
                 Outfile.write(SData2)
             RippedScript.close()
-            #while True:
-            #    temp=binascii.hexlify(bytes(ScriptFile.read(4))).decode()
-            #    if temp == "":
-            #        break
-            #    if temp == "65008080":
-            #        ScriptFile.seek(ScriptFile.tell()+8)
-            #        tempHolder=[]
-            #        EntityNames=[]
-            #        while True:
-            #            Val=binascii.hexlify(bytes(ScriptFile.read(1))).decode()
-            #            if Val == "":
-            #                break
-            #            if Val == "00":
-            #                String=binascii.unhexlify("".join(tempHolder)).decode()
-            #                #print(String)
-            #                EntityNames.append(String)
-            #                tempHolder=[]
-            #                continue
-            #            else:
-            #                tempHolder.append(Val)
-            #        for Name in EntityNames:
-            #            Outfile.write(Name+"\n")
-
             Outfile.close()
+    File.close()
+    Entities=[]
+    Outfile=open(os.getcwd()+"/ExtractedFiles/Encounters/"+OutName+"_variables.txt","a")
+    for File in DTFiles:
+        DTFile=open(os.getcwd()+"/out/"+File[0],"rb")
+        DTFile.seek(0x10)
+        Offset=int.from_bytes(DTFile.read(4),"little")
+        DTFile.seek(0x10+Offset)      
+        Count=int.from_bytes(DTFile.read(4),"little")
+        DTFile.seek(0x10+Offset+0x10)     
+        for i in range(Count):
+            DTFile.seek(0x10+Offset+0x10+(i*144)) 
+            DTFile.seek(DTFile.tell()+0x30)
+            EntityVal=int.from_bytes(DTFile.read(8),"little")
+            DTFile.seek(0x10+Offset+0x10+(i*144)+0x70)
+            EntityID=binascii.hexlify(bytes(DTFile.read(8))).decode()
+            SubEntityOffset=int.from_bytes(DTFile.read(4),"little") #TODO
+            Check=Hash64Search(H64Sort,EntityVal)
+            if Check != False:
+                EntityHash=binascii.hexlify(bytes(hex_to_little_endian(Check[2:]))).decode('utf-8')
+                Entities.append([EntityHash,EntityID])
+    for Entity in Entities:
+        UnpackEntry(Entity[0],PackageCache)
+        Input2=binascii.hexlify(bytes(hex_to_little_endian(Entity[0]))).decode('utf-8')
+        new=ast.literal_eval("0x"+Input2)
+        pkg = Hex_String(Package_ID(new))
+        ent = Hex_String(Entry_ID(new))
+        Bank=pkg+"-"+ent+".bin"
+        file=open(os.getcwd()+"/out/"+Bank,"rb")
+        file.seek(0x08)
+        ResourceCount=int.from_bytes(file.read(4),"little")
+        file.seek(0x10)
+        ResourceOffset=int.from_bytes(file.read(4),"little")
+        file.seek(0x10+ResourceOffset+16)
+        MeshFiles=[]
+        ObjectDevName="Unk"
+        if Entity[1] != "ffffffffffffffff":
+            Index=binary_search2(NameCache,ast.literal_eval("0x"+Entity[1]))
+            if Index != -1:
+                ObjectDevName=NameCache[Index][1]
+        for i in range(ResourceCount):
+            EntityResource=binascii.hexlify(bytes(file.read(4))).decode()
+            file.read(8)
+            UnpackEntry(EntityResource,PackageCache)
+            new=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(EntityResource))).decode('utf-8'))
+            pkg = Hex_String(Package_ID(new))
+            ent = Hex_String(Entry_ID(new))
+            Bank=pkg+"-"+ent+".bin"
+            Resource=open(os.getcwd()+"/out/"+Bank,"rb")
+            Resource.seek(0x18)
+            TypeOffset=int.from_bytes(Resource.read(4),"little")
+            Resource.seek(0x18+TypeOffset-4)
+            Type=binascii.hexlify(bytes(Resource.read(4))).decode()
+            if Type == "3e438080":  #ScriptHolder
+                Resource.seek(0x18+TypeOffset+0x60)
+                ScriptTableOffset=int.from_bytes(Resource.read(4),"little")
+                Resource.seek(0x18+TypeOffset+0x60+ScriptTableOffset)
+                ScriptTableCount=int.from_bytes(Resource.read(4),"little")
+                Resource.seek(0x18+TypeOffset+0x60+ScriptTableOffset+0x10)
+                for j in range(ScriptTableCount):
+                    Resource.seek(0x18+TypeOffset+0x60+ScriptTableOffset+0x10+(i*0xD0))
+                    Resource.read(8)
+                    ScriptHash=binascii.hexlify(bytes(Resource.read(4))).decode()
+                    if ScriptHash != "ffffffff":
+                        Outfile.write(Entity[0]+" : "+ScriptHash+" : "+Entity[1]+" : "+ObjectDevName+"\n")
+            else:
+                #print("Not implemented ER Type "+Type)
+                u=1
+            Resource.seek(0x68)
+            TypeOffset=int.from_bytes(Resource.read(4),"little")
+            Resource.seek(0x68+TypeOffset)
+            TypeCount=int.from_bytes(Resource.read(4),"little")
+            Resource.seek(0x68+TypeOffset+0x8)
+            Type=binascii.hexlify(bytes(Resource.read(4))).decode()
+            if Type == "6e908080":
+                for j in range(TypeCount):
+                    Resource.seek(0x68+TypeOffset+0x10+(j*0x8))
+                    Offset=twos_complement(binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Resource.read(2))).decode()))).decode('utf-8'),16)
+                    Resource.seek(Resource.tell()-2+Offset)
+                    ScriptHash=binascii.hexlify(bytes(Resource.read(4))).decode()
+                    if ScriptHash != "ffffffff":
+                        Outfile.write(Entity[0]+" : "+ScriptHash+" : "+Entity[1]+" : "+ObjectDevName+"\n")
+    Outfile.close()
+
+
+        
+
+
                     
                             
 
 
-def MapExtractor(entry,LoadNames,Dyns):
+def MapExtractor(entry,LoadNames,Dyns,StaticBool):
     things=entry.get().split(" ")
     count=0
     for Load in LoadNames:
@@ -5628,7 +6090,7 @@ def MapExtractor(entry,LoadNames,Dyns):
                                 if binascii.hexlify(bytes(File.read(4))).decode() != "7d6c8080":
                                     break
                         elif Ref == "21918080":
-                            print("running hvk")
+                            #print("running hvk")
                             File.seek(File.tell()+16)
                             HavokHash=binascii.hexlify(bytes(File.read(4))).decode()
                             UnkID=binascii.hexlify(bytes(File.read(4))).decode()
@@ -5646,7 +6108,7 @@ def MapExtractor(entry,LoadNames,Dyns):
                             #elif Ref == "b58c8080":    #spawnpoints
                         #elif Ref == "21918080":
                             #95 66 80 80 is cubemap resource
-    InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns,TerrainHashes,EntitiesToRip,H64Sort)
+    InitialiseMapFiles(LoadFiles,InstCount,refs,Dyns,TerrainHashes,EntitiesToRip,H64Sort,StaticBool)
 def GetTextures(PackageCache):
     TexturesToRip=[]
     for file in os.listdir(os.getcwd()+"/data/Materials"):
@@ -5655,12 +6117,15 @@ def GetTextures(PackageCache):
         MatFile.close()
         data.remove("")
         for Line in data:
-            temp=(Line.split(" : "))[2].split(",")
+            try:
+                temp=(Line.split(" : "))[2].split(",")
+            except IndexError:
+                continue
             for Texture in temp:
                 if Texture not in TexturesToRip:
                     TexturesToRip.append(Texture)
     print(TexturesToRip)
-    t_pool = mp.Pool(mp.cpu_count())
+    #t_pool = mp.Pool(mp.cpu_count())
     _args = [(Texture,PackageCache) for Texture in TexturesToRip]
     t_pool.starmap(
         RipTexture, 
@@ -5696,7 +6161,7 @@ def GetDynTextures(PackageCache):
                 if DirName not in TexturesToRip:
                     TexturesToRip.append(DirName)
     #print(TexturesToRip)
-    t_pool = mp.Pool(mp.cpu_count())
+    #t_pool = mp.Pool(mp.cpu_count())
     _args = [(Texture,PackageCache) for Texture in TexturesToRip]
     t_pool.starmap(
         RipTexture, 
@@ -5712,29 +6177,30 @@ def GetDynTextures(PackageCache):
                 os.remove(os.getcwd()+"/"+File)
     
 
-def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes,EntitiesToRip,H64Sort):
+def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes,EntitiesToRip,H64Sort,StaticBool):
     lengths=[]
     PackageCache=GeneratePackageCache()
     PackageCache.sort(key=lambda x: x[1])
     count=0
-    t_pool = mp.Pool(mp.cpu_count())
-    _args = [(Hash,True,PackageCache,H64Sort) for Hash in TerrainHashes]
-    t_pool.starmap(
-        RipTerrain, 
-        _args)
-    #RipTerrain(TerrainHashes)
-    H64Sort=SortH64(ReadHash64())
+    #t_pool = mp.Pool(mp.cpu_count())
+    if StaticBool == True:
+        _args = [(Hash,True,PackageCache,H64Sort) for Hash in TerrainHashes]
+        t_pool.starmap(
+            RipTerrain, 
+            _args)
+        #RipTerrain(TerrainHashes)
+        H64Sort=SortH64(ReadHash64())
 
-        
-    for Load in loadfile:
-        for File in os.listdir(custom_direc):
-            if File != "audio":
-                if File.lower() == Load:
-                    print(Load)
-                    Load=LoadZone(Load,InstCount[count],Ref[count],H64Sort,PackageCache)
-                    lengths.append([File,str(len(Load.Statics))])
-                    count+=1
-    t_pool = mp.Pool(mp.cpu_count())
+            
+        for Load in loadfile:
+            for File in os.listdir(custom_direc):
+                if File != "audio":
+                    if File.lower() == Load:
+                        print(Load)
+                        Load=LoadZone(Load,InstCount[count],Ref[count],H64Sort,PackageCache)#####undo
+                        lengths.append([File,str(len(Load.Statics))])
+                        count+=1
+    #t_pool = mp.Pool(mp.cpu_count())
     _args = [(path,PackageCache,File,H64Sort) for File in EntitiesToRip]
     t_pool.starmap(
         myEntities.ExtractEntity, 
@@ -5746,7 +6212,7 @@ def InitialiseMapFiles(loadfile,InstCount,Ref,Dyns,TerrainHashes,EntitiesToRip,H
 def RipTerrain(Hashes,Pool,PackageCache,H64Sort):
     #print(Hashes)
     Terrain.ExtractTerrain(os.getcwd(),Hashes,PackageCache,path,H64Sort)
-def PullMechanicStructs(file,H64Sort,Name,PackageCache):
+def PullMechanicStructs(file,H64Sort,Name,PackageCache,SubScriptNames):
     ExtractedHashes=[]
     EntityIDBackup=""
     if len(file) == 2:
@@ -5804,6 +6270,8 @@ def PullMechanicStructs(file,H64Sort,Name,PackageCache):
                     ScaleX=binascii.hexlify(bytes(hex_to_little_endian(binascii.hexlify(bytes(Test.read(4))).decode()))).decode('utf-8')
                     Test.seek(48+(i*144)+112)
                     ObjectUUID=binascii.hexlify(bytes(Test.read(8))).decode()
+                    Test.seek(Test.tell()-8)
+                    ObjectUUIDInt=int.from_bytes(Test.read(8),"little")
                     Attribute=int.from_bytes(Test.read(4),"little")
                     Test.seek(0x30+(i*144)+120)
                     HkxOffset=int.from_bytes(Test.read(4),"little")
@@ -5864,14 +6332,20 @@ def PullMechanicStructs(file,H64Sort,Name,PackageCache):
                         file3=open(os.getcwd()+"/data/Instances/"+HavokHash.lower()+".inst","a")
                         file3.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(ObjectUUID)+"\n")
                         file3.close()
-                    
-                
-                    file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(ObjectUUID)+"\n")
+                    ObjectScriptID=False
+                    if ObjectUUID != "ffffffffffffffff":
+                            ans=binary_search2(SubScriptNames,ObjectUUIDInt)
+                            if ans != -1:
+                                ObjectScriptID=SubScriptNames[ans][1]
+                    if ObjectScriptID != False:
+                        file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(ObjectUUID)+":"+ObjectScriptID+"\n")
+                    else:
+                        file1.write(str(rotX)+","+str(rotY)+","+str(rotZ)+","+str(rotW)+","+str(PosX)+","+str(PosY)+","+str(PosZ)+","+str(ScaleX)+","+str(ObjectUUID)+"\n")
                     file1.close()
             Test.seek(48+(count*144)+4)
             Attribute=binascii.hexlify(bytes(Test.read(4))).decode()
             if Attribute == "21918080":
-                print("running hvk")
+                #print("running hvk")
                 Test.seek(Test.tell()+16)
                 HavokHash=binascii.hexlify(bytes(Test.read(4))).decode()
                 UnkID=binascii.hexlify(bytes(Test.read(4))).decode()
@@ -6239,7 +6713,7 @@ def DumpHash(PackageCache,combo_box):
     
     ent=Hex_String(Entry_ID(new))
     ExtractSingleEntry.unpack_entry_ext(path,custom_direc,Package,ent)
-    #print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
+    print(ExtractSingleEntry.GetEntryA(path,custom_direc,Package,ent))
 def DumpFile(PackageCache,combo_box):
     Val=combo_box.get()
     temp=Val.split("-")
@@ -6258,6 +6732,8 @@ def TexFile(PackageCache,combo_box):
 def EntityFile(PackageCache,combo_box,H64Sort):
     myEntities.ExtractEntity(path,PackageCache,combo_box.get(),H64Sort)
     GetTextures(PackageCache)
+def StaticFile(PackageCache,combo_box,H64Sort):
+    RipOwnStatic(combo_box.get(),PackageCache,H64Sort)
 def DebugMenu(top):
     global lst, combo_box
     lst=[]
@@ -6283,6 +6759,8 @@ def DebugMenu(top):
     TexDump.place(x=600, y=350)
     EntityDump = Button(top, text="Dump Entity", height=1, width=15,command=partial(EntityFile,PackageCache,combo_box,H64Sort))
     EntityDump.place(x=600, y=250)
+    StaticDump = Button(top, text="Dump Entity", height=1, width=15,command=partial(StaticFile,PackageCache,combo_box,H64Sort))
+    StaticDump.place(x=700, y=250)
     Clear = Button(top, text="Clear Audio", height=1, width=15,command=partial(ClearAudio,top))
     Clear.place(x=1000, y=550)
     ClearOut = Button(top, text="Clear Out", height=1, width=15,command=partial(ClearDir,top))
@@ -6334,7 +6812,129 @@ def MainWindow(top):
     Quit.place(x=100, y=510)
     
     top.mainloop()
-    
+DXGI_FORMAT = [
+        "UNKNOWN",
+        "R32G32B32A32_TYPELESS",
+        "R32G32B32A32_FLOAT",
+        "R32G32B32A32_UINT",
+        "R32G32B32A32_SINT",
+        "R32G32B32_TYPELESS",
+        "R32G32B32_FLOAT",
+        "R32G32B32_UINT",
+        "R32G32B32_SINT",
+        "R16G16B16A16_TYPELESS",
+        "R16G16B16A16_FLOAT",
+        "R16G16B16A16_UNORM",
+        "R16G16B16A16_UINT",
+        "R16G16B16A16_SNORM",
+        "R16G16B16A16_SINT",
+        "R32G32_TYPELESS",
+        "R32G32_FLOAT",
+        "R32G32_UINT",
+        "R32G32_SINT",
+        "R32G8X24_TYPELESS",
+        "D32_FLOAT_S8X24_UINT",
+        "R32_FLOAT_X8X24_TYPELESS",
+        "X32_TYPELESS_G8X24_UINT",
+        "R10G10B10A2_TYPELESS",
+        "R10G10B10A2_UNORM",
+        "R10G10B10A2_UINT",
+        "R11G11B10_FLOAT",
+        "R8G8B8A8_TYPELESS",
+        "R8G8B8A8_UNORM",
+        "R8G8B8A8_UNORM_SRGB",
+        "R8G8B8A8_UINT",
+        "R8G8B8A8_SNORM",
+        "R8G8B8A8_SINT",
+        "R16G16_TYPELESS",
+        "R16G16_FLOAT",
+        "R16G16_UNORM",
+        "R16G16_UINT",
+        "R16G16_SNORM",
+        "R16G16_SINT",
+        "R32_TYPELESS",
+        "D32_FLOAT",
+        "R32_FLOAT",
+        "R32_UINT",
+        "R32_SINT",
+        "R24G8_TYPELESS",
+        "D24_UNORM_S8_UINT",
+        "R24_UNORM_X8_TYPELESS",
+        "X24_TYPELESS_G8_UINT",
+        "R8G8_TYPELESS",
+        "R8G8_UNORM",
+        "R8G8_UINT",
+        "R8G8_SNORM",
+        "R8G8_SINT",
+        "R16_TYPELESS",
+        "R16_FLOAT",
+        "D16_UNORM",
+        "R16_UNORM",
+        "R16_UINT",
+        "R16_SNORM",
+        "R16_SINT",
+        "R8_TYPELESS",
+        "R8_UNORM",
+        "R8_UINT",
+        "R8_SNORM",
+        "R8_SINT",
+        "A8_UNORM",
+        "R1_UNORM",
+        "R9G9B9E5_SHAREDEXP",
+        "R8G8_B8G8_UNORM",
+        "G8R8_G8B8_UNORM",
+        "BC1_TYPELESS",
+        "BC1_UNORM",
+        "BC1_UNORM_SRGB",
+        "BC2_TYPELESS",
+        "BC2_UNORM",
+        "BC2_UNORM_SRGB",
+        "BC3_TYPELESS",
+        "BC3_UNORM",
+        "BC3_UNORM_SRGB",
+        "BC4_TYPELESS",
+        "BC4_UNORM",
+        "BC4_SNORM",
+        "BC5_TYPELESS",
+        "BC5_UNORM",
+        "BC5_SNORM",
+        "B5G6R5_UNORM",
+        "B5G5R5A1_UNORM",
+        "B8G8R8A8_UNORM",
+        "B8G8R8X8_UNORM",
+        "R10G10B10_XR_BIAS_A2_UNORM",
+        "B8G8R8A8_TYPELESS",
+        "B8G8R8A8_UNORM_SRGB",
+        "B8G8R8X8_TYPELESS",
+        "B8G8R8X8_UNORM_SRGB",
+        "BC6H_TYPELESS",
+        "BC6H_UF16",
+        "BC6H_SF16",
+        "BC7_TYPELESS",
+        "BC7_UNORM",
+        "BC7_UNORM_SRGB",
+        "AYUV",
+        "Y410",
+        "Y416",
+        "NV12",
+        "P010",
+        "P016",
+        "420_OPAQUE",
+        "YUY2",
+        "Y210",
+        "Y216",
+        "NV11",
+        "AI44",
+        "IA44",
+        "P8",
+        "A8P8",
+        "B4G4R4A4_UNORM",
+        "P208",
+        "V208",
+        "V408",
+        "SAMPLER_FEEDBACK_MIN_MIP_OPAQUE",
+        "SAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE",
+        "FORCE_UINT"]   
 if __name__ == '__main__':
     t_pool = mp.Pool(mp.cpu_count()) 
     top = Tk()
@@ -6405,13 +7005,8 @@ if __name__ == '__main__':
         print("Drive Exists")
     Hash64(path)
     Hash64Data=ReadHash64()
-    
-    
-    
-    
-    
-    #turn_on.pack()
-
+    ClearFile=open(os.getcwd()+"/data/AltMapping.txt","w")
+    ClearFile.close()
     top.mainloop()
     
 

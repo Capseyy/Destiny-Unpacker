@@ -95,6 +95,10 @@ def assemble_map():
     #add_to_collection() 
     bpy.ops.object.select_all(action='DESELECT')
     for Obj in bpy.data.objects:
+        try:
+            Obj.data.materials
+        except AttributeError:
+            continue
         if len(Obj.data.materials) == 0:
             Obj.select_set(state=True)
             #bpy.data.objects.remove(Obj)

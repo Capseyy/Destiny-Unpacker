@@ -1,2 +1,6 @@
 sq/sqg - combatant/combatant group
-tv/mv - havok volume
+tv/mv/v - havok volume
+o - object
+i - interactable
+p - pointer/point
+

@@ -19,7 +19,7 @@ import io
 import fnmatch
 import time
 from ctypes import *
-import bisect, sys
+import bisect, sys, Model
 
 oodlepath = "E:\oo2core_9_win64.dll" #Path to Oodle DLL in Destiny 2/bin/x64.dle DLL in Destiny 2/bin/x64.
 def GeneratePackageCache():
@@ -302,7 +302,7 @@ def GetVerts(path,Header,PackageCache,MeshScale):
             for i in range(int(VBufferSize/int(Stride))):
                 s = binascii.hexlify(bytes(VBuffer.read(int(Stride)))).decode()
                 Data=[s[i:i+8] for i in range(0, len(s), 8)]
-                print(Data)
+                #print(Data)
                 if len(Data) < 3:
                     break
                 x= ReadFloat32(Data[0])*(MeshScale)
@@ -377,6 +377,8 @@ def ReadUV(path,Header,PackageCache,UVXScale,UVXOff,UVYScale,UVYOff):
     DumpHash(path,PackageCache,binascii.hexlify(bytes(hex_to_little_endian(Buffer[2:]))).decode('utf-8'))
     UVData=[]
     UV=open(custom_direc+"/out/"+Bank,"rb")
+    if Stride == 0:
+        Stride=1
     for i in range(int(VBufferSize/Stride)):
         Data=binascii.hexlify(bytes(UV.read(Stride))).decode()
         Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
@@ -403,7 +405,7 @@ def ExtractEntity(path,PackageCache,Input,H64Sort):
     MeshFiles=[]
     for i in range(ResourceCount):
         EntityResource=binascii.hexlify(bytes(file.read(4))).decode()
-        print(EntityResource)
+        #print(EntityResource)
         file.read(8)
         DumpHash(path,PackageCache,EntityResource)
         new=ast.literal_eval("0x"+binascii.hexlify(bytes(hex_to_little_endian(EntityResource))).decode('utf-8'))
@@ -454,7 +456,7 @@ def ExtractEntity(path,PackageCache,Input,H64Sort):
         scene = fbx.FbxScene.Create(memory_manager, '')
         MeshFileCount=0
         for MeshFile in MeshFiles:
-            print("MeshFile "+MeshFile)
+            #print("MeshFile "+MeshFile)
             DumpHash(path,PackageCache,MeshFile)
             MeshFile=binascii.hexlify(bytes(hex_to_little_endian(MeshFile))).decode('utf-8')
             new=ast.literal_eval("0x"+MeshFile)
@@ -510,91 +512,13 @@ def ExtractEntity(path,PackageCache,Input,H64Sort):
                 if LoD > 3:
                     continue
                 my_mesh = fbx.FbxMesh.Create(scene, str(Input+"_"+str(MeshFileCount)+"_"+str(MatCount)))
-                IndexData=[]
-                if PrimitiveType == 5:
-                    if is32 == False:
-                        triCount=0
-                        ind.seek(IndexOffset*2)
-                        Start=ind.tell()
-                        if binascii.hexlify(bytes(ind.read(2))).decode() != "ffff":
-                            ind.seek(ind.tell()-2)
-                        while (ind.tell()+4-Start) < (IndexCount*2):
-                            i1=binascii.hexlify(bytes(ind.read(2))).decode()
-                            i2=binascii.hexlify(bytes(ind.read(2))).decode()
-                            i3=binascii.hexlify(bytes(ind.read(2))).decode()
-                            if i3 == "ffff":
-                                triCount=0
-                                continue
-                            if i1 == "":
-                                break
-                            if i2 == "":
-                                break
-                            if i3 == "":
-                                break
-                            i1=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i1))).decode('utf-8')))
-                            i2=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i2))).decode('utf-8')))
-                            i3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i3))).decode('utf-8')))
-                            if triCount % 2 == 0:
-                                IndexData.append([i1,i2,i3])
-                            else:
-                                IndexData.append([i2,i1,i3])
-                            ind.seek(ind.tell()-4)
-                            triCount+=1
-                            if len(IndexData) == IndexCount:
-                                break
-                    else:
-                        triCount=0
-                        ind.seek(IndexOffset*4)
-                        Start=ind.tell()
-                        while (ind.tell()+8-Start) < (IndexCount*4):
-                            i1=binascii.hexlify(bytes(ind.read(4))).decode()
-                            i2=binascii.hexlify(bytes(ind.read(4))).decode()
-                            i3=binascii.hexlify(bytes(ind.read(4))).decode()
-                            if i3 == "ffffffff":
-                                triCount=0
-                                continue
-                            temp=[i1,i2,i3]
-                            if "" in temp:
-                                break
-                            i1=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i1))).decode('utf-8')))
-                            i2=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i2))).decode('utf-8')))
-                            i3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(i3))).decode('utf-8')))
-                            if triCount % 2 == 0:
-                                IndexData.append([i1,i2,i3])
-                            else:
-                                IndexData.append([i2,i1,i3])
-                            ind.seek(ind.tell()-8)
-                            triCount+=1
-                            if len(IndexData) == IndexCount:
-                                break
-                else:
-                    if is32 == False:
-                        ind.seek(IndexOffset*2)
-                        for j in range(0,int(IndexCount),3):
-                            s = binascii.hexlify(bytes(ind.read(6))).decode()
-                            Inds=[s[i:i+4] for i in range(0, len(s), 4)]
-                            if len(Inds) < 3:
-                                break
-                            i1=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Inds[0]))).decode('utf-8')))
-                            i2=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Inds[1]))).decode('utf-8')))
-                            i3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Inds[2]))).decode('utf-8')))
-                            IndexData.append([i1,i2,i3])
-                    else:
-                        ind.seek(IndexOffset*4)
-                        for j in range(0,int(IndexCount),3):
-                            s = binascii.hexlify(bytes(ind.read(12))).decode()
-                            Inds=[s[i:i+8] for i in range(0, len(s), 8)]
-                            if len(Inds) < 3:
-                                break
-                            i1=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Inds[0]))).decode('utf-8')))
-                            i2=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Inds[1]))).decode('utf-8')))
-                            i3=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(Inds[2]))).decode('utf-8')))
-                            IndexData.append([i1,i2,i3])
+                
                 uvLayer = fbx.FbxLayerElementUV.Create(my_mesh, "uv")
                 uvLayer.SetMappingMode(fbx.FbxLayerElement.EMappingMode.eByControlPoint)
                 uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
                 writtenParts=[]
                 Verticies=[]   
+                IndexData=Model.ReadIndexData(PrimitiveType,is32,IndexOffset,IndexCount,ind)
                 for List in IndexData:
                     for Val in List:
                         bisect.insort(Verticies, Val) 
@@ -619,6 +543,10 @@ def ExtractEntity(path,PackageCache,Input,H64Sort):
                 cubeScale    = (1, 1, 1)
                 layer = my_mesh.GetLayer(0)
                 for Vert in Verticies:
+                    try:
+                        UVData[Vert]
+                    except IndexError:
+                        continue
                     uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Vert][0]),float(UVData[Vert][1])))
                 try:
                     layer.SetUVs(uvLayer)

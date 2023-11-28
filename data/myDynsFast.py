@@ -105,7 +105,8 @@ def binary_search2(arr, x):
     return -1    
 #installLoc="C:/Users/sjcap/Desktop/MyUnpacker/DestinyUnpackerNew/new/GUI/"
 Filepath = os.path.abspath(bpy.context.space_data.text.filepath+"/..") #"OUTPUT_DIR"
-def InstanceDyn(ObjectData,NameData,SortedIDs,EnemyData):
+def InstanceDyn(ObjectData,NameData,SortedIDs,EnemyData,AltData,AltDataReverse,AltDataNorm):
+    InstancedWIDs=[]
     for EntityData in ObjectData:
         #print(HasRoot)
         try:
@@ -170,32 +171,54 @@ def InstanceDyn(ObjectData,NameData,SortedIDs,EnemyData):
                 except IndexError:
                     continue
                 if instance[8] != "ffffffffffffffff":
-                    Index=binary_search2(SortedIDs,int(ast.literal_eval("0x"+stripZeros(instance[8]))))
-                    if Index != -1:
-                        bpy.ops.object.text_add()
-                        ob=bpy.context.object
-                        ob.data.body = str(SortedIDs[Index][1])
-                        ob.name = str(Object.name)
-                        ob.location= location
-                        ob.rotation_mode = 'QUATERNION'
-                        ob.rotation_quaternion = quat
-                        ob.scale = [float(instance[7])]*3
+                    NamesToAdd=[]
+                    holder=instance[8].split(":")
+                    for Entry in holder:
+                        print(Entry)
+                        #print(int(ast.literal_eval("0x"+stripZeros(Entry))))
+                        #print(AltData)
+                        Index=binary_search2(SortedIDs,int(ast.literal_eval("0x"+stripZeros(Entry))))
+                        if Index != -1:
+                            
+                            NamesToAdd.append(str(SortedIDs[Index][1]))
+                        Index=binary_search2(AltData,int(ast.literal_eval("0x"+stripZeros(Entry))))
+                        if Index != -1:
+                            Link=AltData[Index][1]
+                            Index=binary_search2(SortedIDs,int(ast.literal_eval("0x"+stripZeros(Link))))
+                            if Index != -1:
+                                NamesToAdd.append(str(SortedIDs[Index][1]))
+                        print(ast.literal_eval("0x"+Entry))
+                        InstancedWIDs.append([ast.literal_eval("0x"+Entry),location,quat,Object])
+                    NameTo="-".join(NamesToAdd) 
+                    bpy.ops.object.text_add()
+                    ob=bpy.context.object
+                    ob.data.body = str(NameTo)
+                    ob.name = str(Object.name)
+                    ob.location= location
+                    ob.rotation_mode = 'QUATERNION'
+                    ob.rotation_quaternion = quat
+                    ob.scale = [float(instance[7])]*3
                 try:
                     instance[9]
                 except IndexError:
                     continue
                 else:
                     print(instance[9])
-                    Index=binary_search2(EnemyData,int(ast.literal_eval("0x"+stripZeros(instance[9]))))
-                    if Index != -1:
-                        bpy.ops.object.text_add()
-                        ob=bpy.context.object
-                        ob.data.body = str(EnemyData[Index][1])
-                        ob.name = str(Object.name)
-                        ob.location= location
-                        ob.rotation_mode = 'QUATERNION'
-                        ob.rotation_quaternion = quat
-                        ob.scale = [float(instance[7])]*3
+                    try:
+                        test=int(ast.literal_eval("0x"+stripZeros(instance[9])))
+                    except SyntaxError:
+                        u=1
+                    else:
+                        Index=binary_search2(EnemyData,test)
+                        if Index != -1:
+                            bpy.ops.object.text_add()
+                            ob=bpy.context.object
+                            ob.data.body = str(EnemyData[Index][1])
+                            ob.name = str(Object.name)
+                            ob.location= location
+                            ob.rotation_mode = 'QUATERNION'
+                            ob.rotation_quaternion = quat
+                            ob.scale = [float(instance[7])]*3
                 try:
                     instance[10]
                 except IndexError:
@@ -210,12 +233,37 @@ def InstanceDyn(ObjectData,NameData,SortedIDs,EnemyData):
                     ob.rotation_mode = 'QUATERNION'
                     ob.rotation_quaternion = quat
                     ob.scale = [float(instance[7])]*3
-            
+    InstancedWIDs.sort(key=lambda x: x[0])     
+    print(InstancedWIDs) 
     bpy.ops.object.select_all(action='DESELECT')
     for Obj in bpy.data.objects:
         if Obj.name[:4] == "root":
             Obj.select_set(state=True)
     bpy.ops.object.delete()
+    bpy.ops.object.select_all(action='DESELECT')
+    for Val in AltDataNorm:
+        print(ast.literal_eval("0x"+Val[1]))
+        Index1=binary_search2(InstancedWIDs,int(ast.literal_eval("0x"+Val[1])))
+        if Index1 != -1:
+            print("found1")
+            Index2=binary_search2(InstancedWIDs,ast.literal_eval("0x"+Val[0]))
+            if Index2 != -1:
+                print("found2")
+                ObjectToCopy=InstancedWIDs[Index1][3]
+                print(ObjectToCopy.name)
+                
+                path2=Filepath+"/Dynamics/"+ObjectToCopy.name[:8]+".fbx"
+                print(path2)
+                bpy.ops.import_scene.fbx(filepath=path2, use_custom_normals=True, ignore_leaf_bones=True, automatic_bone_orientation=True)
+                for obj in bpy.context.selected_objects:
+                    print(obj.name)
+                    ob_copy = bpy.data.objects[obj.name].copy()
+                    bpy.context.collection.objects.link(ob_copy) #makes the instances
+                    ob_copy.location=InstancedWIDs[Index2][1]
+                    ob_copy.rotation_mode = 'QUATERNION'
+                    ob_copy.rotation_quaternion = InstancedWIDs[Index2][2]
+                    ob_copy.scale = [float(1)]*3
+
             #count=0
 def Material(Obj):
     try:
@@ -266,7 +314,7 @@ SortedIDs=[]
 EnemyNames=[]
 for Line in data:
     temp=Line.split(" : ")
-    print(Line)
+    #print(Line)
     SortedIDs.append([int(ast.literal_eval("0x"+stripZeros(temp[1]))),temp[2]])
     EnemyNames.append([int(ast.literal_eval("0x"+stripZeros(temp[0]))),temp[2]])
 SortedIDs.sort(key=lambda x: x[0])
@@ -283,7 +331,23 @@ for Line in data:
     Val=ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(temp[0]))).decode('utf-8')))
     NameData.append([int(Val),temp[1]])
 NameData.sort(key=lambda x: x[0])
-    
+file=open(Filepath+"/AltMapping.txt","r").read()
+data=file.split("\n")
+data.remove("")
+AltData=[]
+AltDataReverse=[]
+AltDataNorm=[]
+for Line in data:
+    temp=Line.split(" : ")
+    if temp[0] == "":
+        continue
+    Val=ast.literal_eval("0x"+stripZeros(temp[0]))
+    Val2=ast.literal_eval("0x"+stripZeros(temp[1]))
+    AltData.append([int(Val),temp[1]])
+    AltDataReverse.append([int(Val2),temp[0]])
+    AltDataNorm.append([temp[0],temp[1]])
+AltData.sort(key=lambda x: x[0])    
+AltDataReverse.sort(key=lambda x: x[0])  
                                                  
 for Fbx in os.listdir(Filepath+"/Instances"):
     split=Fbx.split(".")
@@ -368,7 +432,10 @@ for Fbx in os.listdir(Filepath+"/Instances"):
                         ob.name = str(split[0])
                         AddedObjs.append([ob,False])
     else:
-        Index=binary_search2(NameData,int(ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(str(split[0])))).decode('utf-8')))))
+        if str(split[0]) == "NonEntity":
+            Index=-1
+        else:
+            Index=binary_search2(NameData,int(ast.literal_eval("0x"+stripZeros(binascii.hexlify(bytes(hex_to_little_endian(str(split[0])))).decode('utf-8')))))
         if Index != -1:
             #Object.name=NameData[Index][1]
             bpy.ops.object.text_add()
@@ -380,6 +447,7 @@ for Fbx in os.listdir(Filepath+"/Instances"):
             bpy.ops.object.text_add()
             ob=bpy.context.object
             ob.name = str(split[0])
+            ob.data.body = str("")
             AddedObjs.append([ob,False])
         
         #File=open(Filepath+"/DynInstances/"+Fbx,"r")
@@ -408,5 +476,5 @@ for Fbx in os.listdir(Filepath+"/Instances"):
 #    ob.name = str(split[0])
 #    ObjectData.append([ob,False])
     
-InstanceDyn(ObjectData,NameData,SortedIDs,EnemyNames)
+InstanceDyn(ObjectData,NameData,SortedIDs,EnemyNames,AltData,AltDataReverse,AltDataNorm)
         

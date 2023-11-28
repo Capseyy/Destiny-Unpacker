@@ -1,6 +1,7 @@
 from dataclasses import dataclass, fields, field
 from typing import List
 import os
+import numpy as np
 import sys
 sys.path.append("E:/MyUnpacker/DestinyUnpackerNew/new/MultiCore/ThirdParty")
 import binascii
@@ -14,7 +15,9 @@ from ctypes import *
 temp=os.getcwd()
 temp=temp.split("\\")
 output="/".join(temp[:len(temp)])
+sys.byteorder="little"
 sys.path.append(output+"/ThirdParty")
+sys.path.append(output)
 custom_direc=output
 def hex_to_little_endian(hex_string):
     little_endian_hex = bytearray.fromhex(hex_string)[::-1]
@@ -83,6 +86,18 @@ def twos_complement(hexstr, bits):
     if value & (1 << (bits - 1)):
         value -= 1 << bits
     return value
+def UnpackEntry(Hash,PackageCache,path):
+    flipped=binascii.hexlify(bytes(hex_to_little_endian(Hash))).decode('utf-8')
+    new=int(ast.literal_eval("0x"+flipped))
+    #print(Val)
+    pkg=Hex_String(Package_ID(new))
+    #print(pkg)
+    temp=ast.literal_eval("0x"+stripZeros(pkg))
+    #print(temp)
+    Index=binary_search(PackageCache,int(temp))
+    Package=PackageCache[Index][0]
+    ent=Hex_String(Entry_ID(new))
+    ExtractSingleEntry.unpack_entry_ext(path,custom_direc+"/out",Package,ent)
 def convert(s):
     i = int(s, 16)                   # convert from hex to a Python int
     cp = pointer(c_int(i))           # make this into a c integer
@@ -232,44 +247,11 @@ def binary_search_single(arr, x):
     return -1  
 def ReadFloat32(Input):
     return struct.unpack('!f', bytes.fromhex(binascii.hexlify(bytes(hex_to_little_endian(Input))).decode('utf-8')))[0]    
-def TransformTexcord(vec):
-    scaleX=0
-    scaleY=0
-    translateX=0
-    translateY=0
-    if vec[2] == 0.0078125:
-        scaleX = (1 / 0.4375) * 2.28571428571 * 2
-        translateX = 0.333333  # 0 if no 2 * 2.285
-    elif vec[2] == -0.9765625:
-        scaleX = 32
-        translateX = -14
-    elif vec[2] == -1.9609375:
-        # todo shadowkeep idk
-        scaleX = 1
-        translateX = 0
-    elif vec[2] == -2.9453125:
-        # todo shadowkeep idk
-        scaleX = 1
-        translateX = 0
-    else:
-        print("Unknown terrain uv scale x")
-    if vec[3] == 0.0078125:
-        scaleY = (-1 / 0.4375) * 2.28571428571 * 2
-        translateY = 0.333333
-    elif vec[3] == -0.9765625:
-        scaleY = -32
-        translateY = -14
-    elif vec[3] == -1.9609375:
-        # todo shadowkeep idk
-        scaleY = 1
-        translateY = 0
-    elif vec[3] == -2.9453125:
-        # todo shadowkeep idk
-        scaleY = 1
-        translateY = 0
-    else:
-        raise Exception("Unknown terrain uv scale y")
-    return scaleX,scaleY,translateX,translateY
+def TransformTexcord(UVData,vec):
+    TransData=[]
+    for Val in UVData:
+        TransData.append([Val[0]*vec[0]+vec[2],Val[1]+vec[1]+(1-vec[3])])
+    return TransData
 def ReadUV(Header,UVName):
     Header=binascii.hexlify(bytes(hex_to_little_endian(Header))).decode('utf-8')
     new=ast.literal_eval("0x"+Header)
@@ -283,11 +265,17 @@ def ReadUV(Header,UVName):
     UVData=[]
     UV=open(custom_direc+"/out/"+UVName,"rb")
     for i in range(int(VBufferSize/Stride)):
-        Data=binascii.hexlify(bytes(UV.read(Stride))).decode()
-        Uvs=[Data[i:i+4] for i in range(0, len(Data), 4)]
-        U= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[4]))).decode('utf-8'),16)/32767))
-        V= ((twos_complement(binascii.hexlify(bytes(hex_to_little_endian(Uvs[5]))).decode('utf-8'),16)/32767))
+    #for i in range(int(2)):
+        UV.seek((i*0xC)+8)
+        x=UV.read(2)
+        y=UV.read(2)
+        U= np.frombuffer(x, dtype =np.float16)[0]
+        V= np.frombuffer(y, dtype =np.float16)[0]
+        #print(U)
+        #print(V)
         UVData.append([U,V])
+   
+       
     UV.close()
     return UVData
 def Hash64Search(Hash64Data,Input):
@@ -335,7 +323,12 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
     ent = Hex_String(Entry_ID(new))
     Bank=pkg+"-"+ent+".terrain"
     #rint(Bank)
-    file=open(MainPath+"/out/"+Bank,"rb")
+    try:
+        file=open(MainPath+"/out/"+Bank,"rb")
+    except FileNotFoundError:
+        UnpackEntry(TerrainHash,PackageCache,path)
+        file=open(MainPath+"/out/"+pkg+"-"+ent+".bin","rb")
+
     mainData=binascii.hexlify(bytes(file.read())).decode()
     file.seek(0x8)
     s = binascii.hexlify(bytes(file.read(4))).decode()
@@ -400,7 +393,7 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
         UVName=pkg+"-"+ent+".vert"
         UVFound=True
         UVData=ReadUV(binascii.hexlify(bytes(hex_to_little_endian(Vertex2))).decode('utf-8'),UVName)
-        print(UVData)
+        #print(UVData)
     FindUV=False
     Scale=1
     if (vertFound == True) and (indFound == True):
@@ -436,7 +429,7 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
         Verts=[]
         GlobalX=[(max(Xs)+min(Xs))/2,(max(Ys)+min(Ys))/2,(max(Zs)+min(Zs))/2]
         for vert in verts:
-            print(vert)
+            #print(vert)
             Verts.append([(vert[0]-GlobalX[0])*1024,(vert[1]-GlobalX[1])*1024,(vert[2]-GlobalX[2])*8,vert[3]])
         FindUV=False
         PartData=[]
@@ -453,7 +446,7 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
         triCount=0
         file.seek(0x80)
         PartOffset=int.from_bytes(file.read(4),"little")
-        print(PartOffset)
+        #print(PartOffset)
         file.seek(0x80+PartOffset)
         PartCount=int.from_bytes(file.read(4),"little")
         Parts=[]
@@ -463,7 +456,6 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
             IndexOffset=int.from_bytes(file.read(4),"little")
             IndexCount=int.from_bytes(file.read(2),"little")
             GroupIndex=int.from_bytes(file.read(1),"little")
-            #print(GroupIndex)
             DetailLevel=int.from_bytes(file.read(1),"little")
             Parts.append([Material,IndexOffset,IndexCount,GroupIndex,DetailLevel])
         file.seek(0x58)
@@ -486,13 +478,15 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
                 MinLod=Part[4]
         OutputtedSubmeshes=[]
         for Part in Parts:
-            print(Part)
+            #print(Part)
             if Part[2] == 0:
                 #PartCount+=1
                 continue
             if Part[4] > MinLod:
                 #PartCount+=1
                 continue
+            #UVData=TransformTexcord(UVData,MeshGroupVectors[Part[3]])
+            #print(UVData)
             OutputtedSubmeshes.append([Part[0],TerrainHash+"_"+str(Part[3])+"_"+str(PartCount)])
             usedVerts=[]
             IndexData=ReadFaces(ind,Part[1],Part[2])
@@ -518,7 +512,7 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
                 my_mesh.SetControlPointAt( v, count )
                 count+=1
 
-            ScaleX,ScaleY,TransX,TransY=TransformTexcord(MeshGroupVectors[Part[3]])
+            #ScaleX,ScaleY,TransX,TransY=TransformTexcord(MeshGroupVectors[Part[3]])
             #print(ScaleY)
             #tempcheck.sort(key=lambda x: x[0])
             #print(IndexData)
@@ -536,7 +530,8 @@ def ExtractTerrain(MainPath,TerrainHash,PackageCache,path,H64Sort):
             uvLayer.SetReferenceMode(fbx.FbxLayerElement.EReferenceMode.eDirect)
             layer = my_mesh.GetLayer(0)
             for Vert in Verticies:
-                uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Vert][0]) * ScaleX + TransX,float(UVData[Vert][1])*ScaleY+(1-TransY)))
+                uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Vert][0]) * MeshGroupVectors[Part[3]][0] + MeshGroupVectors[Part[3]][2],float(UVData[Vert][1])*(MeshGroupVectors[Part[3]][1]*-1)+1-MeshGroupVectors[Part[3]][3]))
+                #uvLayer.GetDirectArray().Add(fbx.FbxVector2(float(UVData[Vert][0]),float(UVData[Vert][1])))
             try:
                 layer.SetUVs(uvLayer)
             except AttributeError:
@@ -595,6 +590,10 @@ def GeneratePackageCache(path):
     PackageCache.sort(key=lambda x: x[1])
     return PackageCache
 PackageCache=GeneratePackageCache("E:\SteamLibrary\steamapps\common\Destiny2\packages")
-#ExtractTerrain("E:/MyUnpacker/DestinyUnpackerNew/new/MultiCore","1b75fc80",PackageCache,"E:\SteamLibrary\steamapps\common\Destiny2\packages")
+#ExtractTerrain("E:/MyUnpacker/DestinyUnpackerNew/new/MultiCore","5b75fc80",PackageCache,"E:\SteamLibrary\steamapps\common\Destiny2\packages","")
 #filename=name+".bin"
+#a=struct.unpack("<e",b'\xfa\xf7')
+#print(np.frombuffer((b'\xfa\xf7'), dtype=np.float16)[0])
+
+
 #exporter.export(scene)

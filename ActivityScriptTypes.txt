@@ -1,0 +1,8 @@
+FA988080 EntityPlacement + EntityNameMapping Table
+d8928080 EntityPlacement
+ef8c8080 EntityPlacementV2
+ef988080 EntityName2
+C6458080 dialog idp_
+E7978080 Activity Variables
+
+

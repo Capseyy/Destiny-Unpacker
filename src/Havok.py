@@ -63,7 +63,10 @@ def extract_ptch(f, origin,name):
     item_offset = o + 0x2A
     broke=False
     if fb[item_offset:item_offset + 4] != b"ITEM":
-        broke=True
+        o = gf.get_uint24_big(fb, 0x29)+ 0x2A
+        item_offset = o + 0x2A
+        if fb[item_offset:item_offset + 4] != b"ITEM":
+            broke=True
     item_end = gf.get_uint16_big(fb, item_offset - 2) + item_offset - 4
     ptch_offset = gf.get_uint16_big(fb, o + 0x28) + o + 0x28 + 2
     if fb[ptch_offset:ptch_offset + 4] != b"PTCH":
@@ -105,7 +108,7 @@ def extract_ptch(f, origin,name):
         min_coords.append([0, 0, -1])
         max_coords.append([0, 0, 1])
         cc = 53
-        print(entry_offsets)
+        #print(entry_offsets)
         try:
             entry_offsets[cc]
         except KeyError:
